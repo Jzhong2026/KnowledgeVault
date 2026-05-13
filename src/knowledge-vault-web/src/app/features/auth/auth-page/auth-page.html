@@ -1,0 +1,52 @@
+<main class="auth">
+  <section class="auth__panel">
+    <div class="auth__brand">
+      <span class="auth__mark">KV</span>
+      <div>
+        <p>KnowledgeVault</p>
+        <h1>{{ mode() === 'login' ? 'Welcome back' : 'Create your vault' }}</h1>
+      </div>
+    </div>
+
+    <div class="segment">
+      <button type="button" [class.is-active]="mode() === 'login'" (click)="setMode('login')">Sign in</button>
+      <button type="button" [class.is-active]="mode() === 'register'" (click)="setMode('register')">Register</button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      @if (mode() === 'register') {
+        <label>
+          User name
+          <input type="text" formControlName="userName" autocomplete="username" />
+        </label>
+
+        <label>
+          Email
+          <input type="email" formControlName="email" autocomplete="email" />
+        </label>
+      } @else {
+        <label>
+          User name or email
+          <input type="text" formControlName="userNameOrEmail" autocomplete="username" />
+        </label>
+      }
+
+      <label>
+        Password
+        <input type="password" formControlName="password" autocomplete="current-password" />
+      </label>
+
+      @if (error()) {
+        <p class="alert">{{ error() }}</p>
+      }
+
+      <button class="primary" type="submit" [disabled]="loading()">
+        @if (loading()) {
+          <app-loading-indicator label="Please wait" />
+        } @else {
+          {{ mode() === 'login' ? 'Sign in' : 'Create account' }}
+        }
+      </button>
+    </form>
+  </section>
+</main>

@@ -1,0 +1,73 @@
+<section class="editor">
+  <div class="editor__header">
+    <div>
+      <p>{{ item ? 'Editing' : 'New item' }}</p>
+      <h3>{{ item?.title || 'Untitled knowledge' }}</h3>
+    </div>
+    <button type="button" class="ghost" (click)="createNew.emit()">New</button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Title
+      <input type="text" formControlName="title" />
+    </label>
+
+    <label>
+      Summary
+      <input type="text" formControlName="summary" />
+    </label>
+
+    <div class="grid">
+      <label>
+        Category
+        <select formControlName="categoryId">
+          <option value="">Uncategorized</option>
+          @for (category of categories; track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Status
+        <select formControlName="status">
+          @for (status of statuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <label>
+      Existing tags
+      <select formControlName="tagIds" multiple>
+        @for (tag of tags; track tag.id) {
+          <option [value]="tag.id">{{ tag.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      New tags
+      <input type="text" formControlName="tagNames" placeholder="comma separated" />
+    </label>
+
+    <label>
+      Source URL
+      <input type="url" formControlName="sourceUrl" />
+    </label>
+
+    <label>
+      Content
+      <textarea formControlName="content" rows="12"></textarea>
+    </label>
+
+    <div class="editor__actions">
+      @if (item) {
+        <button type="button" class="danger" (click)="deleteItem.emit()">Delete</button>
+      }
+      <button type="submit" class="primary" [disabled]="saving">{{ saving ? 'Saving' : 'Save' }}</button>
+    </div>
+  </form>
+</section>

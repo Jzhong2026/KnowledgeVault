@@ -69,6 +69,9 @@ src\app\app.ts
 
 - Angular packages are currently `^21.2.x`.
 - SSR is present via `@angular/ssr`, `src/server.ts`, and server route/config files.
+- Feature folders currently include auth, dashboard, knowledge, categories, and tags.
+- Core folders include API client, auth service/guards, HTTP interceptor, config, and DTO models.
+- `proxy.conf.json` proxies `/KnowledgeVault` to `http://localhost` for local dev against the IIS API application.
 - Scripts:
   - `npm start`: Angular dev server.
   - `npm run build`: production build.

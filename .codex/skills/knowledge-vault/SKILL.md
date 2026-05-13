@@ -22,6 +22,8 @@ Use the Angular project in `knowledge-vault-web`.
 
 - Framework: Angular 21 with SSR files present.
 - Package manager: npm.
+- Frontend is split into `core`, `layout`, `shared`, and `features` folders.
+- API calls default to `/KnowledgeVault/api`; Angular dev server proxies `/KnowledgeVault` to `http://localhost`.
 - Useful commands from the frontend root:
   - `npm start`
   - `npm run build`

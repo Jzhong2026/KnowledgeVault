@@ -1,0 +1,24 @@
+@if (items.length) {
+  <div class="knowledge-list">
+    @for (item of items; track item.id) {
+      <button
+        type="button"
+        class="knowledge-list__item"
+        [class.is-selected]="item.id === selectedId"
+        (click)="selectItem.emit(item.id)"
+      >
+        <span>
+          <strong>{{ item.title }}</strong>
+          <small>{{ item.summary || 'No summary' }}</small>
+          <span class="meta">
+            <span>{{ item.category?.name || 'Uncategorized' }}</span>
+            <span>{{ item.updatedAt || item.createdAt | date: 'mediumDate' }}</span>
+          </span>
+        </span>
+        <app-status-pill [status]="item.status" />
+      </button>
+    }
+  </div>
+} @else {
+  <app-empty-state title="No matching knowledge" message="Adjust the filters or create a new item." />
+}

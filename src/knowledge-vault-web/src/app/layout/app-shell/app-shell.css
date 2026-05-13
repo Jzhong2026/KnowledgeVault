@@ -1,0 +1,28 @@
+.shell {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-columns: 260px minmax(0, 1fr);
+  background: var(--surface);
+}
+
+.shell__body {
+  min-width: 0;
+}
+
+.shell__content {
+  padding: 28px;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  app-sidebar {
+    display: none;
+  }
+
+  .shell__content {
+    padding: 16px;
+  }
+}

@@ -1,0 +1,15 @@
+<header class="topbar">
+  <div>
+    <p class="eyebrow">Workspace</p>
+    <h1>Personal Knowledge Vault</h1>
+  </div>
+
+  <div class="user">
+    <span class="avatar">{{ initials() }}</span>
+    <span class="user__meta">
+      <strong>{{ user()?.userName }}</strong>
+      <small>{{ user()?.email }}</small>
+    </span>
+    <button class="icon-button" type="button" title="Sign out" (click)="logout()">Out</button>
+  </div>
+</header>

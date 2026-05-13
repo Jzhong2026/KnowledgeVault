@@ -1,0 +1,56 @@
+<section class="knowledge-page">
+  <div class="page-heading">
+    <div>
+      <p>Library</p>
+      <h2>Knowledge items</h2>
+    </div>
+    <button type="button" class="primary" (click)="createNew()">New item</button>
+  </div>
+
+  @if (error()) {
+    <p class="alert">{{ error() }}</p>
+  }
+
+  <section class="workspace">
+    <aside class="panel">
+      <div class="filters">
+        <input
+          type="search"
+          placeholder="Search knowledge"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+          (keyup.enter)="applyFilters()"
+        />
+        <select [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
+          <option value="">All statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Active">Active</option>
+          <option value="Archived">Archived</option>
+        </select>
+        <button type="button" class="ghost" (click)="applyFilters()">Filter</button>
+      </div>
+
+      @if (loading()) {
+        <div class="panel__loading">
+          <app-loading-indicator label="Loading knowledge" />
+        </div>
+      } @else {
+        <app-knowledge-list
+          [items]="items()"
+          [selectedId]="selectedId()"
+          (selectItem)="selectItem($event)"
+        />
+      }
+    </aside>
+
+    <app-knowledge-editor
+      [item]="selectedItem()"
+      [categories]="categories()"
+      [tags]="tags()"
+      [saving]="saving()"
+      (createNew)="createNew()"
+      (saveItem)="save($event)"
+      (deleteItem)="deleteSelected()"
+    />
+  </section>
+</section>

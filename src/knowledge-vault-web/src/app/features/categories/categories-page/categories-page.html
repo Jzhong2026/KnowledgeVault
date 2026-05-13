@@ -1,0 +1,75 @@
+<section class="manager">
+  <div class="page-heading">
+    <div>
+      <p>Organize</p>
+      <h2>Categories</h2>
+    </div>
+    <button type="button" class="primary" (click)="newCategory()">New category</button>
+  </div>
+
+  @if (error()) {
+    <p class="alert">{{ error() }}</p>
+  }
+
+  <div class="manager__grid">
+    <section class="panel">
+      @if (loading()) {
+        <div class="panel__pad">
+          <app-loading-indicator label="Loading categories" />
+        </div>
+      } @else if (categories().length) {
+        <div class="rows">
+          @for (category of categories(); track category.id) {
+            <article [class.is-selected]="selected()?.id === category.id">
+              <button type="button" (click)="edit(category)">
+                <span class="swatch" [style.background]="category.color || '#94a3b8'"></span>
+                <span>
+                  <strong>{{ category.name }}</strong>
+                  <small>{{ category.description || 'No description' }}</small>
+                </span>
+              </button>
+              <button type="button" class="delete" (click)="delete(category)">Delete</button>
+            </article>
+          }
+        </div>
+      } @else {
+        <app-empty-state title="No categories" message="Create categories to keep your knowledge easy to scan." />
+      }
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h3>{{ selected() ? 'Edit category' : 'Create category' }}</h3>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <label>
+          Name
+          <input type="text" formControlName="name" />
+        </label>
+
+        <label>
+          Description
+          <textarea rows="4" formControlName="description"></textarea>
+        </label>
+
+        <div class="split">
+          <label>
+            Color
+            <input type="color" formControlName="color" />
+          </label>
+          <label>
+            Sort order
+            <input type="number" formControlName="sortOrder" />
+          </label>
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" formControlName="isArchived" />
+          Archived
+        </label>
+
+        <button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Saving' : 'Save category' }}</button>
+      </form>
+    </section>
+  </div>
+</section>

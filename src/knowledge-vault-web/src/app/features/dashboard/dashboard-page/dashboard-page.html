@@ -1,0 +1,49 @@
+<section class="dashboard">
+  <div class="page-heading">
+    <div>
+      <p>Overview</p>
+      <h2>Vault activity</h2>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <app-loading-indicator label="Loading workspace" />
+  } @else {
+    <div class="stats">
+      <article>
+        <span>Knowledge items</span>
+        <strong>{{ totalItems() }}</strong>
+      </article>
+      <article>
+        <span>Categories</span>
+        <strong>{{ categories().length }}</strong>
+      </article>
+      <article>
+        <span>Tags</span>
+        <strong>{{ tags().length }}</strong>
+      </article>
+    </div>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h3>Recent knowledge</h3>
+      </div>
+
+      @if (recentItems().length) {
+        <div class="recent-list">
+          @for (item of recentItems(); track item.id) {
+            <article>
+              <div>
+                <h4>{{ item.title }}</h4>
+                <p>{{ item.summary || 'No summary yet' }}</p>
+              </div>
+              <app-status-pill [status]="item.status" />
+            </article>
+          }
+        </div>
+      } @else {
+        <app-empty-state title="No knowledge yet" message="Create the first note, reference, or article in your vault." />
+      }
+    </section>
+  }
+</section>

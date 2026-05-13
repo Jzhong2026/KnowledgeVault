@@ -1,0 +1,48 @@
+.knowledge-list {
+  display: grid;
+}
+
+.knowledge-list__item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  padding: 16px;
+  text-align: left;
+}
+
+.knowledge-list__item:hover,
+.knowledge-list__item.is-selected {
+  background: #f6fbf9;
+}
+
+.knowledge-list__item strong,
+.knowledge-list__item small {
+  display: block;
+}
+
+.knowledge-list__item strong {
+  font-size: 15px;
+}
+
+.knowledge-list__item small {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}

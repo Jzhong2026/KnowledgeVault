@@ -1,1 +1,42 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --accent: #2f7d68;
+  --accent-strong: #1f5f50;
+  --border: #d9e2df;
+  --muted: #667085;
+  --surface: #f6f8fa;
+  --text: #182230;
+  --shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+  color-scheme: light;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(47, 125, 104, 0.22);
+  outline-offset: 2px;
+}
+
+a {
+  color: inherit;
+}
