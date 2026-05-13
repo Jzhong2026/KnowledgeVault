@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge Vault"
+  short_description: "Project context for KnowledgeVault frontend and backend work."
+  default_prompt: "Use $knowledge-vault to work on the KnowledgeVault personal knowledge base project."
