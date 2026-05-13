@@ -38,6 +38,7 @@ Use the ASP.NET Core project under `KnowledgeVault\KnowledgeVault`.
 - API project should keep controllers thin; place business logic in provider classes.
 - Current backend is split into API, Domain, Contracts, DataAccess, Infrastructure, and Providers projects.
 - SQLite is accessed through EF Core migrations in the DataAccess project.
+- API logs use Serilog compact JSON lines under the app content root `logs` directory.
 - Useful command from `D:\AI\Projects\KnowledgeVault\src\KnowledgeVault`:
   - `dotnet run --project .\KnowledgeVault\KnowledgeVault.csproj`
   - `dotnet build .\KnowledgeVault.slnx`

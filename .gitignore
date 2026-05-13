@@ -22,11 +22,17 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+*.log
 
 # .NET Core
 project.lock.json
 project.fragment.lock.json
 artifacts/
+
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

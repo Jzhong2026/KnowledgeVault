@@ -25,7 +25,8 @@ KnowledgeVault.Providers       # Business logic for auth, categories, tags, know
 - Target framework: `net10.0`.
 - Database: SQLite via EF Core migrations.
 - Local EF tool manifest: `src\KnowledgeVault\dotnet-tools.json`.
-- Startup runs migrations in development.
+- Startup runs migrations in development or when `Database:AutoMigrate` is `true`.
+- API logs use Serilog compact JSON lines in the app content root `logs` directory.
 - Controllers should stay thin and delegate to provider interfaces.
 - Authentication uses JWT bearer tokens.
 - Knowledge base basics currently include users, categories, tags, knowledge items, and `KnowledgeItemStatus`.

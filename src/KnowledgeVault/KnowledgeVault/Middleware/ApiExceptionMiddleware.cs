@@ -31,7 +31,12 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
 
         if (statusCode == HttpStatusCode.InternalServerError)
         {
-            logger.LogError(exception, "Unhandled API exception");
+            logger.LogError(
+                exception,
+                "Unhandled API exception for {Method} {Path}. TraceId: {TraceId}",
+                context.Request.Method,
+                context.Request.Path,
+                context.TraceIdentifier);
         }
 
         context.Response.StatusCode = (int)statusCode;
@@ -41,6 +46,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         {
             title,
             status = (int)statusCode,
+            traceId = context.TraceIdentifier,
             detail = statusCode == HttpStatusCode.InternalServerError
                 ? "An unexpected error occurred."
                 : exception.Message
