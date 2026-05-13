@@ -1,73 +1,87 @@
-<section class="editor">
-  <div class="editor__header">
-    <div>
-      <p>{{ item ? 'Editing' : 'New item' }}</p>
-      <h3>{{ item?.title || 'Untitled knowledge' }}</h3>
+<div class="dialog-backdrop" role="presentation" (click)="closeDialog.emit()">
+  <section
+    class="editor-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="knowledge-editor-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="editor-dialog__header">
+      <div>
+        <p>{{ item ? 'Editing' : 'New item' }}</p>
+        <h3 id="knowledge-editor-title">{{ item?.title || 'Untitled knowledge' }}</h3>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="ghost" (click)="createNew.emit()">New</button>
+        <button type="button" class="icon-button" title="Close" (click)="closeDialog.emit()">x</button>
+      </div>
     </div>
-    <button type="button" class="ghost" (click)="createNew.emit()">New</button>
-  </div>
 
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <label>
-      Title
-      <input type="text" formControlName="title" />
-    </label>
-
-    <label>
-      Summary
-      <input type="text" formControlName="summary" />
-    </label>
-
-    <div class="grid">
+    <form [formGroup]="form" (ngSubmit)="submit()">
       <label>
-        Category
-        <select formControlName="categoryId">
-          <option value="">Uncategorized</option>
-          @for (category of categories; track category.id) {
-            <option [value]="category.id">{{ category.name }}</option>
+        Title
+        <input type="text" formControlName="title" />
+      </label>
+
+      <label>
+        Summary
+        <input type="text" formControlName="summary" />
+      </label>
+
+      <label>
+        Content
+        <textarea formControlName="content" rows="10"></textarea>
+      </label>
+
+      <div class="grid">
+        <label>
+          Category
+          <select formControlName="categoryId">
+            <option value="">Uncategorized</option>
+            @for (category of categories; track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Status
+          <select formControlName="status">
+            @for (status of statuses; track status) {
+              <option [value]="status">{{ status }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <label>
+        Existing tags
+        <select formControlName="tagIds" multiple>
+          @for (tag of tags; track tag.id) {
+            <option [value]="tag.id">{{ tag.name }}</option>
           }
         </select>
       </label>
 
-      <label>
-        Status
-        <select formControlName="status">
-          @for (status of statuses; track status) {
-            <option [value]="status">{{ status }}</option>
-          }
-        </select>
-      </label>
-    </div>
+      <div class="grid">
+        <label>
+          New tags
+          <input type="text" formControlName="tagNames" placeholder="comma separated" />
+        </label>
 
-    <label>
-      Existing tags
-      <select formControlName="tagIds" multiple>
-        @for (tag of tags; track tag.id) {
-          <option [value]="tag.id">{{ tag.name }}</option>
+        <label>
+          Source URL
+          <input type="url" formControlName="sourceUrl" />
+        </label>
+      </div>
+
+      <div class="editor-dialog__actions">
+        @if (item) {
+          <button type="button" class="danger" (click)="deleteItem.emit()">Delete</button>
         }
-      </select>
-    </label>
-
-    <label>
-      New tags
-      <input type="text" formControlName="tagNames" placeholder="comma separated" />
-    </label>
-
-    <label>
-      Source URL
-      <input type="url" formControlName="sourceUrl" />
-    </label>
-
-    <label>
-      Content
-      <textarea formControlName="content" rows="12"></textarea>
-    </label>
-
-    <div class="editor__actions">
-      @if (item) {
-        <button type="button" class="danger" (click)="deleteItem.emit()">Delete</button>
-      }
-      <button type="submit" class="primary" [disabled]="saving">{{ saving ? 'Saving' : 'Save' }}</button>
-    </div>
-  </form>
-</section>
+        <button type="button" class="ghost" (click)="closeDialog.emit()">Cancel</button>
+        <button type="submit" class="primary" [disabled]="saving">{{ saving ? 'Saving' : 'Save' }}</button>
+      </div>
+    </form>
+  </section>
+</div>

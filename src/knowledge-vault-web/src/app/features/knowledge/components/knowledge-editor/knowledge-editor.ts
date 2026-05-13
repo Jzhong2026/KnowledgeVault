@@ -24,6 +24,7 @@ export class KnowledgeEditor implements OnChanges {
   @Output() saveItem = new EventEmitter<SaveKnowledgeItemRequest>();
   @Output() deleteItem = new EventEmitter<void>();
   @Output() createNew = new EventEmitter<void>();
+  @Output() closeDialog = new EventEmitter<void>();
 
   readonly statuses: KnowledgeItemStatus[] = ['Draft', 'Active', 'Archived'];
 

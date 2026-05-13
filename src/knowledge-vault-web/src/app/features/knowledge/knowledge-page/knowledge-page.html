@@ -12,7 +12,7 @@
   }
 
   <section class="workspace">
-    <aside class="panel">
+    <section class="panel">
       <div class="filters">
         <input
           type="search"
@@ -41,16 +41,19 @@
           (selectItem)="selectItem($event)"
         />
       }
-    </aside>
+    </section>
 
-    <app-knowledge-editor
-      [item]="selectedItem()"
-      [categories]="categories()"
-      [tags]="tags()"
-      [saving]="saving()"
-      (createNew)="createNew()"
-      (saveItem)="save($event)"
-      (deleteItem)="deleteSelected()"
-    />
+    @if (editorOpen()) {
+      <app-knowledge-editor
+        [item]="selectedItem()"
+        [categories]="categories()"
+        [tags]="tags()"
+        [saving]="saving()"
+        (createNew)="createNew()"
+        (closeDialog)="closeEditor()"
+        (saveItem)="save($event)"
+        (deleteItem)="deleteSelected()"
+      />
+    }
   </section>
 </section>

@@ -22,6 +22,7 @@ export class TagsPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly editorOpen = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(64)]],
@@ -47,6 +48,7 @@ export class TagsPage {
       name: tag.name,
       color: tag.color ?? '#27ae60',
     });
+    this.editorOpen.set(true);
   }
 
   newTag(): void {
@@ -55,6 +57,11 @@ export class TagsPage {
       name: '',
       color: '#27ae60',
     });
+    this.editorOpen.set(true);
+  }
+
+  closeEditor(): void {
+    this.editorOpen.set(false);
   }
 
   save(): void {
@@ -73,6 +80,7 @@ export class TagsPage {
     operation.subscribe({
       next: (tag) => {
         this.selected.set(tag);
+        this.editorOpen.set(false);
         this.load();
       },
       error: (error) => {
@@ -87,7 +95,8 @@ export class TagsPage {
     this.api.deleteTag(tag.id).subscribe({
       next: () => {
         if (this.selected()?.id === tag.id) {
-          this.newTag();
+          this.selected.set(null);
+          this.editorOpen.set(false);
         }
         this.load();
       },

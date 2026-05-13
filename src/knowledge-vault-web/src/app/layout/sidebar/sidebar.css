@@ -17,14 +17,10 @@
 }
 
 .brand__mark {
-  display: grid;
   width: 42px;
   height: 42px;
-  place-items: center;
   border-radius: 8px;
-  background: var(--accent);
-  color: #ffffff;
-  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(24, 34, 48, 0.14);
 }
 
 .brand strong,

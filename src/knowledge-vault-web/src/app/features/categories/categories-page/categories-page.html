@@ -11,37 +11,49 @@
     <p class="alert">{{ error() }}</p>
   }
 
-  <div class="manager__grid">
-    <section class="panel">
-      @if (loading()) {
-        <div class="panel__pad">
-          <app-loading-indicator label="Loading categories" />
-        </div>
-      } @else if (categories().length) {
-        <div class="rows">
-          @for (category of categories(); track category.id) {
-            <article [class.is-selected]="selected()?.id === category.id">
-              <button type="button" (click)="edit(category)">
-                <span class="swatch" [style.background]="category.color || '#94a3b8'"></span>
-                <span>
-                  <strong>{{ category.name }}</strong>
-                  <small>{{ category.description || 'No description' }}</small>
-                </span>
-              </button>
-              <button type="button" class="delete" (click)="delete(category)">Delete</button>
-            </article>
-          }
-        </div>
-      } @else {
-        <app-empty-state title="No categories" message="Create categories to keep your knowledge easy to scan." />
-      }
-    </section>
-
-    <section class="panel">
-      <div class="panel__header">
-        <h3>{{ selected() ? 'Edit category' : 'Create category' }}</h3>
+  <section class="panel">
+    @if (loading()) {
+      <div class="panel__pad">
+        <app-loading-indicator label="Loading categories" />
       </div>
-      <form [formGroup]="form" (ngSubmit)="save()">
+    } @else if (categories().length) {
+      <div class="rows">
+        @for (category of categories(); track category.id) {
+          <article [class.is-selected]="selected()?.id === category.id">
+            <button type="button" (click)="edit(category)">
+              <span class="swatch" [style.background]="category.color || '#94a3b8'"></span>
+              <span>
+                <strong>{{ category.name }}</strong>
+                <small>{{ category.description || 'No description' }}</small>
+              </span>
+            </button>
+            <button type="button" class="delete" (click)="delete(category)">Delete</button>
+          </article>
+        }
+      </div>
+    } @else {
+      <app-empty-state title="No categories" message="Create categories to keep your knowledge easy to scan." />
+    }
+  </section>
+
+  @if (editorOpen()) {
+    <div class="dialog-backdrop" role="presentation" (click)="closeEditor()">
+      <section
+        class="editor-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="category-editor-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="dialog-header">
+          <div>
+            <p>Category</p>
+            <h3 id="category-editor-title">{{ selected() ? 'Edit category' : 'Create category' }}</h3>
+          </div>
+          <button type="button" class="icon-button" aria-label="Close category editor" (click)="closeEditor()">x</button>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="save()">
         <label>
           Name
           <input type="text" formControlName="name" />
@@ -68,8 +80,15 @@
           Archived
         </label>
 
-        <button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Saving' : 'Save category' }}</button>
-      </form>
-    </section>
-  </div>
+          <div class="actions">
+            @if (selected()) {
+              <button type="button" class="danger" (click)="delete(selected()!)">Delete</button>
+            }
+            <button type="button" class="secondary" (click)="closeEditor()">Cancel</button>
+            <button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Saving' : 'Save category' }}</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
 </section>

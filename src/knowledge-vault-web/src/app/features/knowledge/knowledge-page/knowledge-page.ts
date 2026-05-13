@@ -31,6 +31,7 @@ export class KnowledgePage {
   readonly items = signal<KnowledgeItemSummary[]>([]);
   readonly selectedItem = signal<KnowledgeItem | null>(null);
   readonly selectedId = signal<string | null>(null);
+  readonly editorOpen = signal(false);
   readonly categories = signal<Category[]>([]);
   readonly tags = signal<Tag[]>([]);
   readonly search = signal('');
@@ -74,7 +75,10 @@ export class KnowledgePage {
   selectItem(id: string): void {
     this.selectedId.set(id);
     this.api.getKnowledgeItem(id).subscribe({
-      next: (item) => this.selectedItem.set(item),
+      next: (item) => {
+        this.selectedItem.set(item);
+        this.editorOpen.set(true);
+      },
       error: (error) => this.error.set(getErrorMessage(error)),
     });
   }
@@ -82,6 +86,11 @@ export class KnowledgePage {
   createNew(): void {
     this.selectedId.set(null);
     this.selectedItem.set(null);
+    this.editorOpen.set(true);
+  }
+
+  closeEditor(): void {
+    this.editorOpen.set(false);
   }
 
   save(request: SaveKnowledgeItemRequest): void {
@@ -95,6 +104,7 @@ export class KnowledgePage {
       next: (saved) => {
         this.selectedItem.set(saved);
         this.selectedId.set(saved.id);
+        this.editorOpen.set(false);
         this.loadWorkspace();
       },
       error: (error) => {
@@ -114,7 +124,9 @@ export class KnowledgePage {
     this.saving.set(true);
     this.api.deleteKnowledgeItem(item.id).subscribe({
       next: () => {
-        this.createNew();
+        this.selectedId.set(null);
+        this.selectedItem.set(null);
+        this.editorOpen.set(false);
         this.loadWorkspace();
       },
       error: (error) => {

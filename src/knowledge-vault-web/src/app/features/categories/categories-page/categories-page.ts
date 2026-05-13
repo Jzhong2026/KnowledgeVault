@@ -22,6 +22,7 @@ export class CategoriesPage {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly editorOpen = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(128)]],
@@ -53,6 +54,7 @@ export class CategoriesPage {
       sortOrder: category.sortOrder,
       isArchived: category.isArchived,
     });
+    this.editorOpen.set(true);
   }
 
   newCategory(): void {
@@ -64,6 +66,11 @@ export class CategoriesPage {
       sortOrder: 0,
       isArchived: false,
     });
+    this.editorOpen.set(true);
+  }
+
+  closeEditor(): void {
+    this.editorOpen.set(false);
   }
 
   save(): void {
@@ -89,6 +96,7 @@ export class CategoriesPage {
     operation.subscribe({
       next: (category) => {
         this.selected.set(category);
+        this.editorOpen.set(false);
         this.load();
       },
       error: (error) => {
@@ -103,7 +111,8 @@ export class CategoriesPage {
     this.api.deleteCategory(category.id).subscribe({
       next: () => {
         if (this.selected()?.id === category.id) {
-          this.newCategory();
+          this.selected.set(null);
+          this.editorOpen.set(false);
         }
         this.load();
       },

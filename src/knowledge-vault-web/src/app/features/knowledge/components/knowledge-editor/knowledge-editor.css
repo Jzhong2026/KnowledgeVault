@@ -1,11 +1,23 @@
-.editor {
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  overflow-y: auto;
+  place-items: start center;
+  background: rgba(15, 23, 42, 0.46);
+  padding: 34px 18px;
+}
+
+.editor-dialog {
+  width: min(940px, 100%);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
   box-shadow: var(--shadow);
 }
 
-.editor__header {
+.editor-dialog__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -14,25 +26,33 @@
   padding: 18px;
 }
 
-.editor__header p,
-.editor__header h3 {
+.editor-dialog__header p,
+.editor-dialog__header h3 {
   margin: 0;
 }
 
-.editor__header p {
+.editor-dialog__header p {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.editor__header h3 {
+.editor-dialog__header h3 {
   margin-top: 4px;
   font-size: 20px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 form {
   display: grid;
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
   gap: 15px;
   padding: 18px;
 }
@@ -69,10 +89,12 @@ textarea {
   resize: vertical;
 }
 
-.editor__actions {
+.editor-dialog__actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
 }
 
 button {
@@ -88,6 +110,19 @@ button {
   color: var(--text);
 }
 
+.icon-button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
 .primary {
   border: 0;
   background: var(--accent);
@@ -101,7 +136,21 @@ button {
 }
 
 @media (max-width: 760px) {
+  .dialog-backdrop {
+    padding: 12px;
+  }
+
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .editor-dialog__header,
+  .editor-dialog__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: space-between;
   }
 }

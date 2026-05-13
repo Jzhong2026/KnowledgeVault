@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">KnowledgeVault icon</title>
+  <desc id="desc">A secure vault mark with connected knowledge nodes.</desc>
+  <rect width="128" height="128" rx="24" fill="#182230"/>
+  <path d="M35 52C35 43.716 41.716 37 50 37H78C86.284 37 93 43.716 93 52V91C93 94.314 90.314 97 87 97H41C37.686 97 35 94.314 35 91V52Z" fill="#2F7D68"/>
+  <path d="M46 52C46 47.582 49.582 44 54 44H74C78.418 44 82 47.582 82 52V60H46V52Z" fill="#F6F8FA"/>
+  <path d="M49 60H79V52C79 49.239 76.761 47 74 47H54C51.239 47 49 49.239 49 52V60Z" fill="#182230"/>
+  <circle cx="64" cy="74" r="9" fill="#F6F8FA"/>
+  <path d="M64 79V88" stroke="#F6F8FA" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="47" cy="72" r="5" fill="#C8E6DC"/>
+  <circle cx="81" cy="72" r="5" fill="#C8E6DC"/>
+  <circle cx="64" cy="52" r="5" fill="#C8E6DC"/>
+  <path d="M51.5 72H55M73 72H76.5M64 57V64" stroke="#C8E6DC" stroke-width="4" stroke-linecap="round"/>
+  <path d="M30 35L39 26M89 26L98 35M64 18V30" stroke="#C8E6DC" stroke-width="6" stroke-linecap="round"/>
+</svg>

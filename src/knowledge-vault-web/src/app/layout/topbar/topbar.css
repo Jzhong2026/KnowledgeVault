@@ -25,7 +25,8 @@ h1 {
 .user {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
 }
 
 .avatar {
@@ -42,6 +43,7 @@ h1 {
 .user__meta {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .user__meta strong {
@@ -50,18 +52,27 @@ h1 {
 
 .user__meta small {
   color: var(--muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.icon-button {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 1px solid var(--border);
+.signout-button {
+  border: 1px solid #cfe0da;
   border-radius: 8px;
-  background: #ffffff;
-  color: var(--text);
+  background: #f6fbf9;
+  color: var(--accent-strong);
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 9px 13px;
+  white-space: nowrap;
+}
+
+.signout-button:hover {
+  border-color: var(--accent);
+  background: #edf7f3;
 }
 
 @media (max-width: 760px) {
@@ -69,5 +80,13 @@ h1 {
     align-items: flex-start;
     flex-direction: column;
     padding: 16px;
+  }
+
+  .user {
+    width: 100%;
+  }
+
+  .user__meta {
+    flex: 1;
   }
 }

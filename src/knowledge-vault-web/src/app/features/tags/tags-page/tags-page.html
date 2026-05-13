@@ -11,32 +11,44 @@
     <p class="alert">{{ error() }}</p>
   }
 
-  <div class="manager__grid">
-    <section class="panel">
-      @if (loading()) {
-        <div class="panel__pad">
-          <app-loading-indicator label="Loading tags" />
-        </div>
-      } @else if (tags().length) {
-        <div class="tag-cloud">
-          @for (tag of tags(); track tag.id) {
-            <button type="button" [class.is-selected]="selected()?.id === tag.id" (click)="edit(tag)">
-              <span class="swatch" [style.background]="tag.color || '#94a3b8'"></span>
-              <strong>{{ tag.name }}</strong>
-              <small>{{ tag.knowledgeItemCount }} items</small>
-            </button>
-          }
-        </div>
-      } @else {
-        <app-empty-state title="No tags" message="Add tags to connect related notes across categories." />
-      }
-    </section>
-
-    <section class="panel">
-      <div class="panel__header">
-        <h3>{{ selected() ? 'Edit tag' : 'Create tag' }}</h3>
+  <section class="panel">
+    @if (loading()) {
+      <div class="panel__pad">
+        <app-loading-indicator label="Loading tags" />
       </div>
-      <form [formGroup]="form" (ngSubmit)="save()">
+    } @else if (tags().length) {
+      <div class="tag-cloud">
+        @for (tag of tags(); track tag.id) {
+          <button type="button" [class.is-selected]="selected()?.id === tag.id" (click)="edit(tag)">
+            <span class="swatch" [style.background]="tag.color || '#94a3b8'"></span>
+            <strong>{{ tag.name }}</strong>
+            <small>{{ tag.knowledgeItemCount }} items</small>
+          </button>
+        }
+      </div>
+    } @else {
+      <app-empty-state title="No tags" message="Add tags to connect related notes across categories." />
+    }
+  </section>
+
+  @if (editorOpen()) {
+    <div class="dialog-backdrop" role="presentation" (click)="closeEditor()">
+      <section
+        class="editor-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tag-editor-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="dialog-header">
+          <div>
+            <p>Tag</p>
+            <h3 id="tag-editor-title">{{ selected() ? 'Edit tag' : 'Create tag' }}</h3>
+          </div>
+          <button type="button" class="icon-button" aria-label="Close tag editor" (click)="closeEditor()">x</button>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="save()">
         <label>
           Name
           <input type="text" formControlName="name" />
@@ -51,9 +63,11 @@
           @if (selected()) {
             <button type="button" class="danger" (click)="delete(selected()!)">Delete</button>
           }
+          <button type="button" class="secondary" (click)="closeEditor()">Cancel</button>
           <button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Saving' : 'Save tag' }}</button>
         </div>
-      </form>
-    </section>
-  </div>
+        </form>
+      </section>
+    </div>
+  }
 </section>
