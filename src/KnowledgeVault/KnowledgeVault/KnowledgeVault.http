@@ -1,0 +1,6 @@
+@KnowledgeVault_HostAddress = http://localhost:5073
+
+GET {{KnowledgeVault_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

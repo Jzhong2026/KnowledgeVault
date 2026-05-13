@@ -55,3 +55,6 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+/src/KnowledgeVault/.vs/KnowledgeVault.slnx/v18
+/src/KnowledgeVault/.vs/KnowledgeVault.slnx
+*.user
