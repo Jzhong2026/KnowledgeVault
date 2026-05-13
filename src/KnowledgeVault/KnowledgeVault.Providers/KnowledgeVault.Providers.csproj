@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\KnowledgeVault.Contracts\KnowledgeVault.Contracts.csproj" />
+    <ProjectReference Include="..\KnowledgeVault.DataAccess\KnowledgeVault.DataAccess.csproj" />
+    <ProjectReference Include="..\KnowledgeVault.Infrastructure\KnowledgeVault.Infrastructure.csproj" />
+    <ProjectReference Include="..\KnowledgeVault.Domain\KnowledgeVault.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

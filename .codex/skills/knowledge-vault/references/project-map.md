@@ -1,12 +1,42 @@
 # KnowledgeVault Project Map
 
-Snapshot captured on 2026-05-13 from the initial scaffolds. Always refresh with `rg --files` before relying on this for active work.
+Snapshot updated on 2026-05-13. Always refresh with `rg --files` before relying on this for active work.
 
 ## Roots
 
+- Repository: `D:\AI\Projects\KnowledgeVault`
 - Frontend: `D:\AI\Projects\KnowledgeVault\src\knowledge-vault-web`
 - Backend solution: `D:\AI\Projects\KnowledgeVault\src\KnowledgeVault`
-- Backend project: `D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault`
+- Backend API project: `D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault`
+
+## Backend Projects
+
+```text
+KnowledgeVault                 # ASP.NET Core API, controllers, middleware, auth wiring
+KnowledgeVault.Domain          # Entities and enums
+KnowledgeVault.Contracts       # DTOs, provider interfaces, current-user contract
+KnowledgeVault.DataAccess      # EF Core DbContext, SQLite config, migrations
+KnowledgeVault.Infrastructure  # Reusable JWT, password hashing, time, exceptions, text helpers
+KnowledgeVault.Providers       # Business logic for auth, categories, tags, knowledge items, lookups
+```
+
+## Backend Notes
+
+- Target framework: `net10.0`.
+- Database: SQLite via EF Core migrations.
+- Local EF tool manifest: `src\KnowledgeVault\dotnet-tools.json`.
+- Startup runs migrations in development.
+- Controllers should stay thin and delegate to provider interfaces.
+- Authentication uses JWT bearer tokens.
+- Knowledge base basics currently include users, categories, tags, knowledge items, and `KnowledgeItemStatus`.
+
+Useful backend commands from `D:\AI\Projects\KnowledgeVault\src\KnowledgeVault`:
+
+```powershell
+dotnet build .\KnowledgeVault.slnx
+dotnet run --project .\KnowledgeVault\KnowledgeVault.csproj
+dotnet tool run dotnet-ef migrations add <Name> --project .\KnowledgeVault.DataAccess\KnowledgeVault.DataAccess.csproj --startup-project .\KnowledgeVault\KnowledgeVault.csproj --output-dir Migrations
+```
 
 ## Frontend Files
 
@@ -43,28 +73,3 @@ src\app\app.ts
   - `npm run build`: production build.
   - `npm test`: test runner.
   - `npm run watch`: development build watch.
-
-## Backend Files
-
-```text
-KnowledgeVault.slnx
-KnowledgeVault\KnowledgeVault.csproj
-KnowledgeVault\Program.cs
-KnowledgeVault\WeatherForecast.cs
-KnowledgeVault\KnowledgeVault.http
-KnowledgeVault\appsettings.json
-KnowledgeVault\appsettings.Development.json
-KnowledgeVault\Properties\launchSettings.json
-KnowledgeVault\Controllers\WeatherForecastController.cs
-```
-
-## Backend Project Notes
-
-- Target framework: `net10.0`.
-- Nullable and implicit usings are enabled.
-- Package reference: `Microsoft.AspNetCore.OpenApi` `10.0.8`.
-- `Program.cs` currently registers controllers, OpenAPI, HTTPS redirection, authorization, and maps controllers.
-- Development OpenAPI is mapped only in development.
-- Launch profiles:
-  - `http`: `http://localhost:5073`
-  - `https`: `https://localhost:7091;http://localhost:5073`

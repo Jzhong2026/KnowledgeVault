@@ -35,9 +35,13 @@ Follow existing Angular conventions before adding new structure. Keep UI work or
 Use the ASP.NET Core project under `KnowledgeVault\KnowledgeVault`.
 
 - Framework: ASP.NET Core on `net10.0`.
-- Current scaffold exposes controllers and OpenAPI in development.
+- API project should keep controllers thin; place business logic in provider classes.
+- Current backend is split into API, Domain, Contracts, DataAccess, Infrastructure, and Providers projects.
+- SQLite is accessed through EF Core migrations in the DataAccess project.
 - Useful command from `D:\AI\Projects\KnowledgeVault\src\KnowledgeVault`:
   - `dotnet run --project .\KnowledgeVault\KnowledgeVault.csproj`
+  - `dotnet build .\KnowledgeVault.slnx`
+  - `dotnet tool run dotnet-ef migrations add <Name> --project .\KnowledgeVault.DataAccess\KnowledgeVault.DataAccess.csproj --startup-project .\KnowledgeVault\KnowledgeVault.csproj --output-dir Migrations`
 - Development URLs from launch settings:
   - HTTP: `http://localhost:5073`
   - HTTPS: `https://localhost:7091`

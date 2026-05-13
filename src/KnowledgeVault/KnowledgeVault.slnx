@@ -1,3 +1,8 @@
 <Solution>
+  <Project Path="KnowledgeVault.Contracts/KnowledgeVault.Contracts.csproj" />
+  <Project Path="KnowledgeVault.DataAccess/KnowledgeVault.DataAccess.csproj" />
+  <Project Path="KnowledgeVault.Domain/KnowledgeVault.Domain.csproj" />
+  <Project Path="KnowledgeVault.Infrastructure/KnowledgeVault.Infrastructure.csproj" />
+  <Project Path="KnowledgeVault.Providers/KnowledgeVault.Providers.csproj" />
   <Project Path="KnowledgeVault/KnowledgeVault.csproj" />
 </Solution>

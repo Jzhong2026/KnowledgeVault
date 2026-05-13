@@ -1,34 +1,68 @@
+using System.Text;
+using System.Text.Json.Serialization;
+using KnowledgeVault.Api.Middleware;
+using KnowledgeVault.Api.Security;
+using KnowledgeVault.Contracts.Security;
+using KnowledgeVault.DataAccess;
+using KnowledgeVault.DataAccess.DependencyInjection;
+using KnowledgeVault.Infrastructure.Auth;
+using KnowledgeVault.Infrastructure.DependencyInjection;
+using KnowledgeVault.Providers.DependencyInjection;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
-namespace KnowledgeVault
-{
-    public class Program
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
+builder.Services.AddKnowledgeVaultInfrastructure(builder.Configuration);
+builder.Services.AddKnowledgeVaultDataAccess(builder.Configuration);
+builder.Services.AddKnowledgeVaultProviders();
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
     {
-        public static void Main(string[] args)
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+builder.Services.AddOpenApi();
+
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey));
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            var builder = WebApplication.CreateBuilder(args);
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
 
-            // Add services to the container.
+builder.Services.AddAuthorization();
 
-            builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
+var app = builder.Build();
 
-            var app = builder.Build();
+app.UseMiddleware<ApiExceptionMiddleware>();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-            }
-
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
-            app.Run();
-        }
-    }
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    await KnowledgeVaultDbInitializer.MigrateAsync(app.Services);
 }
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+await app.RunAsync();
