@@ -112,12 +112,13 @@ public sealed class CategoryProvider(
 
     private Guid RequireCurrentUser()
     {
-        if (!currentUserContext.IsAuthenticated)
+        var userId = currentUserContext.UserId;
+        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
         {
             throw new UnauthorizedAppException("Authentication is required.");
         }
 
-        return currentUserContext.UserId;
+        return userId;
     }
 
     private static string RequireName(string value, int maxLength)

@@ -95,12 +95,13 @@ public sealed class AuthProvider(
 
     private Guid RequireCurrentUser()
     {
-        if (!currentUserContext.IsAuthenticated)
+        var userId = currentUserContext.UserId;
+        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
         {
             throw new UnauthorizedAppException("Authentication is required.");
         }
 
-        return currentUserContext.UserId;
+        return userId;
     }
 
     private static string RequireText(string value, string fieldName, int maxLength)
