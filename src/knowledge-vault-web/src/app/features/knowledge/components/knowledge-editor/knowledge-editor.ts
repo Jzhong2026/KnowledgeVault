@@ -91,4 +91,18 @@ export class KnowledgeEditor implements OnChanges {
         .filter(Boolean),
     });
   }
+
+  isTagSelected(tagId: string): boolean {
+    return this.form.controls.tagIds.value.includes(tagId);
+  }
+
+  toggleTag(tagId: string): void {
+    const current = this.form.controls.tagIds.value;
+    const next = current.includes(tagId)
+      ? current.filter((id) => id !== tagId)
+      : [...current, tagId];
+
+    this.form.controls.tagIds.setValue(next);
+    this.form.controls.tagIds.markAsDirty();
+  }
 }

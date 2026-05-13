@@ -1,0 +1,58 @@
+<div class="detail-backdrop" role="presentation" (click)="closeDetail.emit()">
+  <article
+    class="detail-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="knowledge-detail-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="detail-actions">
+      <button type="button" class="secondary" (click)="editItem.emit()">Edit</button>
+      <button type="button" class="icon-button" aria-label="Close knowledge detail" (click)="closeDetail.emit()">x</button>
+    </div>
+
+    <header class="article-header">
+      <div class="article-meta">
+        <span class="category">
+          <span class="category__swatch" [style.background]="item.category?.color || '#94a3b8'"></span>
+          {{ item.category?.name || 'Uncategorized' }}
+        </span>
+        <span>{{ item.updatedAt || item.createdAt | date: 'mediumDate' }}</span>
+        <app-status-pill [status]="item.status" />
+      </div>
+
+      <h2 id="knowledge-detail-title">{{ item.title }}</h2>
+
+      @if (item.summary) {
+        <p class="summary">{{ item.summary }}</p>
+      }
+
+      @if (item.tags.length) {
+        <div class="tags" aria-label="Tags">
+          @for (tag of item.tags; track tag.id) {
+            <span class="tag">
+              <span class="tag__swatch" [style.background]="tag.color || '#94a3b8'"></span>
+              {{ tag.name }}
+            </span>
+          }
+        </div>
+      }
+    </header>
+
+    <div class="article-body">
+      @if (paragraphs().length) {
+        @for (paragraph of paragraphs(); track paragraph) {
+          <p>{{ paragraph }}</p>
+        }
+      } @else {
+        <p class="empty-content">No content has been added yet.</p>
+      }
+    </div>
+
+    @if (item.sourceUrl) {
+      <footer class="article-footer">
+        <a [href]="item.sourceUrl" target="_blank" rel="noreferrer">Open source</a>
+      </footer>
+    }
+  </article>
+</div>

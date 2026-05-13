@@ -1,22 +1,44 @@
 @if (items.length) {
   <div class="knowledge-list">
     @for (item of items; track item.id) {
-      <button
-        type="button"
-        class="knowledge-list__item"
-        [class.is-selected]="item.id === selectedId"
-        (click)="selectItem.emit(item.id)"
-      >
-        <span>
-          <strong>{{ item.title }}</strong>
+      <article class="knowledge-list__item" [class.is-selected]="item.id === selectedId">
+        <div class="item-main">
+          <a class="title-link" [routerLink]="['/knowledge/detail', item.id]" target="_blank" rel="noopener">
+            {{ item.title }}
+          </a>
           <small>{{ item.summary || 'No summary' }}</small>
           <span class="meta">
-            <span>{{ item.category?.name || 'Uncategorized' }}</span>
+            <span class="category">
+              <span class="category__swatch" [style.background]="item.category?.color || '#94a3b8'"></span>
+              {{ item.category?.name || 'Uncategorized' }}
+            </span>
             <span>{{ item.updatedAt || item.createdAt | date: 'mediumDate' }}</span>
           </span>
-        </span>
-        <app-status-pill [status]="item.status" />
-      </button>
+        </div>
+
+        <div class="item-tags" aria-label="Tags">
+          @if (item.tags.length) {
+            @for (tag of item.tags; track tag.id) {
+              <span class="tag">
+                <span class="tag__swatch" [style.background]="tag.color || '#94a3b8'"></span>
+                {{ tag.name }}
+              </span>
+            }
+          } @else {
+            <span class="no-tags">No tags</span>
+          }
+        </div>
+
+        <div class="item-controls">
+          <div class="item-status">
+            <app-status-pill [status]="item.status" />
+          </div>
+          <div class="item-actions">
+            <a class="action action--view" [routerLink]="['/knowledge/detail', item.id]" target="_blank" rel="noopener">View</a>
+            <button type="button" class="action" (click)="openEditor(item.id, $event)">Edit</button>
+          </div>
+        </div>
+      </article>
     }
   </div>
 } @else {

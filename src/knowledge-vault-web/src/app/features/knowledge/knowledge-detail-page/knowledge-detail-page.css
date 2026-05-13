@@ -1,0 +1,150 @@
+.detail-page {
+  display: grid;
+  gap: 18px;
+}
+
+.detail-toolbar a {
+  color: var(--accent-strong);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.detail-toolbar a:hover {
+  text-decoration: underline;
+}
+
+.article,
+.loading {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.loading {
+  padding: 28px;
+}
+
+.article-header {
+  display: grid;
+  gap: 18px;
+  border-bottom: 1px solid var(--border);
+  padding: 46px clamp(24px, 7vw, 88px) 36px;
+}
+
+.article-meta,
+.category,
+.tag {
+  display: flex;
+  align-items: center;
+}
+
+.article-meta {
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.category {
+  gap: 7px;
+  color: var(--accent-strong);
+}
+
+.category__swatch,
+.tag__swatch {
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.category__swatch {
+  width: 11px;
+  height: 11px;
+}
+
+h2 {
+  max-width: 820px;
+  margin: 0;
+  color: var(--text);
+  font-size: 40px;
+  line-height: 1.12;
+}
+
+.summary {
+  max-width: 780px;
+  margin: 0;
+  color: #475467;
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  gap: 7px;
+  border: 1px solid #d7e6e0;
+  border-radius: 999px;
+  background: #f6fbf9;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.tag__swatch {
+  width: 9px;
+  height: 9px;
+}
+
+.article-body {
+  padding: 38px clamp(24px, 7vw, 88px) 46px;
+}
+
+.article-body p {
+  max-width: 820px;
+  margin: 0 0 20px;
+  color: #1d2939;
+  font-size: 16px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+}
+
+.empty-content {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.article-footer {
+  border-top: 1px solid var(--border);
+  padding: 18px clamp(24px, 7vw, 88px);
+}
+
+.article-footer a {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.alert {
+  margin: 0;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 10px 12px;
+}
+
+@media (max-width: 720px) {
+  h2 {
+    font-size: 30px;
+  }
+
+  .summary {
+    font-size: 16px;
+  }
+}

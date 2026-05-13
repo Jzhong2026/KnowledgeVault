@@ -54,14 +54,27 @@
         </label>
       </div>
 
-      <label>
-        Existing tags
-        <select formControlName="tagIds" multiple>
+      <div class="tag-field">
+        <span class="field-label">Existing tags</span>
+        @if (tags.length) {
+          <div class="tag-options" aria-label="Existing tags">
           @for (tag of tags; track tag.id) {
-            <option [value]="tag.id">{{ tag.name }}</option>
+              <button
+                type="button"
+                class="tag-option"
+                [class.is-selected]="isTagSelected(tag.id)"
+                [attr.aria-pressed]="isTagSelected(tag.id)"
+                (click)="toggleTag(tag.id)"
+              >
+                <span class="tag-option__swatch" [style.background]="tag.color || '#94a3b8'"></span>
+                {{ tag.name }}
+              </button>
           }
-        </select>
-      </label>
+          </div>
+        } @else {
+          <span class="empty-tags">No existing tags yet.</span>
+        }
+      </div>
 
       <div class="grid">
         <label>

@@ -1,0 +1,59 @@
+<section class="detail-page">
+  <div class="detail-toolbar">
+    <a routerLink="/knowledge">Back to knowledge</a>
+  </div>
+
+  @if (loading()) {
+    <div class="loading">
+      <app-loading-indicator label="Loading knowledge item" />
+    </div>
+  } @else if (error()) {
+    <p class="alert">{{ error() }}</p>
+  } @else if (item(); as knowledge) {
+    <article class="article">
+      <header class="article-header">
+        <div class="article-meta">
+          <span class="category">
+            <span class="category__swatch" [style.background]="knowledge.category?.color || '#94a3b8'"></span>
+            {{ knowledge.category?.name || 'Uncategorized' }}
+          </span>
+          <span>{{ knowledge.updatedAt || knowledge.createdAt | date: 'mediumDate' }}</span>
+          <app-status-pill [status]="knowledge.status" />
+        </div>
+
+        <h2>{{ knowledge.title }}</h2>
+
+        @if (knowledge.summary) {
+          <p class="summary">{{ knowledge.summary }}</p>
+        }
+
+        @if (knowledge.tags.length) {
+          <div class="tags" aria-label="Tags">
+            @for (tag of knowledge.tags; track tag.id) {
+              <span class="tag">
+                <span class="tag__swatch" [style.background]="tag.color || '#94a3b8'"></span>
+                {{ tag.name }}
+              </span>
+            }
+          </div>
+        }
+      </header>
+
+      <div class="article-body">
+        @if (paragraphs(knowledge.content).length) {
+          @for (paragraph of paragraphs(knowledge.content); track paragraph) {
+            <p>{{ paragraph }}</p>
+          }
+        } @else {
+          <p class="empty-content">No content has been added yet.</p>
+        }
+      </div>
+
+      @if (knowledge.sourceUrl) {
+        <footer class="article-footer">
+          <a [href]="knowledge.sourceUrl" target="_blank" rel="noreferrer">Open source</a>
+        </footer>
+      }
+    </article>
+  }
+</section>

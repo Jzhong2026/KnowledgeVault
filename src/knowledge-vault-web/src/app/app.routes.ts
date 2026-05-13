@@ -24,6 +24,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/dashboard/dashboard-page/dashboard-page').then((m) => m.DashboardPage),
       },
       {
+        path: 'knowledge/detail/:id',
+        loadComponent: () =>
+          import('./features/knowledge/knowledge-detail-page/knowledge-detail-page').then((m) => m.KnowledgeDetailPage),
+      },
+      {
         path: 'knowledge',
         loadComponent: () => import('./features/knowledge/knowledge-page/knowledge-page').then((m) => m.KnowledgePage),
       },

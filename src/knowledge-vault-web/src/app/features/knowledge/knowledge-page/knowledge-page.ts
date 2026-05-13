@@ -72,7 +72,7 @@ export class KnowledgePage {
     });
   }
 
-  selectItem(id: string): void {
+  editItem(id: string): void {
     this.selectedId.set(id);
     this.api.getKnowledgeItem(id).subscribe({
       next: (item) => {
