@@ -40,10 +40,8 @@
     </header>
 
     <div class="article-body">
-      @if (paragraphs().length) {
-        @for (paragraph of paragraphs(); track paragraph) {
-          <p>{{ paragraph }}</p>
-        }
+      @if (hasContent()) {
+        <div class="markdown-body" [innerHTML]="item.content | markdownContent"></div>
       } @else {
         <p class="empty-content">No content has been added yet.</p>
       }

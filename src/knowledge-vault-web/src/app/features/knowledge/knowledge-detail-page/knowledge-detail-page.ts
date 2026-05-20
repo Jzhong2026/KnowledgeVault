@@ -7,10 +7,11 @@ import { getErrorMessage } from '../../../core/http/error-message';
 import { KnowledgeItem } from '../../../core/models/knowledge.models';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { StatusPill } from '../../../shared/components/status-pill/status-pill';
+import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 
 @Component({
   selector: 'app-knowledge-detail-page',
-  imports: [DatePipe, LoadingIndicator, RouterLink, StatusPill],
+  imports: [DatePipe, LoadingIndicator, MarkdownContentPipe, RouterLink, StatusPill],
   templateUrl: './knowledge-detail-page.html',
   styleUrl: './knowledge-detail-page.css',
 })
@@ -37,10 +38,7 @@ export class KnowledgeDetailPage {
     });
   }
 
-  paragraphs(content: string): string[] {
-    return content
-      .split(/\n{2,}/)
-      .map((part) => part.trim())
-      .filter(Boolean);
+  hasContent(content: string): boolean {
+    return content.trim().length > 0;
   }
 }
