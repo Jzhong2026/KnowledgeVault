@@ -1,6 +1,5 @@
 using KnowledgeVault.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace KnowledgeVault.DataAccess;
 
@@ -75,7 +74,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasOne(x => x.Category)
                 .WithMany(x => x.KnowledgeItems)
                 .HasForeignKey(x => x.CategoryId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<KnowledgeItemTag>(builder =>
@@ -88,35 +87,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasOne(x => x.Tag)
                 .WithMany(x => x.KnowledgeItemTags)
                 .HasForeignKey(x => x.TagId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
         });
-
-        ConfigureDateTimeOffsetStorage(modelBuilder);
-    }
-
-    private static void ConfigureDateTimeOffsetStorage(ModelBuilder modelBuilder)
-    {
-        var dateTimeOffsetConverter = new ValueConverter<DateTimeOffset, long>(
-            value => value.ToUnixTimeMilliseconds(),
-            value => DateTimeOffset.FromUnixTimeMilliseconds(value));
-        var nullableDateTimeOffsetConverter = new ValueConverter<DateTimeOffset?, long?>(
-            value => value.HasValue ? value.Value.ToUnixTimeMilliseconds() : null,
-            value => value.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(value.Value) : null);
-
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            foreach (var property in entityType.GetProperties())
-            {
-                if (property.ClrType == typeof(DateTimeOffset))
-                {
-                    property.SetValueConverter(dateTimeOffsetConverter);
-                }
-
-                if (property.ClrType == typeof(DateTimeOffset?))
-                {
-                    property.SetValueConverter(nullableDateTimeOffsetConverter);
-                }
-            }
-        }
     }
 }

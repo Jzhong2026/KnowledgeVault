@@ -85,9 +85,12 @@ public sealed class TagProvider(
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var userId = RequireCurrentUser();
-        var tag = await dbContext.Tags.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+        var tag = await dbContext.Tags
+            .Include(x => x.KnowledgeItemTags)
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("Tag was not found.");
 
+        dbContext.KnowledgeItemTags.RemoveRange(tag.KnowledgeItemTags);
         dbContext.Tags.Remove(tag);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
