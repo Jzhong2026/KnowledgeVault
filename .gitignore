@@ -65,3 +65,6 @@ nunit-*.xml
 /src/KnowledgeVault/.vs/KnowledgeVault.slnx/v18
 /src/KnowledgeVault/.vs/KnowledgeVault.slnx
 *.user
+/src/KnowledgeVault/.vs/ProjectEvaluation/knowledgevault.metadata.v10.bin
+/src/KnowledgeVault/.vs/ProjectEvaluation/knowledgevault.projects.v10.bin
+/src/KnowledgeVault/.vs/ProjectEvaluation/knowledgevault.strings.v10.bin

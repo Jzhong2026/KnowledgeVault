@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,41 +12,13 @@ public static class DataAccessServiceCollectionExtensions
         string? contentRootPath = null)
     {
         var connectionString = configuration.GetConnectionString("KnowledgeVaultDb")
-            ?? "Data Source=knowledge-vault.db";
-        connectionString = ResolveSqliteConnectionString(connectionString, contentRootPath);
+            ?? "Data Source=(local)\\SqlExpress;Initial Catalog=KnowledgeVault;User ID=Jzhong1985;Password=Jasonzhong1985@;MultipleActiveResultSets=True;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;";
 
         services.AddDbContext<KnowledgeVaultDbContext>(options =>
         {
-            options.UseSqlite(connectionString);
+            options.UseSqlServer(connectionString);
         });
 
         return services;
-    }
-
-    private static string ResolveSqliteConnectionString(string connectionString, string? contentRootPath)
-    {
-        var builder = new SqliteConnectionStringBuilder(connectionString);
-        var dataSource = builder.DataSource;
-
-        if (string.IsNullOrWhiteSpace(dataSource)
-            || dataSource.Equals(":memory:", StringComparison.OrdinalIgnoreCase)
-            || Path.IsPathRooted(dataSource))
-        {
-            return connectionString;
-        }
-
-        var rootPath = string.IsNullOrWhiteSpace(contentRootPath)
-            ? AppContext.BaseDirectory
-            : contentRootPath;
-        var fullPath = Path.GetFullPath(Path.Combine(rootPath, dataSource));
-        var directory = Path.GetDirectoryName(fullPath);
-
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        builder.DataSource = fullPath;
-        return builder.ConnectionString;
     }
 }

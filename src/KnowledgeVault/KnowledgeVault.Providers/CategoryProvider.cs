@@ -93,6 +93,17 @@ public sealed class CategoryProvider(
         var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
 
+        var now = dateTimeProvider.UtcNow;
+        var knowledgeItems = await dbContext.KnowledgeItems
+            .Where(x => x.UserId == userId && x.CategoryId == id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var knowledgeItem in knowledgeItems)
+        {
+            knowledgeItem.CategoryId = null;
+            knowledgeItem.UpdatedAt = now;
+        }
+
         dbContext.Categories.Remove(category);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
