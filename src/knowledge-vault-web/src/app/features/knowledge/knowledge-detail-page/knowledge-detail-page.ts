@@ -7,11 +7,19 @@ import { getErrorMessage } from '../../../core/http/error-message';
 import { KnowledgeItem } from '../../../core/models/knowledge.models';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { StatusPill } from '../../../shared/components/status-pill/status-pill';
+import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 
 @Component({
   selector: 'app-knowledge-detail-page',
-  imports: [DatePipe, LoadingIndicator, MarkdownContentPipe, RouterLink, StatusPill],
+  imports: [
+    DatePipe,
+    LoadingIndicator,
+    MarkdownContentPipe,
+    MermaidDiagramsDirective,
+    RouterLink,
+    StatusPill,
+  ],
   templateUrl: './knowledge-detail-page.html',
   styleUrl: './knowledge-detail-page.css',
 })

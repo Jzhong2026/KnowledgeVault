@@ -3,11 +3,12 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 import { KnowledgeItem } from '../../../../core/models/knowledge.models';
 import { StatusPill } from '../../../../shared/components/status-pill/status-pill';
+import { MermaidDiagramsDirective } from '../../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../../shared/pipes/markdown-content.pipe';
 
 @Component({
   selector: 'app-knowledge-detail',
-  imports: [DatePipe, MarkdownContentPipe, StatusPill],
+  imports: [DatePipe, MarkdownContentPipe, MermaidDiagramsDirective, StatusPill],
   templateUrl: './knowledge-detail.html',
   styleUrl: './knowledge-detail.css',
 })

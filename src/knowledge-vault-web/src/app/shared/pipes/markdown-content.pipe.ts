@@ -30,6 +30,10 @@ hljs.registerLanguage('yaml', yaml);
 const renderer = new Renderer();
 
 renderer.code = ({ text, lang }: Tokens.Code): string => {
+  if (isMermaidLanguage(lang)) {
+    return `<div class="mermaid-diagram"><pre class="mermaid-source"><code>${escapeHtml(text)}</code></pre></div>`;
+  }
+
   const language = normalizeLanguage(lang);
   const highlighted = language
     ? hljs.highlight(text, { language, ignoreIllegals: true }).value
@@ -38,6 +42,10 @@ renderer.code = ({ text, lang }: Tokens.Code): string => {
 
   return `<pre><code class="hljs${languageClass}">${highlighted}</code></pre>`;
 };
+
+function isMermaidLanguage(language: string | undefined): boolean {
+  return language?.trim().split(/\s+/)[0].toLowerCase() === 'mermaid';
+}
 
 renderer.codespan = ({ text }: Tokens.Codespan): string => `<code>${escapeHtml(text)}</code>`;
 renderer.html = ({ text }: Tokens.HTML | Tokens.Tag): string => escapeHtml(text);

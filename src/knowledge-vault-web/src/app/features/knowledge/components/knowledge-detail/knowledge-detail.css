@@ -12,7 +12,7 @@
 
 .detail-dialog {
   position: relative;
-  width: min(920px, 100%);
+  width: min(1200px, 100%);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
@@ -115,7 +115,7 @@ h2 {
 }
 
 .article-body .markdown-body {
-  max-width: 760px;
+  max-width: none;
 }
 
 .empty-content {

@@ -41,7 +41,11 @@
 
     <div class="article-body">
       @if (hasContent()) {
-        <div class="markdown-body" [innerHTML]="item.content | markdownContent"></div>
+        <div
+          class="markdown-body markdown-body--wide"
+          [innerHTML]="item.content | markdownContent"
+          [appMermaidDiagrams]="item.content"
+        ></div>
       } @else {
         <p class="empty-content">No content has been added yet.</p>
       }
