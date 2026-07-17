@@ -1,16 +1,30 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace KnowledgeVault.DataAccess;
 
 public sealed class DesignTimeKnowledgeVaultDbContextFactory : IDesignTimeDbContextFactory<KnowledgeVaultDbContext>
 {
-    private const string ConnectionString = "Data Source=(local)\\SqlExpress;Initial Catalog=KnowledgeVault;User ID=Jzhong1985;Password=Jasonzhong1985@;MultipleActiveResultSets=True;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;";
-
     public KnowledgeVaultDbContext CreateDbContext(string[] args)
     {
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile($"appsettings.{environment}.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var connectionString = configuration.GetConnectionString("KnowledgeVaultDb");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:KnowledgeVaultDb is not configured. Provide it via appsettings, user secrets, or the ConnectionStrings__KnowledgeVaultDb environment variable.");
+        }
+
         var optionsBuilder = new DbContextOptionsBuilder<KnowledgeVaultDbContext>();
-        optionsBuilder.UseSqlServer(ConnectionString);
+        optionsBuilder.UseSqlServer(connectionString);
 
         return new KnowledgeVaultDbContext(optionsBuilder.Options);
     }

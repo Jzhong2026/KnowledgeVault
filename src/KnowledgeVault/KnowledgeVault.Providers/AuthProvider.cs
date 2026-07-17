@@ -87,6 +87,25 @@ public sealed class AuthProvider(
         return user.ToProfileDto();
     }
 
+    public async Task<UserProfileDto> UpdateNicknameAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken)
+            ?? throw new NotFoundException("User was not found.");
+
+        var nickname = string.IsNullOrWhiteSpace(request.Nickname) ? null : request.Nickname.Trim();
+        if (nickname is not null && nickname.Length > 64)
+        {
+            throw new ValidationException("Nickname must be 64 characters or fewer.");
+        }
+
+        user.Nickname = nickname;
+        user.UpdatedAt = dateTimeProvider.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return user.ToProfileDto();
+    }
+
     private AuthResponse CreateAuthResponse(User user)
     {
         var token = jwtTokenGenerator.GenerateToken(user.Id, user.UserName, user.Email);

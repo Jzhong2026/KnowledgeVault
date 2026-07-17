@@ -18,11 +18,10 @@ public sealed class TagProvider(
 {
     public async Task<IReadOnlyList<TagDto>> ListAsync(CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var tags = await dbContext.Tags
             .AsNoTracking()
             .Include(x => x.KnowledgeItemTags)
-            .Where(x => x.UserId == userId)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
 
@@ -31,11 +30,11 @@ public sealed class TagProvider(
 
     public async Task<TagDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var tag = await dbContext.Tags
             .AsNoTracking()
             .Include(x => x.KnowledgeItemTags)
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Tag was not found.");
 
         return tag.ToDto();
@@ -43,13 +42,12 @@ public sealed class TagProvider(
 
     public async Task<TagDto> CreateAsync(CreateTagRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var name = RequireName(request.Name);
-        await EnsureNameAvailableAsync(userId, name, null, cancellationToken);
+        await EnsureNameAvailableAsync(name, null, cancellationToken);
 
         var tag = new Tag
         {
-            UserId = userId,
             Name = name,
             NormalizedName = TextNormalizer.NormalizeName(name),
             Color = CleanOptional(request.Color, 32),
@@ -64,13 +62,13 @@ public sealed class TagProvider(
 
     public async Task<TagDto> UpdateAsync(Guid id, UpdateTagRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var tag = await dbContext.Tags
             .Include(x => x.KnowledgeItemTags)
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Tag was not found.");
         var name = RequireName(request.Name);
-        await EnsureNameAvailableAsync(userId, name, id, cancellationToken);
+        await EnsureNameAvailableAsync(name, id, cancellationToken);
 
         tag.Name = name;
         tag.NormalizedName = TextNormalizer.NormalizeName(name);
@@ -84,10 +82,10 @@ public sealed class TagProvider(
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var tag = await dbContext.Tags
             .Include(x => x.KnowledgeItemTags)
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Tag was not found.");
 
         dbContext.KnowledgeItemTags.RemoveRange(tag.KnowledgeItemTags);
@@ -95,11 +93,11 @@ public sealed class TagProvider(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task EnsureNameAvailableAsync(Guid userId, string name, Guid? currentId, CancellationToken cancellationToken)
+    private async Task EnsureNameAvailableAsync(string name, Guid? currentId, CancellationToken cancellationToken)
     {
         var normalized = TextNormalizer.NormalizeName(name);
         var exists = await dbContext.Tags.AnyAsync(
-            x => x.UserId == userId && x.NormalizedName == normalized && (!currentId.HasValue || x.Id != currentId.Value),
+            x => x.NormalizedName == normalized && (!currentId.HasValue || x.Id != currentId.Value),
             cancellationToken);
 
         if (exists)
@@ -108,15 +106,12 @@ public sealed class TagProvider(
         }
     }
 
-    private Guid RequireCurrentUser()
+    private void EnsureAuthenticated()
     {
-        var userId = currentUserContext.UserId;
-        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
+        if (!currentUserContext.IsAuthenticated || currentUserContext.UserId == Guid.Empty)
         {
             throw new UnauthorizedAppException("Authentication is required.");
         }
-
-        return userId;
     }
 
     private static string RequireName(string value)

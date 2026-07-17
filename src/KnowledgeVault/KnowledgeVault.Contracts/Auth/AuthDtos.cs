@@ -13,5 +13,8 @@ public sealed record UserProfileDto(
     Guid Id,
     string UserName,
     string Email,
+    string? Nickname,
     DateTimeOffset CreatedAt,
     DateTimeOffset? LastLoginAt);
+
+public sealed record UpdateProfileRequest(string? Nickname);

@@ -6,6 +6,7 @@ using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
 using KnowledgeVault.DataAccess.DependencyInjection;
 using KnowledgeVault.Infrastructure.Auth;
+using Microsoft.AspNetCore.Authentication;
 using KnowledgeVault.Infrastructure.DependencyInjection;
 using KnowledgeVault.Providers.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -92,7 +93,22 @@ var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<Jw
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey));
 
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = "SmartBearer";
+        options.DefaultChallengeScheme = "SmartBearer";
+        options.DefaultScheme = "SmartBearer";
+    })
+    .AddPolicyScheme("SmartBearer", "SmartBearer", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            var authorization = context.Request.Headers["Authorization"].ToString();
+            return authorization.StartsWith("Bearer kv_", StringComparison.OrdinalIgnoreCase)
+                ? ApiKeyAuthenticationHandler.SchemeName
+                : JwtBearerDefaults.AuthenticationScheme;
+        };
+    })
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -106,7 +122,9 @@ builder.Services
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
         };
-    });
+    })
+    .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationHandler.SchemeName, _ => { });
 
 builder.Services.AddAuthorization();
 

@@ -4,17 +4,19 @@ namespace KnowledgeVault.Domain.Entities;
 
 public sealed class KnowledgeItem : AuditableEntity
 {
-    public Guid UserId { get; set; }
+    public Guid OwnerUserId { get; set; }
+
+    public DocumentScope Scope { get; set; } = DocumentScope.Personal;
+
+    public Guid? TopicId { get; set; }
+
+    public DocumentType DocumentType { get; set; } = DocumentType.General;
+
+    public Guid? CurrentRevisionId { get; set; }
+
+    public int CurrentRevisionNumber { get; set; }
 
     public Guid? CategoryId { get; set; }
-
-    public string Title { get; set; } = string.Empty;
-
-    public string Content { get; set; } = string.Empty;
-
-    public string? Summary { get; set; }
-
-    public string? SourceUrl { get; set; }
 
     public KnowledgeItemStatus Status { get; set; } = KnowledgeItemStatus.Draft;
 
@@ -22,9 +24,15 @@ public sealed class KnowledgeItem : AuditableEntity
 
     public DateTimeOffset? ArchivedAt { get; set; }
 
-    public User? User { get; set; }
+    public User? OwnerUser { get; set; }
+
+    public ProjectTopic? Topic { get; set; }
 
     public Category? Category { get; set; }
+
+    public KnowledgeItemRevision? CurrentRevision { get; set; }
+
+    public ICollection<KnowledgeItemRevision> Revisions { get; set; } = [];
 
     public ICollection<KnowledgeItemTag> KnowledgeItemTags { get; set; } = [];
 }

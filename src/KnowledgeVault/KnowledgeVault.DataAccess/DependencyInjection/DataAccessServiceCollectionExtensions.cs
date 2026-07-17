@@ -11,8 +11,12 @@ public static class DataAccessServiceCollectionExtensions
         IConfiguration configuration,
         string? contentRootPath = null)
     {
-        var connectionString = configuration.GetConnectionString("KnowledgeVaultDb")
-            ?? "Data Source=(local)\\SqlExpress;Initial Catalog=KnowledgeVault;User ID=Jzhong1985;Password=Jasonzhong1985@;MultipleActiveResultSets=True;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;";
+        var connectionString = configuration.GetConnectionString("KnowledgeVaultDb");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:KnowledgeVaultDb is not configured. Set it via appsettings, user secrets, or the ConnectionStrings__KnowledgeVaultDb environment variable.");
+        }
 
         services.AddDbContext<KnowledgeVaultDbContext>(options =>
         {

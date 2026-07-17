@@ -37,6 +37,9 @@ artifacts/
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
+# Local development secrets (never commit)
+src/KnowledgeVault/KnowledgeVault/appsettings.Development.json
+
 # NuGet Packages
 *.nupkg
 # NuGet Symbol Packages
@@ -50,6 +53,7 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 .vs/
+categories_debug.png
 
 # MSBuild Binary and Structured Log
 *.binlog

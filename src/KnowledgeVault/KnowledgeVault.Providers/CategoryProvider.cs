@@ -18,8 +18,8 @@ public sealed class CategoryProvider(
 {
     public async Task<IReadOnlyList<CategoryDto>> ListAsync(bool includeArchived, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
-        var query = dbContext.Categories.AsNoTracking().Where(x => x.UserId == userId);
+        EnsureAuthenticated();
+        var query = dbContext.Categories.AsNoTracking();
 
         if (!includeArchived)
         {
@@ -35,9 +35,9 @@ public sealed class CategoryProvider(
 
     public async Task<CategoryDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var category = await dbContext.Categories.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
 
         return category.ToDto();
@@ -45,13 +45,12 @@ public sealed class CategoryProvider(
 
     public async Task<CategoryDto> CreateAsync(CreateCategoryRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        EnsureAuthenticated();
         var name = RequireName(request.Name, 128);
-        await EnsureNameAvailableAsync(userId, name, null, cancellationToken);
+        await EnsureNameAvailableAsync(name, null, cancellationToken);
 
         var category = new Category
         {
-            UserId = userId,
             Name = name,
             NormalizedName = TextNormalizer.NormalizeName(name),
             Description = CleanOptional(request.Description, 512),
@@ -68,11 +67,11 @@ public sealed class CategoryProvider(
 
     public async Task<CategoryDto> UpdateAsync(Guid id, UpdateCategoryRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
-        var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+        EnsureAuthenticated();
+        var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
         var name = RequireName(request.Name, 128);
-        await EnsureNameAvailableAsync(userId, name, id, cancellationToken);
+        await EnsureNameAvailableAsync(name, id, cancellationToken);
 
         category.Name = name;
         category.NormalizedName = TextNormalizer.NormalizeName(name);
@@ -89,13 +88,13 @@ public sealed class CategoryProvider(
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
-        var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
+        EnsureAuthenticated();
+        var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
 
         var now = dateTimeProvider.UtcNow;
         var knowledgeItems = await dbContext.KnowledgeItems
-            .Where(x => x.UserId == userId && x.CategoryId == id)
+            .Where(x => x.CategoryId == id)
             .ToListAsync(cancellationToken);
 
         foreach (var knowledgeItem in knowledgeItems)
@@ -108,11 +107,11 @@ public sealed class CategoryProvider(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task EnsureNameAvailableAsync(Guid userId, string name, Guid? currentId, CancellationToken cancellationToken)
+    private async Task EnsureNameAvailableAsync(string name, Guid? currentId, CancellationToken cancellationToken)
     {
         var normalized = TextNormalizer.NormalizeName(name);
         var exists = await dbContext.Categories.AnyAsync(
-            x => x.UserId == userId && x.NormalizedName == normalized && (!currentId.HasValue || x.Id != currentId.Value),
+            x => x.NormalizedName == normalized && (!currentId.HasValue || x.Id != currentId.Value),
             cancellationToken);
 
         if (exists)
@@ -121,15 +120,12 @@ public sealed class CategoryProvider(
         }
     }
 
-    private Guid RequireCurrentUser()
+    private void EnsureAuthenticated()
     {
-        var userId = currentUserContext.UserId;
-        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
+        if (!currentUserContext.IsAuthenticated || currentUserContext.UserId == Guid.Empty)
         {
             throw new UnauthorizedAppException("Authentication is required.");
         }
-
-        return userId;
     }
 
     private static string RequireName(string value, int maxLength)

@@ -2,14 +2,21 @@ using KnowledgeVault.Contracts.Categories;
 using KnowledgeVault.Contracts.Tags;
 using KnowledgeVault.Domain.Enums;
 
-namespace KnowledgeVault.Contracts.KnowledgeItems;
+namespace KnowledgeVault.Contracts.Documents;
 
 public sealed record KnowledgeItemDto(
     Guid Id,
+    DocumentScope Scope,
+    Guid? TopicId,
+    DocumentType DocumentType,
+    int CurrentRevisionNumber,
     string Title,
     string Content,
     string? Summary,
     string? SourceUrl,
+    string? TicketNo,
+    string? TicketUrl,
+    string? ChangeNote,
     KnowledgeItemStatus Status,
     CategoryDto? Category,
     IReadOnlyList<TagDto> Tags,
@@ -20,38 +27,40 @@ public sealed record KnowledgeItemDto(
 
 public sealed record KnowledgeItemSummaryDto(
     Guid Id,
+    DocumentScope Scope,
+    Guid? TopicId,
+    DocumentType DocumentType,
+    int CurrentRevisionNumber,
     string Title,
     string? Summary,
+    string? TicketNo,
     KnowledgeItemStatus Status,
     CategoryDto? Category,
     IReadOnlyList<TagDto> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 
-public sealed record KnowledgeItemQuery(
-    string? Search,
-    Guid? CategoryId,
-    KnowledgeItemStatus? Status,
-    IReadOnlyList<Guid>? TagIds,
-    int Page = 1,
-    int PageSize = 20);
-
-public sealed record CreateKnowledgeItemRequest(
+public sealed record RevisionSummaryDto(
+    Guid Id,
+    int RevisionNumber,
     string Title,
-    string Content,
     string? Summary,
-    string? SourceUrl,
-    Guid? CategoryId,
-    KnowledgeItemStatus Status,
-    IReadOnlyList<Guid>? TagIds,
-    IReadOnlyList<string>? TagNames);
+    string? ChangeNote,
+    string? TicketNo,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
+    DateTimeOffset CreatedAt);
 
-public sealed record UpdateKnowledgeItemRequest(
+public sealed record RevisionDto(
+    Guid Id,
+    int RevisionNumber,
     string Title,
-    string Content,
     string? Summary,
+    string Content,
     string? SourceUrl,
-    Guid? CategoryId,
-    KnowledgeItemStatus Status,
-    IReadOnlyList<Guid>? TagIds,
-    IReadOnlyList<string>? TagNames);
+    string? TicketNo,
+    string? TicketUrl,
+    string? ChangeNote,
+    Guid CreatedByUserId,
+    string CreatedByUserName,
+    DateTimeOffset CreatedAt);

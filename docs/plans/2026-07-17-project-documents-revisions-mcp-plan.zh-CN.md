@@ -15,7 +15,7 @@
 4. 文档每次保存形成不可变 revision；评论明确关联到某个 revision。
 5. 用户可在 Profile 中维护自己的 Nickname，并创建和撤销 API Key。
 6. 通过 HTTP 暴露 MCP Server，让 Codex 等 MCP Client 在权限范围内读取和维护文档，服务于 vibe coding。
-7. Category 和 Tag 的维护入口统一归入 `Preferences`，避免被误解为平台全局设置。
+7. Category 和 Tag 是**系统级（system-level）共享数据**，不属于任何单个用户；所有用户共用同一套分类与标签。维护入口归入 `Preferences`，但编辑会影响全平台。
 8. 实现中的页面 Title、导航、字段 Label、按钮和系统提示统一使用 English；用户自己的文档内容和 Nickname 使用什么语言、写什么内容，由用户自行决定。
 
 ## 2. 非目标
@@ -37,7 +37,7 @@
 - 采用 ASP.NET Core `net10.0`，分为 API、Domain、Contracts、DataAccess、Infrastructure、Providers。
 - 当前实际数据库配置使用 EF Core SQL Server；后续 migration 应按 SQL Server 验证。
 - `KnowledgeItem` 同时保存标题、正文、摘要和来源地址，更新操作会直接覆盖原内容。
-- 所有 Knowledge Item、Category、Tag 都以 `UserId` 隔离。
+- 所有 Knowledge Item 以 `OwnerUserId` 隔离；Category 与 Tag 为**系统级共享数据，不按 `UserId` 隔离**，全平台用户共用同一套分类与标签。
 - 当前只有 JWT Bearer 登录认证，没有 Project、Membership、Topic、Revision、Comment 或 API Key。
 - Controller 较薄，业务逻辑集中在 Provider，新增能力应继续遵循这一边界。
 
@@ -72,7 +72,7 @@
 - **项目文档（Project Document）**：项目成员按角色访问，`Scope = Project`，必须属于该项目的 Topic。
 - **Revision**：文档正文的一次不可变快照。
 - **Comment**：针对某个具体 Revision 的讨论记录。
-- **Category/Tag**：首期继续属于当前用户，不升级为全局系统数据。
+- **Category/Tag**：系统级共享数据，不属于任何单个用户；全平台共用同一套分类与标签，名称在系统范围内唯一。
 - **Nickname**：用户自行维护的可选显示名，不作为登录名，不要求唯一；未设置时显示 UserName。
 
 ## 5. Planning Review 决策
@@ -112,7 +112,7 @@ Preferences
 - 项目较多时只显示最近访问项目，并提供 `All Projects`。
 - 点击项目后，主区域展示主题列表；主题内展示文档。
 - `Personal Documents` 是独立一级入口，不把个人文档伪装成特殊项目。
-- Category/Tag 位于 `Preferences`，首期仍是用户自己的配置，不代表平台全局配置。
+- Category/Tag 位于 `Preferences`，但属于**系统级共享配置**，任何用户的编辑都会影响全平台所有文档的分类与标签展示。
 
 #### UI 语言与用户内容规则
 
@@ -252,13 +252,14 @@ erDiagram
 
 ### 5.7 Category 和 Tag 的边界
 
-首期保持现状：Category 和 Tag 都按用户拥有。
+**结论：Category 和 Tag 为系统级（system-level）共享数据，不属于任何单个用户。**
 
-- 个人文档可使用 Owner 的 Category/Tag。
-- 项目文档由编辑者选择自己的 Category/Tag 会造成团队视图不一致，因此项目文档首期建议只把 Tag 作为可选辅助信息，不用于权限或项目导航。
-- 若 Planning Review 确认项目需要共享分类，应新增 `TaxonomyScope` 或 ProjectTag/ProjectCategory，不能直接移除现有 `UserId` 约束。
-
-这是本计划唯一建议在实现前确认的产品边界；默认按“用户级 Category/Tag”推进。
+- 数据库 `Categories` 与 `Tags` 表移除 `UserId` 列及与 `Users` 的外键；名称唯一性约束从 `(UserId, NormalizedName)` 提升为系统范围的 `NormalizedName` 唯一。
+- 所有用户（个人文档与项目文档）共用同一套 Category 与 Tag；文档的 `CategoryId` 与 `KnowledgeItemTags` 直接引用系统级分类/标签。
+- 任何已认证用户都可读写系统级 Category/Tag；创建/重命名时按系统范围校验名称唯一，避免团队视图不一致。
+- 删除 Category 时，系统将其从所有引用该分类的文档（不限 Owner）上解除关联（置 `CategoryId = NULL`）；删除 Tag 时同时清理 `KnowledgeItemTags` 关联行。
+- Category/Tag 仅作为文档的辅助组织信息，不用于权限判断或项目导航。
+- 维护入口仍归入 `Preferences`（前端 `Categories` / `Tags` 页面），但编辑会影响全平台；如需限制为管理员专属，作为后续增强（如 `TaxonomyAdmin` 角色），不在首期范围。
 
 ## 6. 后端设计
 
@@ -340,7 +341,7 @@ Controller 继续保持参数绑定和 HTTP 状态码映射，不能复制授权
 | `documentType` | `General`/`PlanningReview`/`TaskBreakdown`，可空 | 只用于筛选，不能用于修改现有文档类型 |
 | `ticketNo` | string，可空 | 按规范化 Jira Key 精确匹配 |
 | `query` | string，可空 | 搜索当前 revision 的 Title、Summary、Content |
-| `categoryId` | Guid，可空 | 按当前用户 Category 筛选 |
+| `categoryId` | Guid，可空 | 按系统级 Category 筛选 |
 | `tagIds` | Guid 数组，可空 | 多个 Tag 默认采用 AND 语义，与现有行为一致 |
 | `status` | Document Status，可空 | 默认排除 Deleted |
 | `sort` | enum，默认 `updatedAtDesc` | MVP 支持 `updatedAtDesc`、`createdAtDesc`、`titleAsc` |
@@ -520,35 +521,38 @@ Document Content | Revision History | Comments
 
 任务编号是本计划内部编号，实施时可映射为 Jira Ticket。
 
+> 状态图例：【已完成】已实现并通过编译；【待做】尚未开始；【第二阶段/暂缓】按原计划延后到第二阶段。
+> 截至 2026-07-17 已完成：KV-001、KV-002、KV-003、KV-004、KV-005、KV-006、KV-011、KV-018，以及将 Category/Tag 由用户级改为系统级共享（见 §5.7，已落到代码与迁移 `SystemLevelCategoriesTags`）。
+
 ### Epic A：模型与迁移基础
 
-#### KV-001 建立 Project 与 Membership 领域模型
+#### KV-001 建立 Project 与 Membership 领域模型 【已完成】
 
 - 后端：Domain、DbContext、Contracts、Provider、Controller、DI。
 - 验收：创建者为 Owner；项目列表只返回当前用户所属项目；最后一个 Owner 不能被移除。
 - 测试：角色矩阵、越权访问、唯一成员约束、归档项目。
 - 依赖：无。
 
-#### KV-002 建立 ProjectTopic
+#### KV-002 建立 ProjectTopic 【已完成】
 
 - 后端：Topic CRUD、排序、归档、项目内名称唯一。
 - 验收：只有 Owner/Editor 可写；Viewer 可读；归档 Topic 不允许新增文档。
 - 依赖：KV-001。
 
-#### KV-003 扩展 KnowledgeItem 的 Scope 与 DocumentType
+#### KV-003 扩展 KnowledgeItem 的 Scope 与 DocumentType 【已完成】
 
 - 后端：Personal/Project 约束、OwnerUserId CLR 属性到现有 UserId 列的映射、Topic 关联、查询过滤。
 - 验收：个人文档 Topic 为空；项目文档必须挂有效 Topic；DocumentType 创建后不可修改；所有列表都经过授权过滤。
 - 依赖：KV-001、KV-002。
 
-#### KV-004 引入 Revision 与数据回填
+#### KV-004 引入 Revision 与数据回填 【已完成】
 
 - 后端：Revision entity、当前版本指针、expectedRevisionNumber、事务与 409。
 - 数据：把现有 Item 全部迁为个人文档 revision 1。
 - 验收：保存创建新 revision，不覆盖旧正文；历史版本可读；现有数据数量、内容 Hash、Owner 和关联校验一致；保留兼容回滚窗口。
 - 依赖：KV-003。
 
-#### KV-005 Ticket URL 与 Ticket No
+#### KV-005 Ticket URL 与 Ticket No 【已完成】
 
 - 后端：parser/validator、DTO 和 revision 字段。
 - 前端：编辑输入、列表与详情链接展示。
@@ -557,31 +561,31 @@ Document Content | Revision History | Comments
 
 ### Epic B：评论与协作体验
 
-#### KV-006 Revision Comment API
+#### KV-006 Revision Comment API 【已完成】
 
 - 后端：评论新增、列表、编辑、软删除和授权。
 - 验收：评论强制绑定 revision；新 revision 不复制旧评论；用户只能编辑自己的评论。
 - 依赖：KV-004。
 
-#### KV-007 重构侧边栏和路由
+#### KV-007 重构侧边栏和路由 【待做】
 
 - 前端：`Project Documents` 动态列表、`Personal Documents`、`Preferences` 分组和 `Profile` 入口。
 - 验收：刷新深层路由可恢复页面；移动端菜单可访问；原 Category/Tag 页面功能不回退；所有系统 UI Label 使用 English。
 - 依赖：KV-001、KV-002、KV-003。
 
-#### KV-008 项目与主题管理 UI
+#### KV-008 项目与主题管理 UI 【待做】
 
 - 前端：Project CRUD、Topic CRUD、成员/角色管理。
 - 验收：操作入口与后端角色一致；错误和空状态完整。
 - 依赖：KV-001、KV-002、KV-007。
 
-#### KV-009 文档列表与编辑器按 Scope 重构
+#### KV-009 文档列表与编辑器按 Scope 重构 【待做】
 
 - 前端：复用组件，区分项目/个人查询与创建上下文；增加 DocumentType 模板。
 - 验收：个人和项目文档不串数据；项目创建时 Topic 必填；DocumentType 创建后不可编辑；模板可编辑且不限制用户内容语言；列表使用统一分页契约。
 - 依赖：KV-003、KV-007、KV-008。
 
-#### KV-010 Revision/Comment 详情体验
+#### KV-010 Revision/Comment 详情体验 【待做】
 
 - 前端：版本历史、历史只读视图、评论面板、ChangeNote、409 冲突处理。
 - 验收：切换 revision 同步切换正文和评论；冲突时用户草稿不丢失；Page Title、Tab、Label、Button、状态和消息均使用 English。
@@ -589,37 +593,37 @@ Document Content | Revision History | Comments
 
 ### Epic C：API Key 与 MCP
 
-#### KV-011 API Key 生命周期与认证 Handler
+#### KV-011 API Key 生命周期与认证 Handler 【已完成】
 
 - 后端：生成、哈希、Scope、默认 90 天及 1–365 天过期校验、撤销、LastUsedAt、日志脱敏。
 - 验收：完整 Key 只返回一次；不允许永不过期；撤销立即生效；JWT 行为不回退；Key 无法越过项目权限。
 - 依赖：KV-001、KV-003。
 
-#### KV-012 Profile、Nickname 与 API Key UI
+#### KV-012 Profile、Nickname 与 API Key UI 【待做】
 
 - 后端/前端：扩展 User Nickname 与 Profile API；实现 API Key 列表、创建、一次性复制、撤销和 MCP 配置说明。
 - 验收：Nickname 接受用户选择的 Unicode 内容、非唯一、空值回退 UserName；刷新后无法重新获取 Key 明文；状态/过期时间准确显示；所有 UI Label 使用 English。
 - 依赖：KV-007、KV-011。
 
-#### KV-013 建立 HTTP MCP Server 骨架
+#### KV-013 建立 HTTP MCP Server 骨架 【待做】
 
 - 后端：官方 C# SDK、`/mcp`、stateless Streamable HTTP、Origin 校验、API Key 认证、限流和审计。
 - 验收：MCP Inspector 和至少一个真实目标 Client 能初始化、列出 capabilities；缺少 Origin 的非浏览器请求在有效认证后可用；存在但非法的 Origin 无论认证状态均返回 403；未授权请求返回 401。
 - 依赖：KV-011。
 
-#### KV-014 MCP Read 能力
+#### KV-014 MCP Read 能力 【待做】
 
 - 后端：projects/topics/documents/revisions/comments 的 Resources、Comment Resource Template 和只读 Tools。
 - 验收：Comment 可通过 resources/read 或 list_comments 获取；MCP 和 REST 使用相同 `page/pageSize` 与 PagedResult；权限范围及正文上限一致；无法读取非成员项目。
 - 依赖：KV-004、KV-006、KV-013。
 
-#### KV-015 MCP Write 能力与 Prompts
+#### KV-015 MCP Write 能力与 Prompts 【待做】
 
 - 后端：create/update document、add comment、Planning Review/Task Breakdown prompts。
 - 验收：写入生成 revision；expectedRevision 冲突可识别；API Key Scope 生效；MCP 不暴露 Key/成员管理。
 - 依赖：KV-005、KV-006、KV-014。
 
-#### KV-016 OAuth 兼容增强（第二阶段）
+#### KV-016 OAuth 兼容增强（第二阶段） 【第二阶段/暂缓】
 
 - 后端/部署：Protected Resource Metadata、OAuth/OIDC discovery、Scope challenge。
 - 验收：兼容客户端可自动发现并完成授权；token audience、scope、401/403 符合规范。
@@ -627,19 +631,24 @@ Document Content | Revision History | Comments
 
 ### Epic D：质量、运维与发布
 
-#### KV-017 自动化测试基础
+#### KV-017 自动化测试基础 【待做】
 
 - 新增后端测试项目，覆盖 Provider、授权和 migration；扩展 Angular component/service tests。
 - 验收：核心权限矩阵、revision 并发、分页、Nickname、API Key、MCP Origin/Resources/Tools 均有自动化测试。
 - 可与 Epic A 并行启动，并随任务持续补齐。
 
-#### KV-018 安全配置整改
+#### KV-018 安全配置整改 【已完成·本次复核修复】
 
 - 移除源码中的数据库凭据和 JWT Signing Key fallback，改用 Secret Store/环境变量并轮换。
 - 验收：仓库不含有效明文 Secret；缺少必要配置时启动快速失败且错误不泄密。
 - 依赖：无；必须在 KV-013 部署前完成。
+- **2026-07-17 复核修复（本提交）**：
+  - 发现 `appsettings.Development.json` 仍被 git 跟踪且含真实 SQL 账号密码（`User ID=Jzhong1985;Password=...`），已 `git rm --cached` 停止跟踪，并由 `.gitignore` 第 41 行持续忽略（本地文件保留、不再入库）。
+  - 跟踪中的 `appsettings.json` 改为 `${KV_DB_CONNECTION}` / `${KV_JWT_SIGNING_KEY}` 环境变量占位，不再含明文密钥；实际值由本地 `appsettings.Development.json`（已忽略）或部署环境变量提供。
+  - NuGet 高危漏洞：`Microsoft.OpenApi` 2.4.1（GHSA-v5pm-xwqc-g5wc，High）经 `Swashbuckle.AspNetCore` / `Microsoft.AspNetCore.OpenApi` 传递引入，已在 `KnowledgeVault.csproj` 直接钉到已修复版本 `2.7.5`，`dotnet list package --vulnerable` 已无高危项。
+  - 注意：该密码曾进入 git 历史，建议在生产/本地 SQL 实例**轮换该账号密码**，并按需对历史做清理（BFG/filter-repo 为破坏性操作，需另行确认）。
 
-#### KV-019 迁移演练与发布
+#### KV-019 迁移演练与发布 【待做】
 
 - 在生产数据副本演练 expand/backfill/switch/contract migration、full backup/PITR restore、性能和权限抽样。
 - 分阶段启用：数据库 → REST → 新 UI → API Key → MCP Read → MCP Write。
@@ -716,7 +725,7 @@ flowchart LR
 | --- | --- | --- |
 | 在每个 Provider 中重复权限判断 | 容易出现 REST/MCP 越权差异 | 集中 `IDocumentAccessService`，权限矩阵自动化测试 |
 | Revision migration 改动大 | 数据丢失或长时间锁表 | expand/contract、批量回填、full backup/PITR 演练；新模型写入后优先 forward fix，不做破坏性 Down migration |
-| 项目 Tag/Category 语义不清 | 团队视图不一致 | MVP 保持用户级并弱化其项目导航作用，Review 决定是否项目级化 |
+| 项目 Tag/Category 语义不清 | 团队视图不一致 | 已决定为系统级共享分类/标签，名称系统范围唯一，团队视图天然一致 |
 | 静态 API Key 被误认为 OAuth | 某些 MCP Client 无法自动连接 | 文档明确手工 Header 模式，第二阶段实现标准 discovery |
 | API Key 或现有 Secret 泄露 | 远程数据被访问 | 只存 Hash、日志脱敏、Scope/过期/撤销、发布前 Secret 整改 |
 | 长文档通过 MCP 返回过多 | 上下文和延迟失控 | 分页、正文大小上限、摘要列表、按需读取 revision |
@@ -727,7 +736,7 @@ flowchart LR
 
 以下问题不阻塞计划编写，但应在对应任务开工前确认：
 
-1. Category/Tag 是继续用户级，还是项目需要共享的 Category/Tag？本计划默认用户级。
+1. ~~Category/Tag 是继续用户级，还是项目需要共享的 Category/Tag？~~ 已决定：**系统级共享**，不属于任何单个用户，名称在系统范围内唯一（见 §5.7）。
 2. Project 成员通过“已有用户名/邮箱”添加是否足够，还是需要邮件邀请流程？本计划默认只添加已注册用户。
 3. Viewer 是否允许评论？本计划默认允许。
 4. Ticket URL 是否只允许指定 Atlassian 域名？本计划默认允许任意 HTTPS 域名，但 Ticket Key 必须符合 Jira 格式。

@@ -22,6 +22,59 @@ namespace KnowledgeVault.DataAccess.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ApiKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Prefix")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Scopes")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("SecretHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Prefix");
+
+                    b.HasIndex("UserId", "RevokedAt");
+
+                    b.ToTable("ApiKeys");
+                });
+
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -58,12 +111,9 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "NormalizedName")
+                    b.HasIndex("NormalizedName")
                         .IsUnique();
 
                     b.ToTable("Categories");
@@ -81,6 +131,98 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CurrentRevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CurrentRevisionNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("UserId");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TopicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CurrentRevisionId");
+
+                    b.HasIndex("TopicId", "Status");
+
+                    b.HasIndex("OwnerUserId", "Scope", "Status");
+
+                    b.ToTable("KnowledgeItems", t =>
+                        {
+                            t.HasCheckConstraint("CK_KnowledgeItem_TopicScope", "[Scope] = 0 OR ([Scope] = 1 AND [TopicId] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("KnowledgeItemRevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("KnowledgeItemRevisionId", "CreatedAt");
+
+                    b.ToTable("KnowledgeItemComments");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChangeNote")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -88,19 +230,30 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset?>("PublishedAt")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("KnowledgeItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("int");
 
                     b.Property<string>("SourceUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
                     b.Property<string>("Summary")
                         .HasMaxLength(1024)
                         .HasColumnType("nvarchar(1024)");
+
+                    b.Property<string>("TicketNo")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("TicketUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -110,18 +263,14 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
+                    b.HasIndex("CreatedByUserId");
 
-                    b.HasIndex("UserId", "CategoryId");
+                    b.HasIndex("KnowledgeItemId", "RevisionNumber")
+                        .IsUnique();
 
-                    b.HasIndex("UserId", "Status");
-
-                    b.ToTable("KnowledgeItems");
+                    b.ToTable("KnowledgeItemRevisions");
                 });
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemTag", b =>
@@ -137,6 +286,116 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("KnowledgeItemTags");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.ToTable("Projects");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProjectId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ProjectMembers");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectTopic", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("ProjectId", "SortOrder");
+
+                    b.ToTable("ProjectTopics");
                 });
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.Tag", b =>
@@ -165,12 +424,9 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "NormalizedName")
+                    b.HasIndex("NormalizedName")
                         .IsUnique();
 
                     b.ToTable("Tags");
@@ -192,6 +448,9 @@ namespace KnowledgeVault.DataAccess.Migrations
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Nickname")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("NormalizedEmail")
                         .IsRequired()
@@ -232,12 +491,12 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Category", b =>
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ApiKey", b =>
                 {
                     b.HasOne("KnowledgeVault.Domain.Entities.User", "User")
-                        .WithMany("Categories")
+                        .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -250,15 +509,67 @@ namespace KnowledgeVault.DataAccess.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("KnowledgeVault.Domain.Entities.User", "User")
+                    b.HasOne("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", "CurrentRevision")
+                        .WithMany()
+                        .HasForeignKey("CurrentRevisionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("KnowledgeVault.Domain.Entities.User", "OwnerUser")
                         .WithMany("KnowledgeItems")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.HasOne("KnowledgeVault.Domain.Entities.ProjectTopic", "Topic")
+                        .WithMany()
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Category");
 
-                    b.Navigation("User");
+                    b.Navigation("CurrentRevision");
+
+                    b.Navigation("OwnerUser");
+
+                    b.Navigation("Topic");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemComment", b =>
+                {
+                    b.HasOne("KnowledgeVault.Domain.Entities.User", "AuthorUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", "Revision")
+                        .WithMany("Comments")
+                        .HasForeignKey("KnowledgeItemRevisionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AuthorUser");
+
+                    b.Navigation("Revision");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", b =>
+                {
+                    b.HasOne("KnowledgeVault.Domain.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("KnowledgeVault.Domain.Entities.KnowledgeItem", "KnowledgeItem")
+                        .WithMany("Revisions")
+                        .HasForeignKey("KnowledgeItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("KnowledgeItem");
                 });
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemTag", b =>
@@ -280,15 +591,34 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("Tag");
                 });
 
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Tag", b =>
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectMember", b =>
                 {
-                    b.HasOne("KnowledgeVault.Domain.Entities.User", "User")
-                        .WithMany("Tags")
-                        .HasForeignKey("UserId")
+                    b.HasOne("KnowledgeVault.Domain.Entities.Project", "Project")
+                        .WithMany("Members")
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("KnowledgeVault.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectTopic", b =>
+                {
+                    b.HasOne("KnowledgeVault.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.Category", b =>
@@ -299,6 +629,18 @@ namespace KnowledgeVault.DataAccess.Migrations
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItem", b =>
                 {
                     b.Navigation("KnowledgeItemTags");
+
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", b =>
+                {
+                    b.Navigation("Comments");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Project", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.Tag", b =>
@@ -308,11 +650,7 @@ namespace KnowledgeVault.DataAccess.Migrations
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.User", b =>
                 {
-                    b.Navigation("Categories");
-
                     b.Navigation("KnowledgeItems");
-
-                    b.Navigation("Tags");
                 });
 #pragma warning restore 612, 618
         }

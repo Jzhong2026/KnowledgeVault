@@ -14,11 +14,9 @@ public sealed class User : AuditableEntity
 
     public string PasswordSalt { get; set; } = string.Empty;
 
+    public string? Nickname { get; set; }
+
     public DateTimeOffset? LastLoginAt { get; set; }
-
-    public ICollection<Category> Categories { get; set; } = [];
-
-    public ICollection<Tag> Tags { get; set; } = [];
 
     public ICollection<KnowledgeItem> KnowledgeItems { get; set; } = [];
 }

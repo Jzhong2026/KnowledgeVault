@@ -9,4 +9,6 @@ public interface IAuthProvider
     Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
 
     Task<UserProfileDto> GetCurrentUserAsync(CancellationToken cancellationToken);
+
+    Task<UserProfileDto> UpdateNicknameAsync(UpdateProfileRequest request, CancellationToken cancellationToken);
 }
