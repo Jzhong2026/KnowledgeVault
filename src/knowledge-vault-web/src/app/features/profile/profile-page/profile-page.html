@@ -1,0 +1,175 @@
+<section class="profile-page">
+  <header class="page-heading">
+    <div>
+      <p>Account settings</p>
+      <h2>Profile &amp; API Keys</h2>
+      <span>Manage how you appear in shared projects and how external tools access your documents.</span>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <app-loading-indicator label="Loading profile" />
+  } @else {
+    <section class="profile-card">
+      <div class="identity">
+        <div class="identity__avatar">{{ (profile()?.nickname || profile()?.userName || 'KV').slice(0, 2).toUpperCase() }}</div>
+        <div>
+          <span>Your profile</span>
+          <h3>{{ profile()?.nickname || profile()?.userName }}</h3>
+          <p>{{ profile()?.email }}</p>
+        </div>
+      </div>
+
+      <form class="nickname-form" [formGroup]="nicknameForm" (ngSubmit)="saveNickname()">
+        <label for="nickname">Display name</label>
+        <p>Shown to collaborators on revisions and comments. Your sign-in name stays unchanged.</p>
+        <div class="field-action">
+          <input id="nickname" type="text" [formControl]="nicknameForm.controls.nickname" maxlength="64" placeholder="Add a display name" />
+          <button type="submit" class="primary" [disabled]="savingProfile()">
+            {{ savingProfile() ? 'Saving…' : 'Save profile' }}
+          </button>
+        </div>
+        @if (profileSaved()) {
+          <span class="success-message">Profile updated.</span>
+        }
+      </form>
+    </section>
+
+    <section class="api-section">
+      <div class="section-heading">
+        <div>
+          <span>Developer access</span>
+          <h3>API Keys</h3>
+          <p>Create scoped credentials for Codex, MCP clients, scripts, and integrations.</p>
+        </div>
+        <div class="security-note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7zM9 12l2 2 4-4" /></svg>
+          <span>Keys are stored as secure hashes</span>
+        </div>
+      </div>
+
+      @if (createdKey()) {
+        <div class="created-key" role="status">
+          <div class="created-key__icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14a5 5 0 1 1 3 3l-3 3H4v-3zM15 9h.01" /></svg>
+          </div>
+          <div class="created-key__content">
+            <strong>API key created</strong>
+            <p>Copy it now. For security, the full key will not be shown again.</p>
+            <code>{{ createdKey()?.key }}</code>
+          </div>
+          <div class="created-key__actions">
+            <button type="button" class="primary" (click)="copyCreatedKey()">{{ copied() ? 'Copied' : 'Copy key' }}</button>
+            <button type="button" class="ghost" (click)="dismissCreatedKey()">Done</button>
+          </div>
+        </div>
+      }
+
+      <div class="api-layout">
+        <form class="key-form" [formGroup]="keyForm" (ngSubmit)="createKey()">
+          <div class="form-heading">
+            <span>New credential</span>
+            <h4>Create an API key</h4>
+          </div>
+
+          <label for="key-name">Key name</label>
+          <input id="key-name" type="text" formControlName="name" placeholder="e.g. Local Codex MCP" />
+          @if (keyForm.controls.name.touched && keyForm.controls.name.invalid) {
+            <span class="field-error">Enter a name for this key.</span>
+          }
+
+          <label for="key-expiry">Expires in</label>
+          <div class="number-field">
+            <input id="key-expiry" type="number" formControlName="expiresInDays" min="1" max="365" />
+            <span>days</span>
+          </div>
+
+          <fieldset class="scopes">
+            <legend>Permissions</legend>
+            <p>Select only the access this integration needs.</p>
+            <div class="scope-grid">
+              @for (scope of availableScopes; track scope.value) {
+                <label class="scope-option">
+                  <input
+                    type="checkbox"
+                    [checked]="keyForm.controls.scopes.value.includes(scope.value)"
+                    (change)="toggleScope(scope.value, $event.target.checked)"
+                  />
+                  <span>
+                    <strong>{{ scope.label }}</strong>
+                    <small>{{ scope.value }}</small>
+                  </span>
+                </label>
+              }
+            </div>
+          </fieldset>
+
+          @if (keyForm.controls.scopes.touched && keyForm.controls.scopes.invalid) {
+            <span class="field-error">Select at least one permission.</span>
+          }
+
+          <button type="submit" class="primary create-button" [disabled]="creating()">
+            {{ creating() ? 'Creating…' : 'Create API key' }}
+          </button>
+        </form>
+
+        <div class="keys-panel">
+          <div class="keys-panel__header">
+            <div>
+              <span>Credentials</span>
+              <h4>Active &amp; previous keys</h4>
+            </div>
+            <span class="count">{{ apiKeys().length }}</span>
+          </div>
+
+          @if (apiKeys().length === 0) {
+            <div class="empty-keys">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14a5 5 0 1 1 3 3l-3 3H4v-3zM15 9h.01" /></svg>
+              <strong>No API keys yet</strong>
+              <p>Create a scoped key when you are ready to connect an external tool.</p>
+            </div>
+          } @else {
+            <div class="table-wrap">
+              <table class="keys">
+                <thead>
+                  <tr>
+                    <th>Key</th>
+                    <th>Permissions</th>
+                    <th>Activity</th>
+                    <th><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (key of apiKeys(); track key.id) {
+                    <tr [class.is-revoked]="key.isRevoked">
+                      <td>
+                        <strong>{{ key.name }}</strong>
+                        <code>{{ key.prefix }}…</code>
+                      </td>
+                      <td><span class="scope-summary">{{ key.scopes.join(', ') }}</span></td>
+                      <td>
+                        <span>Created {{ key.createdAt | date: 'mediumDate' }}</span>
+                        <small>Last used {{ key.lastUsedAt ? (key.lastUsedAt | date: 'short') : 'never' }}</small>
+                      </td>
+                      <td>
+                        @if (!key.isRevoked) {
+                          <button type="button" class="danger" (click)="revokeKey(key.id)">Revoke</button>
+                        } @else {
+                          <span class="revoked">Revoked</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+</section>

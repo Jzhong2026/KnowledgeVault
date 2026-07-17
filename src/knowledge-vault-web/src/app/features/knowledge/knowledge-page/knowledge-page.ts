@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
@@ -9,9 +10,10 @@ import {
   KnowledgeItem,
   KnowledgeItemStatus,
   KnowledgeItemSummary,
-  SaveKnowledgeItemRequest,
+  SaveDocumentRequest,
   Tag,
 } from '../../../core/models/knowledge.models';
+import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.models';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
 import { KnowledgeList } from '../components/knowledge-list/knowledge-list';
@@ -24,6 +26,7 @@ import { KnowledgeList } from '../components/knowledge-list/knowledge-list';
 })
 export class KnowledgePage {
   private readonly api = inject(ApiClient);
+  private readonly route = inject(ActivatedRoute);
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -34,10 +37,16 @@ export class KnowledgePage {
   readonly editorOpen = signal(false);
   readonly categories = signal<Category[]>([]);
   readonly tags = signal<Tag[]>([]);
+  readonly projects = signal<ProjectSummary[]>([]);
+  readonly topics = signal<ProjectTopic[]>([]);
   readonly search = signal('');
   readonly status = signal<KnowledgeItemStatus | ''>('');
+  readonly projectId = signal<string | null>(null);
+  readonly topicId = signal<string | null>(null);
 
   constructor() {
+    this.projectId.set(this.route.snapshot.queryParamMap.get('projectId'));
+    this.topicId.set(this.route.snapshot.queryParamMap.get('topicId'));
     this.loadWorkspace();
   }
 
@@ -46,12 +55,19 @@ export class KnowledgePage {
     forkJoin({
       categories: this.api.listCategories(),
       tags: this.api.listTags(),
-      knowledge: this.api.listKnowledgeItems({ page: 1, pageSize: 50 }),
+      knowledge: this.api.listKnowledgeItems({
+        page: 1,
+        pageSize: 50,
+        projectId: this.projectId() ?? undefined,
+        topicId: this.topicId() ?? undefined,
+      }),
+      projects: this.api.listProjects({ pageSize: 100 }),
     }).subscribe({
-      next: ({ categories, tags, knowledge }) => {
+      next: ({ categories, tags, knowledge, projects }) => {
         this.categories.set(categories);
         this.tags.set(tags);
         this.items.set(knowledge.items);
+        this.projects.set(projects.items);
       },
       error: (error) => this.error.set(getErrorMessage(error)),
       complete: () => this.loading.set(false),
@@ -60,15 +76,26 @@ export class KnowledgePage {
 
   applyFilters(): void {
     this.loading.set(true);
-    this.api.listKnowledgeItems({
-      page: 1,
-      pageSize: 50,
-      search: this.search(),
-      status: this.status() || undefined,
-    }).subscribe({
-      next: (result) => this.items.set(result.items),
-      error: (error) => this.error.set(getErrorMessage(error)),
-      complete: () => this.loading.set(false),
+    this.api
+      .listKnowledgeItems({
+        page: 1,
+        pageSize: 50,
+        search: this.search(),
+        status: this.status() || undefined,
+        projectId: this.projectId() ?? undefined,
+        topicId: this.topicId() ?? undefined,
+      })
+      .subscribe({
+        next: (result) => this.items.set(result.items),
+        error: (error) => this.error.set(getErrorMessage(error)),
+        complete: () => this.loading.set(false),
+      });
+  }
+
+  onProjectSelected(projectId: string): void {
+    this.api.listTopics(projectId).subscribe({
+      next: (result) => this.topics.set(result.items),
+      error: () => this.topics.set([]),
     });
   }
 
@@ -77,6 +104,12 @@ export class KnowledgePage {
     this.api.getKnowledgeItem(id).subscribe({
       next: (item) => {
         this.selectedItem.set(item);
+        if (item.scope === 'Project' && item.projectId) {
+          this.api.listTopics(item.projectId).subscribe({
+            next: (result) => this.topics.set(result.items),
+            error: () => this.topics.set([]),
+          });
+        }
         this.editorOpen.set(true);
       },
       error: (error) => this.error.set(getErrorMessage(error)),
@@ -93,7 +126,7 @@ export class KnowledgePage {
     this.editorOpen.set(false);
   }
 
-  save(request: SaveKnowledgeItemRequest): void {
+  save(request: SaveDocumentRequest): void {
     this.saving.set(true);
     const item = this.selectedItem();
     const operation = item

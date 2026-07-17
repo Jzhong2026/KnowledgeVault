@@ -102,6 +102,26 @@ input {
   padding: 12px 13px;
 }
 
+input[aria-invalid="true"] {
+  border-color: #e58a84;
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.08);
+}
+
+.field-hint,
+.field-error {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.field-hint {
+  color: var(--muted);
+}
+
+.field-error {
+  color: #b42318;
+}
+
 .alert {
   margin: 0;
   border: 1px solid #fecaca;

@@ -29,6 +29,9 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# Local deployment output
+/src/KnowledgeVault/publish/
+
 # Local SQLite databases
 *.db
 *.db-shm

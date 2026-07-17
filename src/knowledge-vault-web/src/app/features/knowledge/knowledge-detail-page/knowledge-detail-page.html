@@ -17,14 +17,20 @@
             <span class="category__swatch" [style.background]="knowledge.category?.color || '#94a3b8'"></span>
             {{ knowledge.category?.name || 'Uncategorized' }}
           </span>
-          <span>{{ knowledge.updatedAt || knowledge.createdAt | date: 'mediumDate' }}</span>
+          @if (knowledge.scope === 'Project') {
+            <span class="badge">Project</span>
+          }
+          <span>{{ (viewingRevision()?.createdAt || knowledge.updatedAt || knowledge.createdAt) | date: 'mediumDate' }}</span>
           <app-status-pill [status]="knowledge.status" />
+          @if (viewingRevision()) {
+            <span class="badge badge--accent">Revision {{ viewingRevision()?.revisionNumber }}</span>
+          }
         </div>
 
-        <h2>{{ knowledge.title }}</h2>
+        <h2>{{ viewingRevision()?.title || knowledge.title }}</h2>
 
-        @if (knowledge.summary) {
-          <p class="summary">{{ knowledge.summary }}</p>
+        @if (viewingRevision()?.summary || knowledge.summary) {
+          <p class="summary">{{ viewingRevision()?.summary || knowledge.summary }}</p>
         }
 
         @if (knowledge.tags.length) {
@@ -37,14 +43,18 @@
             }
           </div>
         }
+
+        @if (viewingRevision()) {
+          <button type="button" class="ghost" (click)="backToCurrent()">Back to current revision</button>
+        }
       </header>
 
       <div class="article-body">
-        @if (hasContent(knowledge.content)) {
+        @if (hasContent(viewingRevision()?.content || knowledge.content)) {
           <div
             class="markdown-body markdown-body--wide"
-            [innerHTML]="knowledge.content | markdownContent"
-            [appMermaidDiagrams]="knowledge.content"
+            [innerHTML]="(viewingRevision()?.content || knowledge.content) | markdownContent"
+            [appMermaidDiagrams]="viewingRevision()?.content || knowledge.content"
           ></div>
         } @else {
           <p class="empty-content">No content has been added yet.</p>
@@ -57,5 +67,68 @@
         </footer>
       }
     </article>
+
+    <section class="side-panels">
+      <section class="panel">
+        <h3>Revisions</h3>
+        @if (revisions().length === 0) {
+          <p class="muted">No revisions yet.</p>
+        } @else {
+          <ul class="revision-list">
+            @for (revision of revisions(); track revision.revisionNumber) {
+              <li>
+                <button
+                  type="button"
+                  class="revision-item"
+                  [class.is-active]="viewingRevision()?.revisionNumber === revision.revisionNumber"
+                  (click)="viewRevision(revision.revisionNumber)"
+                >
+                  <strong>#{{ revision.revisionNumber }} {{ revision.title }}</strong>
+                  <span class="muted">{{ revision.createdByUserName }} · {{ revision.createdAt | date: 'short' }}</span>
+                  @if (revision.changeNote) {
+                    <span class="muted">{{ revision.changeNote }}</span>
+                  }
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="panel">
+        <h3>Comments</h3>
+        @if (comments().length === 0) {
+          <p class="muted">No comments on revision {{ knowledge.currentRevisionNumber }}.</p>
+        } @else {
+          <ul class="comment-list">
+            @for (comment of comments(); track comment.id) {
+              <li class="comment">
+                <div class="comment__head">
+                  <strong>{{ comment.authorDisplayName }}</strong>
+                  <span class="muted">{{ comment.createdAt | date: 'short' }}</span>
+                </div>
+                @if (!comment.isDeleted) {
+                  <p>{{ comment.content }}</p>
+                } @else {
+                  <p class="muted"><em>Comment deleted</em></p>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="comment-form">
+          <textarea
+            [ngModel]="newComment()"
+            (ngModelChange)="newComment.set($event)"
+            rows="3"
+            placeholder="Add a comment to revision {{ knowledge.currentRevisionNumber }}"
+          ></textarea>
+          <button type="button" class="primary" [disabled]="addingComment() || !newComment().trim()" (click)="addComment()">
+            {{ addingComment() ? 'Posting' : 'Post comment' }}
+          </button>
+        </div>
+      </section>
+    </section>
   }
 </section>

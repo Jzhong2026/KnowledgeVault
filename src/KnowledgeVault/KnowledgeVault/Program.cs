@@ -8,6 +8,8 @@ using KnowledgeVault.DataAccess.DependencyInjection;
 using KnowledgeVault.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication;
 using KnowledgeVault.Infrastructure.DependencyInjection;
+using Microsoft.AspNetCore.Authorization;
+using KnowledgeVault.Providers;
 using KnowledgeVault.Providers.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi;
@@ -51,6 +53,11 @@ builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddKnowledgeVaultInfrastructure(builder.Configuration);
 builder.Services.AddKnowledgeVaultDataAccess(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddKnowledgeVaultProviders();
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithTools<KnowledgeVault.Api.Mcp.KnowledgeVaultMcp>()
+    .WithResources<KnowledgeVault.Api.Mcp.KnowledgeVaultMcp>()
+    .WithPrompts<KnowledgeVault.Api.Mcp.KnowledgeVaultMcp>();
 
 builder.Services
     .AddControllers()
@@ -126,7 +133,19 @@ builder.Services
     .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
         ApiKeyAuthenticationHandler.SchemeName, _ => { });
 
-builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationHandler, ScopeAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    // One policy per API key scope. JWT users bypass these via ScopeAuthorizationHandler.
+    foreach (var scope in ApiKeyScopes.All)
+    {
+        options.AddPolicy(scope, policy => policy.Requirements.Add(new ScopeRequirement(scope)));
+    }
+
+    // Operations that have no corresponding API key write scope are JWT-only:
+    // an API key can never satisfy this requirement, while JWT users bypass it.
+    options.AddPolicy("projects:write", policy => policy.Requirements.Add(new ScopeRequirement("projects:write")));
+});
 
 var app = builder.Build();
 var swaggerEnabled = app.Environment.IsDevelopment()
@@ -168,6 +187,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapMcp("/mcp").RequireAuthorization();
 
 await app.RunAsync();
 }

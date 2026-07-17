@@ -1,5 +1,9 @@
 export type KnowledgeItemStatus = 'Draft' | 'Active' | 'Archived' | 'Deleted';
 
+export type DocumentScope = 'Personal' | 'Project';
+
+export type DocumentType = 'General' | 'PlanningReview' | 'TaskBreakdown';
+
 export interface Category {
   id: string;
   name: string;
@@ -22,8 +26,14 @@ export interface Tag {
 
 export interface KnowledgeItemSummary {
   id: string;
+  scope: DocumentScope;
+  topicId?: string | null;
+  projectId?: string | null;
+  documentType: DocumentType;
+  currentRevisionNumber: number;
   title: string;
   summary?: string | null;
+  ticketNo?: string | null;
   status: KnowledgeItemStatus;
   category?: Category | null;
   tags: Tag[];
@@ -34,8 +44,39 @@ export interface KnowledgeItemSummary {
 export interface KnowledgeItem extends KnowledgeItemSummary {
   content: string;
   sourceUrl?: string | null;
+  ticketUrl?: string | null;
+  changeNote?: string | null;
   publishedAt?: string | null;
   archivedAt?: string | null;
+}
+
+export interface RevisionSummary {
+  id: string;
+  revisionNumber: number;
+  title: string;
+  summary?: string | null;
+  changeNote?: string | null;
+  ticketNo?: string | null;
+  createdByUserId: string;
+  createdByUserName: string;
+  createdAt: string;
+}
+
+export interface Revision extends RevisionSummary {
+  content: string;
+  sourceUrl?: string | null;
+  ticketUrl?: string | null;
+}
+
+export interface Comment {
+  id: string;
+  revisionNumber: number;
+  authorUserId: string;
+  authorDisplayName: string;
+  content: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  isDeleted: boolean;
 }
 
 export interface PagedResult<T> {
@@ -47,23 +88,35 @@ export interface PagedResult<T> {
 }
 
 export interface KnowledgeItemQuery {
+  scope?: DocumentScope;
+  projectId?: string;
+  topicId?: string;
+  documentType?: DocumentType;
+  ticketNo?: string;
   search?: string;
   categoryId?: string;
   status?: KnowledgeItemStatus;
   tagIds?: string[];
+  sort?: string;
   page?: number;
   pageSize?: number;
 }
 
-export interface SaveKnowledgeItemRequest {
+export interface SaveDocumentRequest {
+  scope: DocumentScope;
+  topicId?: string | null;
+  documentType: DocumentType;
   title: string;
   content: string;
   summary?: string | null;
   sourceUrl?: string | null;
+  ticketUrl?: string | null;
+  changeNote?: string | null;
   categoryId?: string | null;
   status: KnowledgeItemStatus;
   tagIds?: string[];
   tagNames?: string[];
+  expectedRevisionNumber?: number;
 }
 
 export interface SaveCategoryRequest {

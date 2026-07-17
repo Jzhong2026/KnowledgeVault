@@ -27,13 +27,33 @@
       } @else {
         <label>
           User name or email
-          <input type="text" formControlName="userNameOrEmail" autocomplete="username" />
+          <input
+            type="text"
+            formControlName="userNameOrEmail"
+            autocomplete="username"
+            [attr.aria-invalid]="form.controls.userNameOrEmail.touched && form.controls.userNameOrEmail.invalid"
+          />
+          @if (form.controls.userNameOrEmail.touched && form.controls.userNameOrEmail.hasError('required')) {
+            <small class="field-error">Enter your user name or email.</small>
+          }
         </label>
       }
 
       <label>
         Password
-        <input type="password" formControlName="password" autocomplete="current-password" />
+        <input
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+          [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+        />
+        @if (!form.controls.password.touched || form.controls.password.valid) {
+          <small class="field-hint">Password must be at least 8 characters.</small>
+        } @else if (form.controls.password.hasError('required')) {
+          <small class="field-error">Enter your password.</small>
+        } @else if (form.controls.password.hasError('minlength')) {
+          <small class="field-error">Password must be at least 8 characters.</small>
+        }
       </label>
 
       @if (error()) {

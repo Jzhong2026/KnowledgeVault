@@ -1,5 +1,8 @@
-<div class="shell">
-  <app-sidebar />
+<div class="shell" [class.shell--sidebar-collapsed]="sidebarCollapsed()">
+  <app-sidebar
+    [collapsed]="sidebarCollapsed()"
+    (collapsedChange)="sidebarCollapsed.set($event)"
+  />
   <div class="shell__body">
     <app-topbar />
     <main class="shell__content">

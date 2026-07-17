@@ -768,3 +768,36 @@ flowchart LR
 - [MCP Resources](https://modelcontextprotocol.io/specification/2025-11-25/server/resources)
 - [MCP Tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
 - [Official MCP C# SDK](https://github.com/modelcontextprotocol/csharp-sdk)
+
+---
+
+## 17. 部署与验证现状（2026-07-17 会话记录）
+
+> 本节记录本次部署联调会话的发现与未完成任务，供后续会话继续。
+
+### 17.1 部署拓扑（已确认）
+
+- 前端：构建产物位于 `D:\AI\Projects\KnowledgeVault\src\knowledge-vault-web\dist\knowledge-vault-web\browser`，`index.csr.html` 为 SPA 外壳（IIS `web.config` 已配置 rewrite 到该文件）。
+- 访问地址：`http://localhost/KnowledgeVaultWeb/knowledge`（IIS 端口 80，虚拟目录 `KnowledgeVaultWeb`，base href 为 `/KnowledgeVaultWeb/`）。
+- 后端 WebAPI：部署于 `D:\Web\KnowledgeVault`，对外路由前缀 `/KnowledgeVault/api` 与 `/KnowledgeVault/mcp`。
+- **约束**：`D:\Web\KnowledgeVault\web.config` 与前端 `web.config` 不要随意改动（用户明确要求）。
+
+### 17.2 已验证通过
+
+- 前端站点 HTTP 200；API/MCP 未带认证时正确返回 401。
+- 登录（`/api/auth/login`）正常；`GET /api/documents`（列表）、`GET /api/projects`、`GET /api/profile`、`GET /api/profile/api-keys` 均返回 200（注：前端调用路径为 `/profile/api-keys` 带连字符，早期测试用 `apikeys` 误报 404）。
+
+### 17.3 未完成任务 / 待排查问题
+
+- **KV-DEP-1（高）：文档创建返回 500**。`POST /api/documents` 在部署环境抛 500，真实异常被通用错误处理器吞掉。需打开部署 `web.config` 的 stdout 日志（或临时开 `ASPNETCORE_ENVIRONMENT=Development`）抓取真实异常；本地用 `dotnet run` 复现时因 `Data Source=.` 连不上 SQL Server（部署实例可达，疑似命名实例/服务账号差异），未能本地复现。
+- **KV-DEP-2（高）：JWT 用户访问带 GUID 的文档路由返回 403**。`GET /api/documents/{guid}` 与 `GET /api/documents/{guid}/revisions` 返回 403，而 `GET /api/documents`（列表，同样要求 `documents:read`）返回 200。`ScopeAuthorizationHandler` 对 JWT 用户应自动满足，需排查列表路由与 GUID 路由的策略/授权注册差异，以及是否存在控制器级 `[Authorize]` 与 handler 叠加导致的拒绝。
+- **KV-DEP-3（中）：确认部署 DLL 与源码一致**。源码已含 Project/Topic/Revision/Comment/API Key 等能力，但部署是否重新构建并拷贝最新 DLL 未确认；KV-DEP-1/2 不排除是陈旧构建所致。下次会话应先重新发布再验证。
+- **KV-DEP-4（待定）：数据库提供方**。用户记忆中此前使用 SQLite，但部署 `D:\Web\KnowledgeVault\appsettings.json` 的 `KnowledgeVaultDb` 已是 SQL Server 连接串（`Data Source=.;Initial Catalog=KnowledgeVault;User Id=kv_app;...`）。本次会话未改动该配置。若用户希望回退 SQLite，需先确认源码 `Program.cs` 是否仍保留 SQLite provider 分支及对应 migration 集，再决定切换方案。
+
+### 17.4 后续会话建议顺序
+
+1. 重新构建并发布后端到 `D:\Web\KnowledgeVault`，重启 IIS 应用池。
+2. 开启 stdout 日志，复现 KV-DEP-1（创建 500），定位真实异常。
+3. 用登录后的 JWT 复测 `GET /api/documents/{guid}` 与 `/revisions`，定位 KV-DEP-2 的 403 根因。
+4. 视 KV-DEP-4 结论决定是否切换数据库提供方。
+5. 完成后再继续 Epic B / C / D 的【待做】项（KV-007 ~ KV-019）。

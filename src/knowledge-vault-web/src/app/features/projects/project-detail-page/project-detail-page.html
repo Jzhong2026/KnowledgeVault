@@ -1,0 +1,71 @@
+<section class="project-detail-page">
+  <div class="page-heading">
+    <div>
+      <p><a routerLink="/projects">Projects</a></p>
+      <h2>{{ project()?.name || 'Project' }}</h2>
+    </div>
+    @if (project()) {
+      <a class="primary" routerLink="/knowledge" [queryParams]="{ projectId: project()?.id }">
+        Browse documents
+      </a>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <app-loading-indicator label="Loading project" />
+  } @else if (project(); as project) {
+    <p class="muted">{{ project.description || 'No description.' }}</p>
+    <p class="muted">Your role: {{ project.currentUserRole }} · {{ project.members.length }} member(s)</p>
+
+    <section class="panel">
+      <div class="panel__heading">
+        <h3>Topics</h3>
+        <button type="button" class="ghost" (click)="toggleCreateTopic()">
+          {{ showCreateTopic() ? 'Cancel' : 'New topic' }}
+        </button>
+      </div>
+
+      @if (showCreateTopic()) {
+        <form [formGroup]="topicForm" (ngSubmit)="createTopic()">
+          <div class="grid">
+            <label>
+              Name
+              <input type="text" formControlName="name" />
+            </label>
+            <label>
+              Description
+              <input type="text" formControlName="description" />
+            </label>
+          </div>
+          <div class="actions-end">
+            <button type="submit" class="primary" [disabled]="saving()">
+              {{ saving() ? 'Creating' : 'Create topic' }}
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (topics().length === 0) {
+        <p class="muted">No topics yet.</p>
+      } @else {
+        <ul class="topic-list">
+          @for (topic of topics(); track topic.id) {
+            <li class="topic-card">
+              <a [routerLink]="['/knowledge']" [queryParams]="{ topicId: topic.id }">
+                <strong>{{ topic.name }}</strong>
+                @if (topic.description) {
+                  <span class="muted">{{ topic.description }}</span>
+                }
+              </a>
+              <button type="button" class="danger" (click)="deleteTopic(topic.id)">Delete</button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</section>

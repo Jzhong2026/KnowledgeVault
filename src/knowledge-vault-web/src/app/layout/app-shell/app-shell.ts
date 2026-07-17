@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 import { Sidebar } from '../sidebar/sidebar';
@@ -10,4 +10,6 @@ import { Topbar } from '../topbar/topbar';
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.css',
 })
-export class AppShell {}
+export class AppShell {
+  readonly sidebarCollapsed = signal(false);
+}

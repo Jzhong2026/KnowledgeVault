@@ -1,5 +1,6 @@
 using KnowledgeVault.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace KnowledgeVault.DataAccess;
 
@@ -195,5 +196,33 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        ConfigureDateTimeOffsetStorage(modelBuilder);
+    }
+
+    private static void ConfigureDateTimeOffsetStorage(ModelBuilder modelBuilder)
+    {
+        var dateTimeOffsetConverter = new ValueConverter<DateTimeOffset, long>(
+            value => value.ToUnixTimeMilliseconds(),
+            value => DateTimeOffset.FromUnixTimeMilliseconds(value));
+        var nullableDateTimeOffsetConverter = new ValueConverter<DateTimeOffset?, long?>(
+            value => value.HasValue ? value.Value.ToUnixTimeMilliseconds() : null,
+            value => value.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(value.Value) : null);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTimeOffset))
+                {
+                    property.SetValueConverter(dateTimeOffsetConverter);
+                }
+
+                if (property.ClrType == typeof(DateTimeOffset?))
+                {
+                    property.SetValueConverter(nullableDateTimeOffsetConverter);
+                }
+            }
+        }
     }
 }

@@ -33,12 +33,37 @@ export const routes: Routes = [
         loadComponent: () => import('./features/knowledge/knowledge-page/knowledge-page').then((m) => m.KnowledgePage),
       },
       {
-        path: 'categories',
+        path: 'settings/categories',
         loadComponent: () => import('./features/categories/categories-page/categories-page').then((m) => m.CategoriesPage),
       },
       {
-        path: 'tags',
+        path: 'settings/tags',
         loadComponent: () => import('./features/tags/tags-page/tags-page').then((m) => m.TagsPage),
+      },
+      {
+        path: 'categories',
+        pathMatch: 'full',
+        redirectTo: 'settings/categories',
+      },
+      {
+        path: 'tags',
+        pathMatch: 'full',
+        redirectTo: 'settings/tags',
+      },
+      {
+        path: 'projects',
+        loadComponent: () => import('./features/projects/projects-page/projects-page').then((m) => m.ProjectsPage),
+      },
+      {
+        path: 'projects/:id',
+        loadComponent: () =>
+          import('./features/projects/project-detail-page/project-detail-page').then(
+            (m) => m.ProjectDetailPage,
+          ),
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('./features/profile/profile-page/profile-page').then((m) => m.ProfilePage),
       },
     ],
   },

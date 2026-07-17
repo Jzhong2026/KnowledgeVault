@@ -1,8 +1,13 @@
 .shell {
   display: grid;
   min-height: 100dvh;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 264px minmax(0, 1fr);
   background: var(--surface);
+  transition: grid-template-columns 180ms ease;
+}
+
+.shell--sidebar-collapsed {
+  grid-template-columns: 82px minmax(0, 1fr);
 }
 
 .shell__body {
@@ -15,14 +20,16 @@
 
 @media (max-width: 900px) {
   .shell {
-    grid-template-columns: 1fr;
-  }
-
-  app-sidebar {
-    display: none;
+    grid-template-columns: 74px minmax(0, 1fr);
   }
 
   .shell__content {
     padding: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .shell__content {
+    padding: 14px 12px;
   }
 }

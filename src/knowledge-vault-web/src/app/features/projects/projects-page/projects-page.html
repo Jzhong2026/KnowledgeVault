@@ -1,0 +1,59 @@
+<section class="projects-page">
+  <div class="page-heading">
+    <div>
+      <p>Workspace</p>
+      <h2>Projects</h2>
+    </div>
+    <button type="button" class="primary" (click)="toggleCreate()">
+      {{ showCreate() ? 'Cancel' : 'New project' }}
+    </button>
+  </div>
+
+  @if (error()) {
+    <p class="alert">{{ error() }}</p>
+  }
+
+  @if (showCreate()) {
+    <section class="panel">
+      <form [formGroup]="form" (ngSubmit)="create()">
+        <div class="grid">
+          <label>
+            Name
+            <input type="text" formControlName="name" />
+          </label>
+          <label>
+            Description
+            <input type="text" formControlName="description" />
+          </label>
+        </div>
+        <div class="actions-end">
+          <button type="submit" class="primary" [disabled]="saving()">
+            {{ saving() ? 'Creating' : 'Create project' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (loading()) {
+    <app-loading-indicator label="Loading projects" />
+  } @else if (projects().length === 0) {
+    <p class="muted">No projects yet. Create one to organize documents by topic.</p>
+  } @else {
+    <ul class="project-list">
+      @for (project of projects(); track project.id) {
+        <li>
+          <a class="project-card" [routerLink]="['/projects', project.id]">
+            <div>
+              <strong>{{ project.name }}</strong>
+              <span class="muted">{{ project.memberCount }} member(s) · {{ project.currentUserRole }}</span>
+            </div>
+            @if (project.isArchived) {
+              <span class="badge">archived</span>
+            }
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</section>

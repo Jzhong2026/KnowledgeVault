@@ -15,6 +15,7 @@ public sealed class DocumentsController(
     IRevisionProvider revisionProvider,
     ICommentProvider commentProvider) : ControllerBase
 {
+    [Authorize(Policy = "documents:read")]
     [HttpGet]
     public async Task<ActionResult<PagedResult<KnowledgeItemSummaryDto>>> List(
         [FromQuery] DocumentQuery query,
@@ -23,6 +24,7 @@ public sealed class DocumentsController(
         return Ok(await documentProvider.ListAsync(query, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:write")]
     [HttpPost]
     public async Task<ActionResult<KnowledgeItemDto>> Create(
         CreateDocumentRequest request,
@@ -32,12 +34,14 @@ public sealed class DocumentsController(
         return CreatedAtAction(nameof(Get), new { documentId = document.Id }, document);
     }
 
+    [Authorize(Policy = "documents:read")]
     [HttpGet("{documentId:guid}")]
     public async Task<ActionResult<KnowledgeItemDto>> Get(Guid documentId, CancellationToken cancellationToken)
     {
         return Ok(await documentProvider.GetAsync(documentId, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:write")]
     [HttpPut("{documentId:guid}")]
     public async Task<ActionResult<KnowledgeItemDto>> Update(
         Guid documentId,
@@ -47,6 +51,7 @@ public sealed class DocumentsController(
         return Ok(await documentProvider.UpdateAsync(documentId, request, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:write")]
     [HttpPatch("{documentId:guid}/metadata")]
     public async Task<ActionResult<KnowledgeItemDto>> UpdateMetadata(
         Guid documentId,
@@ -57,6 +62,7 @@ public sealed class DocumentsController(
         return Ok(await documentProvider.GetAsync(documentId, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:write")]
     [HttpDelete("{documentId:guid}")]
     public async Task<IActionResult> Delete(Guid documentId, CancellationToken cancellationToken)
     {
@@ -64,6 +70,7 @@ public sealed class DocumentsController(
         return NoContent();
     }
 
+    [Authorize(Policy = "documents:read")]
     [HttpGet("{documentId:guid}/revisions")]
     public async Task<ActionResult<PagedResult<RevisionSummaryDto>>> ListRevisions(
         Guid documentId,
@@ -74,6 +81,7 @@ public sealed class DocumentsController(
         return Ok(await revisionProvider.ListAsync(documentId, page, pageSize, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:read")]
     [HttpGet("{documentId:guid}/revisions/{revisionNumber:int}")]
     public async Task<ActionResult<RevisionDto>> GetRevision(
         Guid documentId,
@@ -83,6 +91,7 @@ public sealed class DocumentsController(
         return Ok(await revisionProvider.GetAsync(documentId, revisionNumber, cancellationToken));
     }
 
+    [Authorize(Policy = "comments:read")]
     [HttpGet("{documentId:guid}/revisions/{revisionNumber:int}/comments")]
     public async Task<ActionResult<PagedResult<CommentDto>>> ListComments(
         Guid documentId,
@@ -94,6 +103,7 @@ public sealed class DocumentsController(
         return Ok(await commentProvider.ListAsync(documentId, revisionNumber, page, pageSize, cancellationToken));
     }
 
+    [Authorize(Policy = "comments:write")]
     [HttpPost("{documentId:guid}/revisions/{revisionNumber:int}/comments")]
     public async Task<ActionResult<CommentDto>> AddComment(
         Guid documentId,
@@ -105,6 +115,7 @@ public sealed class DocumentsController(
         return CreatedAtAction(nameof(ListComments), new { documentId, revisionNumber }, comment);
     }
 
+    [Authorize(Policy = "comments:write")]
     [HttpPut("comments/{commentId:guid}")]
     public async Task<ActionResult<CommentDto>> UpdateComment(
         Guid commentId,
@@ -114,6 +125,7 @@ public sealed class DocumentsController(
         return Ok(await commentProvider.UpdateAsync(commentId, request, cancellationToken));
     }
 
+    [Authorize(Policy = "comments:write")]
     [HttpDelete("comments/{commentId:guid}")]
     public async Task<IActionResult> DeleteComment(Guid commentId, CancellationToken cancellationToken)
     {

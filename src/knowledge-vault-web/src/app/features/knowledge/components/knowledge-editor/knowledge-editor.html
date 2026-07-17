@@ -18,6 +18,50 @@
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="grid">
+        <label>
+          Scope
+          <select formControlName="scope" (change)="onScopeChange()">
+            @for (scope of scopes; track scope) {
+              <option [value]="scope">{{ scope }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Type
+          <select formControlName="documentType">
+            @for (type of documentTypes; track type.value) {
+              <option [value]="type.value">{{ type.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      @if (form.controls.scope.value === 'Project') {
+        <div class="grid">
+          <label>
+            Project
+            <select formControlName="projectId" (change)="onProjectChange()">
+              <option value="">Select project</option>
+              @for (project of projects; track project.id) {
+                <option [value]="project.id">{{ project.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Topic
+            <select formControlName="topicId">
+              <option value="">Select topic</option>
+              @for (topic of topics; track topic.id) {
+                <option [value]="topic.id">{{ topic.name }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      }
+
       <label>
         Title
         <input type="text" formControlName="title" />
@@ -54,6 +98,30 @@
         </label>
       </div>
 
+      <div class="grid">
+        <label>
+          Ticket URL
+          <input type="url" formControlName="ticketUrl" placeholder="https://ticket/123" />
+        </label>
+
+        <label>
+          Change note
+          <input type="text" formControlName="changeNote" placeholder="What changed in this revision" />
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          Source URL
+          <input type="url" formControlName="sourceUrl" />
+        </label>
+
+        <label>
+          New tags
+          <input type="text" formControlName="tagNames" placeholder="comma separated" />
+        </label>
+      </div>
+
       <div class="tag-field">
         <span class="field-label">Existing tags</span>
         @if (tags.length) {
@@ -74,18 +142,6 @@
         } @else {
           <span class="empty-tags">No existing tags yet.</span>
         }
-      </div>
-
-      <div class="grid">
-        <label>
-          New tags
-          <input type="text" formControlName="tagNames" placeholder="comma separated" />
-        </label>
-
-        <label>
-          Source URL
-          <input type="url" formControlName="sourceUrl" />
-        </label>
       </div>
 
       <div class="editor-dialog__actions">

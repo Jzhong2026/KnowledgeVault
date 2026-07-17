@@ -11,6 +11,7 @@ namespace KnowledgeVault.Api.Controllers;
 [Route("api/projects")]
 public sealed class ProjectsController(IProjectProvider projectProvider) : ControllerBase
 {
+    [Authorize(Policy = "projects:read")]
     [HttpGet]
     public async Task<ActionResult<PagedResult<ProjectSummaryDto>>> List(
         [FromQuery] ProjectQuery query,
@@ -19,12 +20,14 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return Ok(await projectProvider.ListAsync(query, cancellationToken));
     }
 
+    [Authorize(Policy = "projects:read")]
     [HttpGet("{projectId:guid}")]
     public async Task<ActionResult<ProjectDto>> Get(Guid projectId, CancellationToken cancellationToken)
     {
         return Ok(await projectProvider.GetAsync(projectId, cancellationToken));
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpPost]
     public async Task<ActionResult<ProjectDto>> Create(
         CreateProjectRequest request,
@@ -34,6 +37,7 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return CreatedAtAction(nameof(Get), new { projectId = project.Id }, project);
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpPut("{projectId:guid}")]
     public async Task<ActionResult<ProjectDto>> Update(
         Guid projectId,
@@ -43,6 +47,7 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return Ok(await projectProvider.UpdateAsync(projectId, request, cancellationToken));
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpDelete("{projectId:guid}")]
     public async Task<IActionResult> Delete(Guid projectId, CancellationToken cancellationToken)
     {
@@ -50,6 +55,7 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return NoContent();
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpGet("{projectId:guid}/members")]
     public async Task<ActionResult<IReadOnlyList<ProjectMemberDto>>> ListMembers(
         Guid projectId,
@@ -58,6 +64,7 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return Ok(await projectProvider.ListMembersAsync(projectId, cancellationToken));
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpPost("{projectId:guid}/members")]
     public async Task<ActionResult<ProjectMemberDto>> AddMember(
         Guid projectId,
@@ -68,6 +75,7 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return CreatedAtAction(nameof(ListMembers), new { projectId }, member);
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpPut("{projectId:guid}/members/{userId:guid}")]
     public async Task<ActionResult<ProjectMemberDto>> UpdateMember(
         Guid projectId,
@@ -78,6 +86,7 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
         return Ok(await projectProvider.UpdateMemberAsync(projectId, userId, request, cancellationToken));
     }
 
+    [Authorize(Policy = "projects:write")]
     [HttpDelete("{projectId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> RemoveMember(
         Guid projectId,

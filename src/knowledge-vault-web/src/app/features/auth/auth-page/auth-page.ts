@@ -54,6 +54,7 @@ export class AuthPage {
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.error.set('Please fix the highlighted fields and try again.');
       return;
     }
 

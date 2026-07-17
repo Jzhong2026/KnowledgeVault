@@ -13,6 +13,7 @@ export interface UserProfile {
   id: string;
   userName: string;
   email: string;
+  nickname?: string | null;
   createdAt: string;
   lastLoginAt?: string | null;
 }

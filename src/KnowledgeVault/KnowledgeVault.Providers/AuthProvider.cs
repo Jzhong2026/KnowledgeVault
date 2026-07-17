@@ -59,7 +59,9 @@ public sealed class AuthProvider(
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var userNameOrEmail = RequireText(request.UserNameOrEmail, "User name or email", 256);
-        var password = RequirePassword(request.Password);
+        // Login accepts existing credentials independently of the current
+        // registration policy so imported/local accounts remain usable.
+        var password = RequireText(request.Password, "Password", 512);
         var normalized = TextNormalizer.NormalizeName(userNameOrEmail);
 
         var user = await dbContext.Users.FirstOrDefaultAsync(

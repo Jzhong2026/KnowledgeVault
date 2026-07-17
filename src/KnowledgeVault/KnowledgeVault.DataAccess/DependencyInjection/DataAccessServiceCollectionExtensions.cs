@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,18 +12,42 @@ public static class DataAccessServiceCollectionExtensions
         IConfiguration configuration,
         string? contentRootPath = null)
     {
-        var connectionString = configuration.GetConnectionString("KnowledgeVaultDb");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "ConnectionStrings:KnowledgeVaultDb is not configured. Set it via appsettings, user secrets, or the ConnectionStrings__KnowledgeVaultDb environment variable.");
-        }
+        var connectionString = configuration.GetConnectionString("KnowledgeVaultDb")
+            ?? "Data Source=knowledge-vault.db";
+        connectionString = ResolveSqliteConnectionString(connectionString, contentRootPath);
 
         services.AddDbContext<KnowledgeVaultDbContext>(options =>
         {
-            options.UseSqlServer(connectionString);
+            options.UseSqlite(connectionString);
         });
 
         return services;
+    }
+
+    private static string ResolveSqliteConnectionString(string connectionString, string? contentRootPath)
+    {
+        var builder = new SqliteConnectionStringBuilder(connectionString);
+        var dataSource = builder.DataSource;
+
+        if (string.IsNullOrWhiteSpace(dataSource)
+            || dataSource.Equals(":memory:", StringComparison.OrdinalIgnoreCase)
+            || Path.IsPathRooted(dataSource))
+        {
+            return connectionString;
+        }
+
+        var rootPath = string.IsNullOrWhiteSpace(contentRootPath)
+            ? AppContext.BaseDirectory
+            : contentRootPath;
+        var fullPath = Path.GetFullPath(Path.Combine(rootPath, dataSource));
+        var directory = Path.GetDirectoryName(fullPath);
+
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        builder.DataSource = fullPath;
+        return builder.ConnectionString;
     }
 }

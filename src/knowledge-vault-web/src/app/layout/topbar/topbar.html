@@ -1,15 +1,22 @@
 <header class="topbar">
-  <div>
-    <p class="eyebrow">Workspace</p>
-    <h1>Personal Knowledge Vault</h1>
+  <div class="workspace-title">
+    <p class="eyebrow">Knowledge workspace</p>
+    <h1>Project &amp; Personal Documents</h1>
   </div>
 
-  <div class="user">
-    <span class="avatar">{{ initials() }}</span>
-    <span class="user__meta">
-      <strong>{{ user()?.userName }}</strong>
-      <small>{{ user()?.email }}</small>
-    </span>
-    <button class="signout-button" type="button" (click)="logout()">Sign out</button>
+  <div class="user-actions">
+    <a class="profile-link" routerLink="/profile" aria-label="Open profile and API keys">
+      <span class="avatar">{{ initials() }}</span>
+      <span class="user__meta">
+        <span class="user__label">Profile</span>
+        <strong>{{ displayName() }}</strong>
+        <small>{{ user()?.email }}</small>
+      </span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+    </a>
+    <button class="signout-button" type="button" (click)="logout()" title="Sign out">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></svg>
+      <span>Sign out</span>
+    </button>
   </div>
 </header>

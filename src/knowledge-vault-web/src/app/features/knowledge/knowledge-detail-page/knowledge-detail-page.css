@@ -135,6 +135,100 @@ h2 {
   padding: 10px 12px;
 }
 
+.side-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+@media (max-width: 960px) {
+  .side-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.panel h3 {
+  margin: 0 0 12px;
+}
+
+.badge {
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+
+.badge--accent {
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+
+.muted {
+  color: var(--muted);
+  display: block;
+}
+
+.revision-list,
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.revision-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.revision-item.is-active {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.comment {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.comment__head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.comment-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+
 @media (max-width: 720px) {
   h2 {
     font-size: 30px;
