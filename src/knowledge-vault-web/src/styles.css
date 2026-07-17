@@ -1,15 +1,20 @@
 @import 'highlight.js/styles/github-dark.css';
 
 :root {
-  --accent: #2f7d68;
-  --accent-strong: #1f5f50;
-  --border: #d9e2df;
-  --muted: #667085;
-  --surface: #f6f8fa;
-  --text: #182230;
-  --shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+  --accent: #0fa66b;
+  --accent-strong: #087a51;
+  --accent-soft: #dff8ed;
+  --border: #d8e2e6;
+  --muted: #647386;
+  --surface: #f2f6f8;
+  --surface-elevated: #ffffff;
+  --text: #101b2a;
+  --nav: #08131d;
+  --nav-elevated: #0e1d29;
+  --cyan: #46d5cb;
+  --shadow: 0 18px 48px rgba(15, 32, 46, 0.08);
   color-scheme: light;
-  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, Arial, sans-serif;
 }
 
 * {
@@ -19,8 +24,142 @@
 body {
   min-width: 320px;
   margin: 0;
-  background: var(--surface);
+  background:
+    radial-gradient(circle at 72% 8%, rgba(70, 213, 203, 0.08), transparent 26rem),
+    var(--surface);
   color: var(--text);
+}
+
+/* Shared modal surface used by workspace management flows. */
+.modal-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgba(5, 18, 27, 0.64);
+  backdrop-filter: blur(7px);
+  padding: 24px;
+  animation: modal-backdrop-in 150ms ease-out;
+}
+
+.create-key-dialog {
+  width: min(650px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  border: 1px solid rgba(126, 181, 174, 0.35);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 30px 90px rgba(3, 18, 27, 0.35);
+  animation: modal-dialog-in 170ms ease-out;
+}
+
+.dialog-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #dce7e8;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(63, 218, 177, 0.16), transparent 13rem),
+    linear-gradient(135deg, #0b1c27, #103337);
+  color: #fff;
+  padding: 20px 22px;
+}
+
+.dialog-heading__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(101, 231, 197, 0.24);
+  border-radius: 11px;
+  background: rgba(65, 213, 173, 0.1);
+  color: #69dfc0;
+}
+
+.dialog-heading span {
+  color: #65d8bd;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dialog-heading h3 {
+  margin: 3px 0 0;
+  font-size: 19px;
+}
+
+.dialog-heading p {
+  margin: 4px 0 0;
+  color: #91aab4;
+  font-size: 10px;
+}
+
+.dialog-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(161, 201, 201, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #a9bdc4;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dialog-close:hover:not(:disabled) {
+  border-color: rgba(111, 226, 198, 0.4);
+  color: #fff;
+}
+
+.dialog-error {
+  margin: 0 0 4px;
+  border: 1px solid #efc4c0;
+  border-radius: 8px;
+  background: #fff7f6;
+  color: #b42318;
+  font-size: 10px;
+  padding: 9px 11px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin: 14px -24px -24px;
+  border-top: 1px solid #e2e9eb;
+  background: #f8fafb;
+  padding: 14px 24px;
+}
+
+.dialog-cancel {
+  border: 1px solid #cfdcdf;
+  border-radius: 8px;
+  background: #fff;
+  color: #435866;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 780;
+  padding: 10px 14px;
+}
+
+.dialog-cancel:hover:not(:disabled) {
+  border-color: #aebfc4;
+  background: #f4f7f8;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 button,

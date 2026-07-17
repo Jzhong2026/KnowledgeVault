@@ -8,6 +8,8 @@ public interface IDocumentProvider
 {
     Task<PagedResult<KnowledgeItemSummaryDto>> ListAsync(DocumentQuery query, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<DocumentOwnerDto>> ListOwnersAsync(Guid? projectId, CancellationToken cancellationToken);
+
     Task<KnowledgeItemDto> GetAsync(Guid id, CancellationToken cancellationToken);
 
     Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken);

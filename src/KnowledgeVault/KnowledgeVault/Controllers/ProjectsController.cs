@@ -56,6 +56,21 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
     }
 
     [Authorize(Policy = "projects:write")]
+    [HttpPost("{projectId:guid}/follow")]
+    public async Task<ActionResult<ProjectDto>> Follow(Guid projectId, CancellationToken cancellationToken)
+    {
+        return Ok(await projectProvider.FollowAsync(projectId, cancellationToken));
+    }
+
+    [Authorize(Policy = "projects:write")]
+    [HttpDelete("{projectId:guid}/follow")]
+    public async Task<IActionResult> Unfollow(Guid projectId, CancellationToken cancellationToken)
+    {
+        await projectProvider.UnfollowAsync(projectId, cancellationToken);
+        return NoContent();
+    }
+
+    [Authorize(Policy = "projects:write")]
     [HttpGet("{projectId:guid}/members")]
     public async Task<ActionResult<IReadOnlyList<ProjectMemberDto>>> ListMembers(
         Guid projectId,

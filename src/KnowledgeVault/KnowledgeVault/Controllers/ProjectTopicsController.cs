@@ -9,6 +9,7 @@ namespace KnowledgeVault.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/projects/{projectId:guid}/topics")]
+[Route("api/projects/{projectId:guid}/groups")]
 public sealed class ProjectTopicsController(IProjectTopicProvider projectTopicProvider) : ControllerBase
 {
     [HttpGet]

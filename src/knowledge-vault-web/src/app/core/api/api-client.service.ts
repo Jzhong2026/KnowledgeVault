@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../config/api.config';
 import {
   Category,
   Comment,
+  DocumentOwner,
   KnowledgeItem,
   KnowledgeItemQuery,
   KnowledgeItemSummary,
@@ -98,6 +99,9 @@ export class ApiClient {
     if (query.categoryId) {
       params = params.set('categoryId', query.categoryId);
     }
+    if (query.ownerUserId) {
+      params = params.set('ownerUserId', query.ownerUserId);
+    }
     if (query.status) {
       params = params.set('status', query.status);
     }
@@ -109,6 +113,11 @@ export class ApiClient {
     }
 
     return this.http.get<PagedResult<KnowledgeItemSummary>>(`${this.baseUrl}/documents`, { params });
+  }
+
+  listDocumentOwners(projectId?: string): Observable<DocumentOwner[]> {
+    const params = projectId ? new HttpParams().set('projectId', projectId) : undefined;
+    return this.http.get<DocumentOwner[]>(`${this.baseUrl}/documents/owners`, { params });
   }
 
   getKnowledgeItem(id: string): Observable<KnowledgeItem> {
@@ -190,6 +199,9 @@ export class ApiClient {
     if (query.includeArchived) {
       params = params.set('includeArchived', query.includeArchived);
     }
+    if (query.followingOnly) {
+      params = params.set('followingOnly', true);
+    }
     return this.http.get<PagedResult<ProjectSummary>>(`${this.baseUrl}/projects`, { params });
   }
 
@@ -207,6 +219,33 @@ export class ApiClient {
 
   deleteProject(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/projects/${id}`);
+  }
+
+  followProject(id: string): Observable<Project> {
+    return this.http.post<Project>(`${this.baseUrl}/projects/${id}/follow`, {});
+  }
+
+  unfollowProject(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/projects/${id}/follow`);
+  }
+
+  listGroups(projectId: string, includeArchived = false): Observable<PagedResult<ProjectTopic>> {
+    const params = new HttpParams()
+      .set('page', 1)
+      .set('pageSize', 100)
+      .set('includeArchived', includeArchived);
+    return this.http.get<PagedResult<ProjectTopic>>(
+      `${this.baseUrl}/projects/${projectId}/groups`,
+      { params },
+    );
+  }
+
+  createGroup(projectId: string, request: SaveProjectTopicRequest): Observable<ProjectTopic> {
+    return this.http.post<ProjectTopic>(`${this.baseUrl}/projects/${projectId}/groups`, request);
+  }
+
+  deleteGroup(projectId: string, groupId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/projects/${projectId}/groups/${groupId}`);
   }
 
   listTopics(

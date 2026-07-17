@@ -29,6 +29,10 @@ export interface KnowledgeItemSummary {
   scope: DocumentScope;
   topicId?: string | null;
   projectId?: string | null;
+  projectName?: string | null;
+  groupName?: string | null;
+  ownerUserId: string;
+  ownerDisplayName: string;
   documentType: DocumentType;
   currentRevisionNumber: number;
   title: string;
@@ -95,11 +99,17 @@ export interface KnowledgeItemQuery {
   ticketNo?: string;
   search?: string;
   categoryId?: string;
+  ownerUserId?: string;
   status?: KnowledgeItemStatus;
   tagIds?: string[];
   sort?: string;
   page?: number;
   pageSize?: number;
+}
+
+export interface DocumentOwner {
+  id: string;
+  displayName: string;
 }
 
 export interface SaveDocumentRequest {

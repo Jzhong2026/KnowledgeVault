@@ -2,7 +2,11 @@
   display: grid;
   min-height: 100dvh;
   grid-template-columns: 264px minmax(0, 1fr);
-  background: var(--surface);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.32) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 1px, transparent 1px),
+    var(--surface);
+  background-size: 32px 32px;
   transition: grid-template-columns 180ms ease;
 }
 
@@ -15,7 +19,7 @@
 }
 
 .shell__content {
-  padding: 28px;
+  padding: 32px;
 }
 
 @media (max-width: 900px) {

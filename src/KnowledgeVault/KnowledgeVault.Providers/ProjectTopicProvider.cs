@@ -59,7 +59,7 @@ public sealed class ProjectTopicProvider(
         var topic = await dbContext.ProjectTopics
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == topicId && t.ProjectId == projectId, cancellationToken)
-            ?? throw new NotFoundException("Project topic was not found.");
+            ?? throw new NotFoundException("Project group was not found.");
 
         return topic.ToDto();
     }
@@ -75,7 +75,7 @@ public sealed class ProjectTopicProvider(
         if (await dbContext.ProjectTopics.AnyAsync(
                 t => t.ProjectId == projectId && t.NormalizedName == normalizedName, cancellationToken))
         {
-            throw new ValidationException("A topic with this name already exists in the project.");
+            throw new ValidationException("A group with this name already exists in the project.");
         }
 
         var topic = new ProjectTopic
@@ -102,7 +102,7 @@ public sealed class ProjectTopicProvider(
 
         var topic = await dbContext.ProjectTopics
             .FirstOrDefaultAsync(t => t.Id == topicId && t.ProjectId == projectId, cancellationToken)
-            ?? throw new NotFoundException("Project topic was not found.");
+            ?? throw new NotFoundException("Project group was not found.");
 
         var name = RequireText(request.Name, "Name", 128);
         var normalizedName = TextNormalizer.NormalizeName(name);
@@ -111,7 +111,7 @@ public sealed class ProjectTopicProvider(
             await dbContext.ProjectTopics.AnyAsync(
                 t => t.ProjectId == projectId && t.NormalizedName == normalizedName && t.Id != topicId, cancellationToken))
         {
-            throw new ValidationException("A topic with this name already exists in the project.");
+            throw new ValidationException("A group with this name already exists in the project.");
         }
 
         topic.Name = name;
@@ -136,7 +136,7 @@ public sealed class ProjectTopicProvider(
 
         var topic = await dbContext.ProjectTopics
             .FirstOrDefaultAsync(t => t.Id == topicId && t.ProjectId == projectId, cancellationToken)
-            ?? throw new NotFoundException("Project topic was not found.");
+            ?? throw new NotFoundException("Project group was not found.");
 
         dbContext.ProjectTopics.Remove(topic);
         await dbContext.SaveChangesAsync(cancellationToken);

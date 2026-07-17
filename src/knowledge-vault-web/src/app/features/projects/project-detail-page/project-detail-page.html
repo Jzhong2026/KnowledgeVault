@@ -1,71 +1,107 @@
 <section class="project-detail-page">
-  <div class="page-heading">
-    <div>
-      <p><a routerLink="/projects">Projects</a></p>
-      <h2>{{ project()?.name || 'Project' }}</h2>
-    </div>
-    @if (project()) {
-      <a class="primary" routerLink="/knowledge" [queryParams]="{ projectId: project()?.id }">
-        Browse documents
-      </a>
-    }
-  </div>
-
   @if (error()) {
     <p class="alert">{{ error() }}</p>
   }
 
-  @if (loading()) {
+  @if (loading() && !project()) {
     <app-loading-indicator label="Loading project" />
   } @else if (project(); as project) {
-    <p class="muted">{{ project.description || 'No description.' }}</p>
-    <p class="muted">Your role: {{ project.currentUserRole }} · {{ project.members.length }} member(s)</p>
-
-    <section class="panel">
-      <div class="panel__heading">
-        <h3>Topics</h3>
-        <button type="button" class="ghost" (click)="toggleCreateTopic()">
-          {{ showCreateTopic() ? 'Cancel' : 'New topic' }}
+    <header class="project-hero">
+      <div class="project-hero__icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v10H3zM3 7V5h7l2 2" /></svg>
+      </div>
+      <div class="project-hero__content">
+        <p><a routerLink="/projects">Projects</a> / Project workspace</p>
+        <h2>{{ project.name }}</h2>
+        <span>{{ project.description || 'No project description has been added yet.' }}</span>
+        <div class="project-stats">
+          <span><strong>{{ project.members.length }}</strong> collaborators</span>
+          <span><strong>{{ groups().length }}</strong> groups</span>
+          @if (project.currentUserRole) { <span class="role">{{ project.currentUserRole }}</span> }
+        </div>
+      </div>
+      <div class="project-hero__actions">
+        @if (project.isFollowing) {
+          <a class="documents-button" routerLink="/project-documents" [queryParams]="{ projectId: project.id }">Project documents</a>
+        }
+        <button
+          type="button"
+          class="follow-button"
+          [class.is-following]="project.isFollowing"
+          [disabled]="followBusy() || project.currentUserRole === 'Owner'"
+          (click)="toggleFollow()"
+        >
+          {{ project.currentUserRole === 'Owner' ? 'Project owner' : (project.isFollowing ? 'Following' : 'Follow project') }}
         </button>
       </div>
+    </header>
 
-      @if (showCreateTopic()) {
-        <form [formGroup]="topicForm" (ngSubmit)="createTopic()">
-          <div class="grid">
+    @if (!project.isFollowing) {
+      <section class="follow-callout">
+        <div>
+          <h3>Join this project workspace</h3>
+          <p>Follow the project to add groups and create or edit its documents.</p>
+        </div>
+        <button type="button" class="primary" [disabled]="followBusy()" (click)="toggleFollow()">Follow and collaborate</button>
+      </section>
+    } @else {
+      <section class="groups-section">
+        <div class="section-heading">
+          <div>
+            <p>Project structure</p>
+            <h3>Groups</h3>
+            <span>Organize related planning, task, and knowledge documents.</span>
+          </div>
+          @if (canManageGroups()) {
+            <button type="button" class="primary" (click)="toggleCreateGroup()">
+              {{ showCreateGroup() ? 'Cancel' : 'New group' }}
+            </button>
+          }
+        </div>
+
+        @if (showCreateGroup()) {
+          <form class="group-form" [formGroup]="groupForm" (ngSubmit)="createGroup()">
             <label>
-              Name
-              <input type="text" formControlName="name" />
+              Group name
+              <input type="text" formControlName="name" maxlength="128" placeholder="e.g. Release planning" />
             </label>
             <label>
               Description
-              <input type="text" formControlName="description" />
+              <input type="text" formControlName="description" maxlength="512" placeholder="What belongs in this group?" />
             </label>
-          </div>
-          <div class="actions-end">
-            <button type="submit" class="primary" [disabled]="saving()">
-              {{ saving() ? 'Creating' : 'Create topic' }}
-            </button>
-          </div>
-        </form>
-      }
+            <button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Creating...' : 'Create group' }}</button>
+          </form>
+        }
 
-      @if (topics().length === 0) {
-        <p class="muted">No topics yet.</p>
-      } @else {
-        <ul class="topic-list">
-          @for (topic of topics(); track topic.id) {
-            <li class="topic-card">
-              <a [routerLink]="['/knowledge']" [queryParams]="{ topicId: topic.id }">
-                <strong>{{ topic.name }}</strong>
-                @if (topic.description) {
-                  <span class="muted">{{ topic.description }}</span>
-                }
-              </a>
-              <button type="button" class="danger" (click)="deleteTopic(topic.id)">Delete</button>
-            </li>
-          }
-        </ul>
-      }
-    </section>
+        @if (loading()) {
+          <app-loading-indicator label="Loading groups" />
+        } @else if (groups().length === 0) {
+          <div class="empty-groups">
+            <h4>No groups yet</h4>
+            <p>Create the first group to organize this project's documents.</p>
+          </div>
+        } @else {
+          <div class="group-grid">
+            @for (group of groups(); track group.id) {
+              <article class="group-card">
+                <div class="group-card__icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z" /></svg>
+                </div>
+                <div>
+                  <a routerLink="/project-documents" [queryParams]="{ projectId: project.id, topicId: group.id }">{{ group.name }}</a>
+                  <p>{{ group.description || 'No group description.' }}</p>
+                </div>
+                <footer>
+                  <a routerLink="/project-documents" [queryParams]="{ projectId: project.id, topicId: group.id }">View documents</a>
+                  @if (project.currentUserRole === 'Owner') {
+                    <button type="button" (click)="deleteGroup(group.id)">Delete</button>
+                  }
+                </footer>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
   }
 </section>

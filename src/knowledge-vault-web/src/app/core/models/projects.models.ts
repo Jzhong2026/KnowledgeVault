@@ -5,7 +5,8 @@ export interface ProjectSummary {
   name: string;
   description?: string | null;
   isArchived: boolean;
-  currentUserRole: ProjectRole;
+  currentUserRole?: ProjectRole | null;
+  isFollowing: boolean;
   memberCount: number;
   createdAt: string;
   updatedAt?: string | null;
@@ -25,7 +26,8 @@ export interface Project {
   description?: string | null;
   ownerUserId: string;
   isArchived: boolean;
-  currentUserRole: ProjectRole;
+  currentUserRole?: ProjectRole | null;
+  isFollowing: boolean;
   members: ProjectMember[];
   createdAt: string;
   updatedAt?: string | null;
@@ -53,9 +55,13 @@ export interface SaveProjectTopicRequest {
   sortOrder?: number;
 }
 
+export type ProjectGroup = ProjectTopic;
+export type SaveProjectGroupRequest = SaveProjectTopicRequest;
+
 export interface ProjectQuery {
   search?: string;
   includeArchived?: boolean;
+  followingOnly?: boolean;
   page?: number;
   pageSize?: number;
 }

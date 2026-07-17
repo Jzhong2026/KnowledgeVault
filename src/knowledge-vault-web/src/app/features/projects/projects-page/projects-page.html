@@ -1,59 +1,122 @@
 <section class="projects-page">
-  <div class="page-heading">
+  <header class="page-heading">
     <div>
-      <p>Workspace</p>
+      <p>Team workspace</p>
       <h2>Projects</h2>
+      <span>Follow a project to collaborate on its groups and documents.</span>
     </div>
-    <button type="button" class="primary" (click)="toggleCreate()">
-      {{ showCreate() ? 'Cancel' : 'New project' }}
+    <button type="button" class="primary" (click)="openCreate()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+      New project
     </button>
-  </div>
+  </header>
 
   @if (error()) {
     <p class="alert">{{ error() }}</p>
   }
 
-  @if (showCreate()) {
-    <section class="panel">
-      <form [formGroup]="form" (ngSubmit)="create()">
-        <div class="grid">
-          <label>
-            Name
-            <input type="text" formControlName="name" />
-          </label>
-          <label>
-            Description
-            <input type="text" formControlName="description" />
-          </label>
-        </div>
-        <div class="actions-end">
-          <button type="submit" class="primary" [disabled]="saving()">
-            {{ saving() ? 'Creating' : 'Create project' }}
-          </button>
-        </div>
-      </form>
-    </section>
-  }
+  <section class="project-toolbar">
+    <label class="search-field">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+      <input
+        type="search"
+        placeholder="Search projects"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+        (keyup.enter)="load()"
+      />
+    </label>
+    <button type="button" class="filter-toggle" [class.is-active]="followingOnly()" (click)="toggleFollowingOnly()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6" /></svg>
+      Following only
+    </button>
+    <button type="button" class="search-button" (click)="load()">Search</button>
+  </section>
 
   @if (loading()) {
-    <app-loading-indicator label="Loading projects" />
+    <div class="loading-panel"><app-loading-indicator label="Loading projects" /></div>
   } @else if (projects().length === 0) {
-    <p class="muted">No projects yet. Create one to organize documents by topic.</p>
+    <div class="empty-projects">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v10H3zM3 7V5h7l2 2" /></svg>
+      <h3>No projects found</h3>
+      <p>Create a project or change the current filters.</p>
+    </div>
   } @else {
-    <ul class="project-list">
+    <div class="project-grid">
       @for (project of projects(); track project.id) {
-        <li>
-          <a class="project-card" [routerLink]="['/projects', project.id]">
-            <div>
-              <strong>{{ project.name }}</strong>
-              <span class="muted">{{ project.memberCount }} member(s) · {{ project.currentUserRole }}</span>
+        <article class="project-card" [class.project-card--following]="project.isFollowing">
+          <div class="project-card__top">
+            <span class="project-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v10H3zM3 7V5h7l2 2" /></svg>
+            </span>
+            <div class="project-badges">
+              @if (project.currentUserRole) {
+                <span class="role-badge">{{ project.currentUserRole }}</span>
+              }
+              @if (project.isArchived) {
+                <span class="archived-badge">Archived</span>
+              }
             </div>
-            @if (project.isArchived) {
-              <span class="badge">archived</span>
-            }
-          </a>
-        </li>
+          </div>
+
+          <div class="project-card__content">
+            <a [routerLink]="['/projects', project.id]">{{ project.name }}</a>
+            <p>{{ project.description || 'No project description has been added yet.' }}</p>
+          </div>
+
+          <div class="project-card__meta">
+            <span><strong>{{ project.memberCount }}</strong> collaborators</span>
+            <span>Updated {{ project.updatedAt || project.createdAt | date: 'mediumDate' }}</span>
+          </div>
+
+          <footer class="project-card__actions">
+            <a class="open-project" [routerLink]="['/projects', project.id]">Open project</a>
+            <button
+              type="button"
+              class="follow-button"
+              [class.is-following]="project.isFollowing"
+              [disabled]="followBusyId() === project.id || project.currentUserRole === 'Owner'"
+              (click)="toggleFollow(project)"
+            >
+              @if (project.isFollowing) {
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6" /></svg>
+                {{ project.currentUserRole === 'Owner' ? 'Owner' : 'Following' }}
+              } @else {
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                Follow
+              }
+            </button>
+          </footer>
+        </article>
       }
-    </ul>
+    </div>
   }
 </section>
+
+@if (showCreate()) {
+  <div class="modal-backdrop" (click)="closeCreate()">
+    <section class="project-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title" (click)="$event.stopPropagation()">
+      <header>
+        <div>
+          <span>New workspace</span>
+          <h3 id="new-project-title">Create project</h3>
+          <p>Start a shared space for planning, tasks, and project knowledge.</p>
+        </div>
+        <button type="button" aria-label="Close dialog" [disabled]="saving()" (click)="closeCreate()">×</button>
+      </header>
+      <form [formGroup]="form" (ngSubmit)="create()">
+        <label for="project-name">Project name</label>
+        <input id="project-name" type="text" formControlName="name" maxlength="128" autofocus />
+        @if (form.controls.name.touched && form.controls.name.invalid) {
+          <span class="field-error">Enter a project name.</span>
+        }
+        <label for="project-description">Description</label>
+        <textarea id="project-description" formControlName="description" maxlength="512" rows="4"></textarea>
+        <footer>
+          <button type="button" class="cancel-button" [disabled]="saving()" (click)="closeCreate()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="saving()">{{ saving() ? 'Creating...' : 'Create project' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

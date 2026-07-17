@@ -34,7 +34,7 @@ public sealed class ApiKeyProvider(
     ICurrentUserContext currentUserContext,
     IDateTimeProvider dateTimeProvider) : IApiKeyProvider
 {
-    private const int DefaultExpiryDays = 90;
+    private const int DefaultExpiryDays = 365;
     private const int MinExpiryDays = 1;
     private const int MaxExpiryDays = 365;
 

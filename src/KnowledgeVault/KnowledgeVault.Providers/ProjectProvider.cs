@@ -25,8 +25,12 @@ public sealed class ProjectProvider(
 
         var baseQuery = dbContext.Projects
             .AsNoTracking()
-            .Where(p => p.Members.Any(m => m.UserId == userId))
             .Where(p => query.IncludeArchived || !p.IsArchived);
+
+        if (query.FollowingOnly)
+        {
+            baseQuery = baseQuery.Where(p => p.Members.Any(m => m.UserId == userId));
+        }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -44,15 +48,20 @@ public sealed class ProjectProvider(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var items = projects.Select(p => new ProjectSummaryDto(
-            p.Id,
-            p.Name,
-            p.Description,
-            p.IsArchived,
-            GetRoleOrThrow(p, userId),
-            p.Members.Count,
-            p.CreatedAt,
-            p.UpdatedAt)).ToArray();
+        var items = projects.Select(p =>
+        {
+            var role = p.Members.FirstOrDefault(m => m.UserId == userId)?.Role;
+            return new ProjectSummaryDto(
+                p.Id,
+                p.Name,
+                p.Description,
+                p.IsArchived,
+                role,
+                role.HasValue,
+                p.Members.Count,
+                p.CreatedAt,
+                p.UpdatedAt);
+        }).ToArray();
 
         return new PagedResult<ProjectSummaryDto>(items, page, pageSize, totalCount);
     }
@@ -67,7 +76,7 @@ public sealed class ProjectProvider(
             .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
             ?? throw new NotFoundException("Project was not found.");
 
-        var role = GetRoleOrThrow(project, userId);
+        var role = project.Members.FirstOrDefault(m => m.UserId == userId)?.Role;
         return project.ToDto(role);
     }
 
@@ -134,6 +143,55 @@ public sealed class ProjectProvider(
         RequireOwner(project, userId);
 
         dbContext.Projects.Remove(project);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ProjectDto> FollowAsync(Guid projectId, CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        var project = await dbContext.Projects
+            .Include(p => p.Members)
+            .ThenInclude(m => m.User)
+            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
+            ?? throw new NotFoundException("Project was not found.");
+
+        if (project.IsArchived)
+        {
+            throw new ValidationException("Archived projects cannot be followed.");
+        }
+
+        var existing = project.Members.FirstOrDefault(m => m.UserId == userId);
+        if (existing is null)
+        {
+            project.Members.Add(new ProjectMember
+            {
+                UserId = userId,
+                Role = ProjectRole.Editor,
+                CreatedAt = dateTimeProvider.UtcNow
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return await ReloadAsync(projectId, userId, cancellationToken);
+    }
+
+    public async Task UnfollowAsync(Guid projectId, CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        var member = await dbContext.ProjectMembers
+            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId, cancellationToken);
+
+        if (member is null)
+        {
+            return;
+        }
+
+        if (member.Role == ProjectRole.Owner)
+        {
+            throw new ValidationException("Project owners cannot unfollow a project they own.");
+        }
+
+        dbContext.ProjectMembers.Remove(member);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

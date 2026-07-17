@@ -60,6 +60,10 @@ internal static class DtoMapper
             item.Scope,
             item.TopicId,
             item.Topic?.ProjectId,
+            item.Topic?.Project?.Name,
+            item.Topic?.Name,
+            item.OwnerUserId,
+            GetDisplayName(item.OwnerUser),
             item.DocumentType,
             item.CurrentRevisionNumber,
             rev?.Title ?? string.Empty,
@@ -150,7 +154,7 @@ internal static class DtoMapper
             comment.DeletedAt is not null);
     }
 
-    public static ProjectDto ToDto(this Project project, ProjectRole currentUserRole)
+    public static ProjectDto ToDto(this Project project, ProjectRole? currentUserRole)
     {
         return new ProjectDto(
             project.Id,
@@ -159,6 +163,7 @@ internal static class DtoMapper
             project.OwnerUserId,
             project.IsArchived,
             currentUserRole,
+            currentUserRole.HasValue,
             project.Members
                 .Where(x => x.User is not null)
                 .OrderBy(x => x.Role)

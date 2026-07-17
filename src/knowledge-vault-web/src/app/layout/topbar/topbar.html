@@ -1,22 +1,46 @@
 <header class="topbar">
   <div class="workspace-title">
-    <p class="eyebrow">Knowledge workspace</p>
-    <h1>Project &amp; Personal Documents</h1>
+    <p class="eyebrow"><span></span> Team collaboration workspace</p>
+    <h1>Project Knowledge Hub</h1>
+    <small>Planning <i></i> Tasks <i></i> Knowledge</small>
   </div>
 
   <div class="user-actions">
-    <a class="profile-link" routerLink="/profile" aria-label="Open profile and API keys">
-      <span class="avatar">{{ initials() }}</span>
-      <span class="user__meta">
-        <span class="user__label">Profile</span>
-        <strong>{{ displayName() }}</strong>
-        <small>{{ user()?.email }}</small>
-      </span>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-    </a>
-    <button class="signout-button" type="button" (click)="logout()" title="Sign out">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></svg>
-      <span>Sign out</span>
-    </button>
+    <div class="user-menu">
+      <button
+        class="user-menu__trigger"
+        type="button"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="menuOpen()"
+        (click)="toggleMenu($event)"
+      >
+        <span class="avatar">{{ initials() }}</span>
+        <span class="user__meta">
+          <span class="user__label">Workspace profile</span>
+          <strong>{{ displayName() }}</strong>
+        </span>
+        <svg class="user-menu__chevron" [class.is-open]="menuOpen()" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 10l5 5 5-5" />
+        </svg>
+      </button>
+
+      @if (menuOpen()) {
+        <div class="user-menu__dropdown" role="menu">
+          <a class="user-menu__item" routerLink="/profile" role="menuitem" (click)="closeMenu()">
+            <span class="user-menu__icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 21a7 7 0 0 1 14 0" /></svg>
+            </span>
+            <span><strong>Profile</strong><small>Identity and API access</small></span>
+          </a>
+          <div class="user-menu__divider"></div>
+          <button class="user-menu__item user-menu__item--signout" type="button" role="menuitem" (click)="logout()">
+            <span class="user-menu__icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></svg>
+            </span>
+            <span><strong>Sign out</strong><small>End the current session</small></span>
+          </button>
+        </div>
+      }
+    </div>
   </div>
 </header>

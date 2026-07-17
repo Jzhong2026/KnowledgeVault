@@ -14,5 +14,6 @@ public sealed record UpdateProjectMemberRequest(ProjectRole Role);
 public sealed record ProjectQuery(
     string? Search,
     bool IncludeArchived = false,
+    bool FollowingOnly = false,
     int Page = 1,
     int PageSize = 20);

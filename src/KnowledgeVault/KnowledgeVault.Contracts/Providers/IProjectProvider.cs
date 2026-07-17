@@ -15,6 +15,10 @@ public interface IProjectProvider
 
     Task DeleteAsync(Guid projectId, CancellationToken cancellationToken);
 
+    Task<ProjectDto> FollowAsync(Guid projectId, CancellationToken cancellationToken);
+
+    Task UnfollowAsync(Guid projectId, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ProjectMemberDto>> ListMembersAsync(Guid projectId, CancellationToken cancellationToken);
 
     Task<ProjectMemberDto> AddMemberAsync(Guid projectId, AddProjectMemberRequest request, CancellationToken cancellationToken);

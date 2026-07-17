@@ -10,6 +10,7 @@ public sealed record DocumentQuery(
     string? TicketNo,
     string? Search,
     Guid? CategoryId,
+    Guid? OwnerUserId,
     KnowledgeItemStatus? Status,
     IReadOnlyList<Guid>? TagIds,
     DocumentSort? Sort,

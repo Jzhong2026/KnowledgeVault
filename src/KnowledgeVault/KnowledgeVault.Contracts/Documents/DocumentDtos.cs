@@ -31,6 +31,10 @@ public sealed record KnowledgeItemSummaryDto(
     DocumentScope Scope,
     Guid? TopicId,
     Guid? ProjectId,
+    string? ProjectName,
+    string? GroupName,
+    Guid OwnerUserId,
+    string OwnerDisplayName,
     DocumentType DocumentType,
     int CurrentRevisionNumber,
     string Title,
@@ -41,6 +45,8 @@ public sealed record KnowledgeItemSummaryDto(
     IReadOnlyList<TagDto> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
+
+public sealed record DocumentOwnerDto(Guid Id, string DisplayName);
 
 public sealed record RevisionSummaryDto(
     Guid Id,

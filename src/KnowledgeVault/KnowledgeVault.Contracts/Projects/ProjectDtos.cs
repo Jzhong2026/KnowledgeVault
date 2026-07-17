@@ -8,7 +8,8 @@ public sealed record ProjectSummaryDto(
     string Name,
     string? Description,
     bool IsArchived,
-    ProjectRole CurrentUserRole,
+    ProjectRole? CurrentUserRole,
+    bool IsFollowing,
     int MemberCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
@@ -26,7 +27,8 @@ public sealed record ProjectDto(
     string? Description,
     Guid OwnerUserId,
     bool IsArchived,
-    ProjectRole CurrentUserRole,
+    ProjectRole? CurrentUserRole,
+    bool IsFollowing,
     IReadOnlyList<ProjectMemberDto> Members,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);

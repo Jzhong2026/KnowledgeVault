@@ -24,6 +24,15 @@ public sealed class DocumentsController(
         return Ok(await documentProvider.ListAsync(query, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:read")]
+    [HttpGet("owners")]
+    public async Task<ActionResult<IReadOnlyList<DocumentOwnerDto>>> ListOwners(
+        [FromQuery] Guid? projectId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await documentProvider.ListOwnersAsync(projectId, cancellationToken));
+    }
+
     [Authorize(Policy = "documents:write")]
     [HttpPost]
     public async Task<ActionResult<KnowledgeItemDto>> Create(

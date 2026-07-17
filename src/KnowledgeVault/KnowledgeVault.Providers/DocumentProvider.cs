@@ -43,6 +43,31 @@ public sealed class DocumentProvider(
             totalCount);
     }
 
+    public async Task<IReadOnlyList<DocumentOwnerDto>> ListOwnersAsync(Guid? projectId, CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        var query = dbContext.KnowledgeItems
+            .AsNoTracking()
+            .Where(x => x.Scope == DocumentScope.Project && x.Status != KnowledgeItemStatus.Deleted)
+            .Where(x => dbContext.ProjectTopics.Any(t =>
+                t.Id == x.TopicId &&
+                dbContext.ProjectMembers.Any(m => m.ProjectId == t.ProjectId && m.UserId == userId)));
+
+        if (projectId.HasValue)
+        {
+            query = query.Where(x => dbContext.ProjectTopics.Any(t =>
+                t.Id == x.TopicId && t.ProjectId == projectId.Value));
+        }
+
+        return await query
+            .Select(x => new DocumentOwnerDto(
+                x.OwnerUserId,
+                x.OwnerUser != null ? (x.OwnerUser.Nickname ?? x.OwnerUser.UserName) : string.Empty))
+            .Distinct()
+            .OrderBy(x => x.DisplayName)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<KnowledgeItemDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         await documentAccessService.EnsureViewAsync(id, cancellationToken);
@@ -274,6 +299,11 @@ public sealed class DocumentProvider(
             itemsQuery = itemsQuery.Where(x => x.CategoryId == query.CategoryId.Value);
         }
 
+        if (query.OwnerUserId.HasValue)
+        {
+            itemsQuery = itemsQuery.Where(x => x.OwnerUserId == query.OwnerUserId.Value);
+        }
+
         if (query.Status.HasValue)
         {
             itemsQuery = itemsQuery.Where(x => x.Status == query.Status.Value);
@@ -292,6 +322,8 @@ public sealed class DocumentProvider(
     {
         return dbContext.KnowledgeItems
             .AsNoTracking()
+            .Include(x => x.OwnerUser)
+            .Include(x => x.Topic).ThenInclude(x => x!.Project)
             .Include(x => x.Category)
             .Include(x => x.KnowledgeItemTags).ThenInclude(x => x.Tag)
             .Include(x => x.CurrentRevision);

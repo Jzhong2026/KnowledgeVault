@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -30,6 +30,8 @@ export class ProfilePage {
   readonly profile = signal<UserProfile | null>(null);
   readonly apiKeys = signal<ApiKey[]>([]);
   readonly createdKey = signal<ApiKeyCreated | null>(null);
+  readonly createDialogOpen = signal(false);
+  readonly keyError = signal<string | null>(null);
   readonly creating = signal(false);
   readonly savingProfile = signal(false);
   readonly profileSaved = signal(false);
@@ -41,7 +43,7 @@ export class ProfilePage {
 
   readonly keyForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(64)]],
-    expiresInDays: [90, [Validators.min(1), Validators.max(365)]],
+    expiresInDays: [365, [Validators.min(1), Validators.max(365)]],
     scopes: this.fb.nonNullable.control<string[]>([], [Validators.required, Validators.minLength(1)]),
   });
 
@@ -94,6 +96,29 @@ export class ProfilePage {
     this.keyForm.controls.scopes.markAsDirty();
   }
 
+  openCreateDialog(): void {
+    this.keyError.set(null);
+    this.keyForm.reset({ name: '', expiresInDays: 365, scopes: [] });
+    this.createDialogOpen.set(true);
+  }
+
+  closeCreateDialog(): void {
+    if (this.creating()) {
+      return;
+    }
+
+    this.createDialogOpen.set(false);
+    this.keyError.set(null);
+    this.keyForm.reset({ name: '', expiresInDays: 365, scopes: [] });
+  }
+
+  @HostListener('document:keydown.escape')
+  closeCreateDialogOnEscape(): void {
+    if (this.createDialogOpen()) {
+      this.closeCreateDialog();
+    }
+  }
+
   createKey(): void {
     if (this.keyForm.invalid) {
       this.keyForm.markAllAsTouched();
@@ -101,6 +126,7 @@ export class ProfilePage {
     }
 
     this.creating.set(true);
+    this.keyError.set(null);
     const value = this.keyForm.getRawValue();
     this.api
       .createApiKey({
@@ -111,12 +137,25 @@ export class ProfilePage {
       .subscribe({
         next: (created) => {
           this.createdKey.set(created);
-          this.keyForm.reset({ name: '', expiresInDays: 90, scopes: [] });
+          this.createDialogOpen.set(false);
+          this.keyForm.reset({ name: '', expiresInDays: 365, scopes: [] });
           this.loadKeys();
         },
-        error: (error) => this.error.set(getErrorMessage(error)),
+        error: (error) => this.keyError.set(getErrorMessage(error)),
         complete: () => this.creating.set(false),
       });
+  }
+
+  keyStatus(key: ApiKey): 'Active' | 'Expired' | 'Revoked' {
+    if (key.isRevoked) {
+      return 'Revoked';
+    }
+
+    if (key.expiresAt && new Date(key.expiresAt).getTime() <= Date.now()) {
+      return 'Expired';
+    }
+
+    return 'Active';
   }
 
   revokeKey(id: string): void {
