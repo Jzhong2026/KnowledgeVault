@@ -39,7 +39,7 @@
           },
           "configurations": {
             "production": {
-              "baseHref": "/knowledgevaultweb/",
+              "baseHref": "/KnowledgeVaultWeb/",
               "budgets": [
                 {
                   "type": "initial",
