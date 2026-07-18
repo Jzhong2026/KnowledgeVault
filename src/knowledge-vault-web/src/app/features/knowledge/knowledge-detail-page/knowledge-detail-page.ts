@@ -1,12 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { ApiClient } from '../../../core/api/api-client.service';
 import { getErrorMessage } from '../../../core/http/error-message';
 import {
   Comment,
+  DocumentScope,
   KnowledgeItem,
   Revision,
   RevisionSummary,
@@ -33,10 +34,17 @@ import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe
 export class KnowledgeDetailPage {
   private readonly api = inject(ApiClient);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly item = signal<KnowledgeItem | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly workspaceScope =
+    (this.route.snapshot.data?.['scope'] as DocumentScope | undefined) ?? 'Personal';
+  readonly documentListRoute =
+    this.workspaceScope === 'Project' ? '/project-documents' : '/knowledge';
+  readonly documentListLabel =
+    this.workspaceScope === 'Project' ? 'Back to project documents' : 'Back to my documents';
 
   readonly revisions = signal<RevisionSummary[]>([]);
   readonly comments = signal<Comment[]>([]);
@@ -54,6 +62,13 @@ export class KnowledgeDetailPage {
 
     this.api.getKnowledgeItem(id).subscribe({
       next: (item) => {
+        if (item.scope !== this.workspaceScope) {
+          const detailRoute =
+            item.scope === 'Project' ? '/project-documents/detail' : '/knowledge/detail';
+          void this.router.navigate([detailRoute, item.id], { replaceUrl: true });
+          return;
+        }
+
         this.item.set(item);
         this.loadRevisions(id);
         this.loadComments(id, item.currentRevisionNumber);

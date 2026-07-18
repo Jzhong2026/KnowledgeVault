@@ -37,20 +37,17 @@ export class KnowledgeEditor implements OnChanges {
   readonly statuses: KnowledgeItemStatus[] = ['Draft', 'Active', 'Archived'];
 
   readonly form = new FormBuilder().nonNullable.group({
-    scope: ['Personal' as DocumentScope, [Validators.required]],
     projectId: [''],
     topicId: [''],
     documentType: ['General' as DocumentType, [Validators.required]],
     title: ['', [Validators.required, Validators.maxLength(256)]],
     summary: [''],
     content: ['', [Validators.required]],
-    sourceUrl: [''],
-    ticketUrl: [''],
-    changeNote: [''],
+    linkDisplayText: [''],
+    linkUrl: [''],
     categoryId: [''],
     status: ['Draft' as KnowledgeItemStatus, [Validators.required]],
     tagIds: [[] as string[]],
-    tagNames: [''],
   });
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -63,41 +60,37 @@ export class KnowledgeEditor implements OnChanges {
       return;
     }
 
+    this.configureProjectValidation();
+
     if (!this.item) {
       this.form.reset({
-        scope: this.workspaceScope,
-        projectId: this.workspaceScope === 'Project' ? this.defaultProjectId ?? '' : '',
-        topicId: this.workspaceScope === 'Project' ? this.defaultTopicId ?? '' : '',
+        projectId: this.workspaceScope === 'Project' ? (this.defaultProjectId ?? '') : '',
+        topicId: this.workspaceScope === 'Project' ? (this.defaultTopicId ?? '') : '',
         documentType: 'General',
         title: '',
         summary: '',
         content: '',
-        sourceUrl: '',
-        ticketUrl: '',
-        changeNote: '',
+        linkDisplayText: '',
+        linkUrl: '',
         categoryId: '',
         status: 'Draft',
         tagIds: [],
-        tagNames: '',
       });
       return;
     }
 
     this.form.reset({
-      scope: this.item.scope,
       projectId: this.item.projectId ?? '',
       topicId: this.item.topicId ?? '',
       documentType: this.item.documentType,
       title: this.item.title,
       summary: this.item.summary ?? '',
       content: this.item.content,
-      sourceUrl: this.item.sourceUrl ?? '',
-      ticketUrl: this.item.ticketUrl ?? '',
-      changeNote: this.item.changeNote ?? '',
+      linkDisplayText: this.item.linkDisplayText ?? '',
+      linkUrl: this.item.linkUrl ?? '',
       categoryId: this.item.category?.id ?? '',
       status: this.item.status,
       tagIds: this.item.tags.map((tag) => tag.id),
-      tagNames: '',
     });
   }
 
@@ -116,27 +109,36 @@ export class KnowledgeEditor implements OnChanges {
     }
 
     const value = this.form.getRawValue();
-    const isProject = value.scope === 'Project';
+    const isProject = this.workspaceScope === 'Project';
 
     this.saveItem.emit({
-      scope: value.scope,
+      scope: this.workspaceScope,
+      projectId: isProject ? value.projectId || null : null,
       topicId: isProject ? value.topicId || null : null,
       documentType: value.documentType,
       title: value.title,
       content: value.content,
       summary: value.summary || null,
-      sourceUrl: value.sourceUrl || null,
-      ticketUrl: value.ticketUrl || null,
-      changeNote: value.changeNote || null,
+      sourceUrl: this.item?.sourceUrl ?? null,
+      linkDisplayText: value.linkDisplayText || null,
+      linkUrl: value.linkUrl || null,
+      changeNote: null,
       categoryId: value.categoryId || null,
       status: value.status,
       tagIds: value.tagIds,
-      tagNames: value.tagNames
-        .split(',')
-        .map((name) => name.trim())
-        .filter(Boolean),
+      tagNames: [],
       expectedRevisionNumber: this.item ? this.item.currentRevisionNumber : undefined,
     });
+  }
+
+  private configureProjectValidation(): void {
+    const projectControl = this.form.controls.projectId;
+    if (this.workspaceScope === 'Project') {
+      projectControl.setValidators([Validators.required]);
+    } else {
+      projectControl.clearValidators();
+    }
+    projectControl.updateValueAndValidity({ emitEvent: false });
   }
 
   isTagSelected(tagId: string): boolean {

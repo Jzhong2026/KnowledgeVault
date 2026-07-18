@@ -27,12 +27,7 @@ import {
   SaveProjectRequest,
   SaveProjectTopicRequest,
 } from '../models/projects.models';
-import {
-  ApiKey,
-  ApiKeyCreated,
-  CreateApiKeyRequest,
-  UserProfile,
-} from '../models/profile.models';
+import { ApiKey, ApiKeyCreated, CreateApiKeyRequest, UserProfile } from '../models/profile.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiClient {
@@ -96,6 +91,9 @@ export class ApiClient {
     if (query.documentType) {
       params = params.set('documentType', query.documentType);
     }
+    if (query.linkDisplayText) {
+      params = params.set('linkDisplayText', query.linkDisplayText);
+    }
     if (query.categoryId) {
       params = params.set('categoryId', query.categoryId);
     }
@@ -112,7 +110,9 @@ export class ApiClient {
       params = params.append('tagIds', tagId);
     }
 
-    return this.http.get<PagedResult<KnowledgeItemSummary>>(`${this.baseUrl}/documents`, { params });
+    return this.http.get<PagedResult<KnowledgeItemSummary>>(`${this.baseUrl}/documents`, {
+      params,
+    });
   }
 
   listDocumentOwners(projectId?: string): Observable<DocumentOwner[]> {
@@ -169,11 +169,7 @@ export class ApiClient {
     );
   }
 
-  addComment(
-    documentId: string,
-    revisionNumber: number,
-    content: string,
-  ): Observable<Comment> {
+  addComment(documentId: string, revisionNumber: number, content: string): Observable<Comment> {
     return this.http.post<Comment>(
       `${this.baseUrl}/documents/${documentId}/revisions/${revisionNumber}/comments`,
       { content },
@@ -213,7 +209,10 @@ export class ApiClient {
     return this.http.post<Project>(`${this.baseUrl}/projects`, request);
   }
 
-  updateProject(id: string, request: SaveProjectRequest & { isArchived?: boolean }): Observable<Project> {
+  updateProject(
+    id: string,
+    request: SaveProjectRequest & { isArchived?: boolean },
+  ): Observable<Project> {
     return this.http.put<Project>(`${this.baseUrl}/projects/${id}`, request);
   }
 
@@ -248,10 +247,7 @@ export class ApiClient {
     return this.http.delete<void>(`${this.baseUrl}/projects/${projectId}/groups/${groupId}`);
   }
 
-  listTopics(
-    projectId: string,
-    includeArchived = false,
-  ): Observable<PagedResult<ProjectTopic>> {
+  listTopics(projectId: string, includeArchived = false): Observable<PagedResult<ProjectTopic>> {
     const params = new HttpParams()
       .set('page', 1)
       .set('pageSize', 100)
@@ -263,10 +259,7 @@ export class ApiClient {
   }
 
   createTopic(projectId: string, request: SaveProjectTopicRequest): Observable<ProjectTopic> {
-    return this.http.post<ProjectTopic>(
-      `${this.baseUrl}/projects/${projectId}/topics`,
-      request,
-    );
+    return this.http.post<ProjectTopic>(`${this.baseUrl}/projects/${projectId}/topics`, request);
   }
 
   updateTopic(

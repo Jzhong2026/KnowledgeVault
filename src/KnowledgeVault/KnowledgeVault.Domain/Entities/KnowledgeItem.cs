@@ -8,6 +8,8 @@ public sealed class KnowledgeItem : AuditableEntity
 
     public DocumentScope Scope { get; set; } = DocumentScope.Personal;
 
+    public Guid? ProjectId { get; set; }
+
     public Guid? TopicId { get; set; }
 
     public DocumentType DocumentType { get; set; } = DocumentType.General;
@@ -25,6 +27,8 @@ public sealed class KnowledgeItem : AuditableEntity
     public DateTimeOffset? ArchivedAt { get; set; }
 
     public User? OwnerUser { get; set; }
+
+    public Project? Project { get; set; }
 
     public ProjectTopic? Topic { get; set; }
 

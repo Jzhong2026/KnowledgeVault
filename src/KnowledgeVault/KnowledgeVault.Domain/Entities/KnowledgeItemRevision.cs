@@ -14,9 +14,9 @@ public sealed class KnowledgeItemRevision : AuditableEntity
 
     public string? SourceUrl { get; set; }
 
-    public string? TicketNo { get; set; }
+    public string? LinkDisplayText { get; set; }
 
-    public string? TicketUrl { get; set; }
+    public string? LinkUrl { get; set; }
 
     public string? ChangeNote { get; set; }
 

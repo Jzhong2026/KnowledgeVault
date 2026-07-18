@@ -27,7 +27,7 @@ public sealed class DocumentAccessService(
 
         return doc.Scope == DocumentScope.Personal
             ? doc.OwnerUserId == userId
-            : await IsProjectMemberAsync(doc.TopicId, userId, cancellationToken);
+            : await IsProjectMemberAsync(doc.ProjectId, userId, cancellationToken);
     }
 
     public async Task<bool> CanEditAsync(Guid documentId, CancellationToken cancellationToken)
@@ -49,7 +49,7 @@ public sealed class DocumentAccessService(
             return doc.OwnerUserId == userId;
         }
 
-        var role = await GetProjectRoleAsync(doc.TopicId, userId, cancellationToken);
+        var role = await GetProjectRoleAsync(doc.ProjectId, userId, cancellationToken);
         return role is ProjectRole.Owner or ProjectRole.Editor;
     }
 
@@ -72,7 +72,7 @@ public sealed class DocumentAccessService(
             return doc.OwnerUserId == userId;
         }
 
-        return await IsProjectMemberAsync(doc.TopicId, userId, cancellationToken);
+        return await IsProjectMemberAsync(doc.ProjectId, userId, cancellationToken);
     }
 
     public async Task EnsureViewAsync(Guid documentId, CancellationToken cancellationToken)
@@ -108,28 +108,17 @@ public sealed class DocumentAccessService(
     {
         return await dbContext.KnowledgeItems
             .AsNoTracking()
-            .Include(x => x.Topic)
             .FirstOrDefaultAsync(x => x.Id == documentId, cancellationToken);
     }
 
-    private async Task<bool> IsProjectMemberAsync(Guid? topicId, Guid userId, CancellationToken cancellationToken)
+    private async Task<bool> IsProjectMemberAsync(Guid? projectId, Guid userId, CancellationToken cancellationToken)
     {
-        return await GetProjectRoleAsync(topicId, userId, cancellationToken) is not null;
+        return await GetProjectRoleAsync(projectId, userId, cancellationToken) is not null;
     }
 
-    private async Task<ProjectRole?> GetProjectRoleAsync(Guid? topicId, Guid userId, CancellationToken cancellationToken)
+    private async Task<ProjectRole?> GetProjectRoleAsync(Guid? projectId, Guid userId, CancellationToken cancellationToken)
     {
-        if (topicId is null)
-        {
-            return null;
-        }
-
-        var projectId = await dbContext.ProjectTopics
-            .Where(t => t.Id == topicId)
-            .Select(t => t.ProjectId)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (projectId == Guid.Empty)
+        if (projectId is null)
         {
             return null;
         }

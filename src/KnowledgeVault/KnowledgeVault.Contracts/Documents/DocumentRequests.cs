@@ -7,7 +7,7 @@ public sealed record DocumentQuery(
     Guid? ProjectId,
     Guid? TopicId,
     DocumentType? DocumentType,
-    string? TicketNo,
+    string? LinkDisplayText,
     string? Search,
     Guid? CategoryId,
     Guid? OwnerUserId,
@@ -19,13 +19,15 @@ public sealed record DocumentQuery(
 
 public sealed record CreateDocumentRequest(
     DocumentScope Scope,
+    Guid? ProjectId,
     Guid? TopicId,
     DocumentType DocumentType,
     string Title,
     string Content,
     string? Summary,
     string? SourceUrl,
-    string? TicketUrl,
+    string? LinkDisplayText,
+    string? LinkUrl,
     string? ChangeNote,
     Guid? CategoryId,
     KnowledgeItemStatus Status,
@@ -34,17 +36,22 @@ public sealed record CreateDocumentRequest(
 
 public sealed record UpdateDocumentRequest(
     int ExpectedRevisionNumber,
+    Guid? ProjectId,
+    Guid? TopicId,
     string Title,
     string Content,
     string? Summary,
     string? SourceUrl,
-    string? TicketUrl,
+    string? LinkDisplayText,
+    string? LinkUrl,
     string? ChangeNote,
+    Guid? CategoryId,
     KnowledgeItemStatus Status,
     IReadOnlyList<Guid>? TagIds,
     IReadOnlyList<string>? TagNames);
 
 public sealed record UpdateDocumentMetadataRequest(
+    Guid? ProjectId,
     Guid? TopicId,
     Guid? CategoryId,
     KnowledgeItemStatus Status,

@@ -195,8 +195,8 @@ namespace KnowledgeVault.DataAccess.Migrations
                     Summary = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
                     Content = table.Column<string>(type: "TEXT", nullable: false),
                     SourceUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
-                    TicketNo = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
-                    TicketUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
+                    LinkDisplayText = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    LinkUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
                     ChangeNote = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
                     CreatedByUserId = table.Column<Guid>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
@@ -219,6 +219,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     UserId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Scope = table.Column<int>(type: "INTEGER", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: true),
                     TopicId = table.Column<Guid>(type: "TEXT", nullable: true),
                     DocumentType = table.Column<int>(type: "INTEGER", nullable: false),
                     CurrentRevisionId = table.Column<Guid>(type: "TEXT", nullable: true),
@@ -233,7 +234,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_KnowledgeItems", x => x.Id);
-                    table.CheckConstraint("CK_KnowledgeItem_TopicScope", "[Scope] = 0 OR ([Scope] = 1 AND [TopicId] IS NOT NULL)");
+                    table.CheckConstraint("CK_KnowledgeItem_TopicScope", "([Scope] = 0 AND [ProjectId] IS NULL AND [TopicId] IS NULL) OR ([Scope] = 1 AND [ProjectId] IS NOT NULL)");
                     table.ForeignKey(
                         name: "FK_KnowledgeItems_Categories_CategoryId",
                         column: x => x.CategoryId,
@@ -248,6 +249,11 @@ namespace KnowledgeVault.DataAccess.Migrations
                         name: "FK_KnowledgeItems_ProjectTopics_TopicId",
                         column: x => x.TopicId,
                         principalTable: "ProjectTopics",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_KnowledgeItems_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
                         principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_KnowledgeItems_Users_UserId",
@@ -325,6 +331,11 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "IX_KnowledgeItems_CurrentRevisionId",
                 table: "KnowledgeItems",
                 column: "CurrentRevisionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_KnowledgeItems_ProjectId_Status",
+                table: "KnowledgeItems",
+                columns: new[] { "ProjectId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_KnowledgeItems_TopicId_Status",

@@ -1,4 +1,3 @@
-using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Security;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +13,6 @@ public static class ProviderServiceCollectionExtensions
         services.AddScoped<ITagProvider, TagProvider>();
         services.AddScoped<IProjectProvider, ProjectProvider>();
         services.AddScoped<IProjectTopicProvider, ProjectTopicProvider>();
-        services.AddScoped<ITicketReferenceParser, TicketReferenceParser>();
         services.AddScoped<IDocumentAccessService, DocumentAccessService>();
         services.AddScoped<IDocumentProvider, DocumentProvider>();
         services.AddScoped<IRevisionProvider, RevisionProvider>();

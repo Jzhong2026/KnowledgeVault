@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KnowledgeVault.DataAccess.Migrations
 {
     [DbContext(typeof(KnowledgeVaultDbContext))]
-    [Migration("20260717082537_InitialSqliteSchema")]
+    [Migration("20260718121922_InitialSqliteSchema")]
     partial class InitialSqliteSchema
     {
         /// <inheritdoc />
@@ -145,6 +145,9 @@ namespace KnowledgeVault.DataAccess.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("PublishedAt")
                         .HasColumnType("INTEGER");
 
@@ -166,13 +169,15 @@ namespace KnowledgeVault.DataAccess.Migrations
 
                     b.HasIndex("CurrentRevisionId");
 
+                    b.HasIndex("ProjectId", "Status");
+
                     b.HasIndex("TopicId", "Status");
 
                     b.HasIndex("OwnerUserId", "Scope", "Status");
 
                     b.ToTable("KnowledgeItems", t =>
                         {
-                            t.HasCheckConstraint("CK_KnowledgeItem_TopicScope", "[Scope] = 0 OR ([Scope] = 1 AND [TopicId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_KnowledgeItem_TopicScope", "([Scope] = 0 AND [ProjectId] IS NULL AND [TopicId] IS NULL) OR ([Scope] = 1 AND [ProjectId] IS NOT NULL)");
                         });
                 });
 
@@ -234,6 +239,14 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<Guid>("KnowledgeItemId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("LinkDisplayText")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("RevisionNumber")
                         .HasColumnType("INTEGER");
 
@@ -243,14 +256,6 @@ namespace KnowledgeVault.DataAccess.Migrations
 
                     b.Property<string>("Summary")
                         .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TicketNo")
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TicketUrl")
-                        .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -518,6 +523,11 @@ namespace KnowledgeVault.DataAccess.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("KnowledgeVault.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("KnowledgeVault.Domain.Entities.ProjectTopic", "Topic")
                         .WithMany()
                         .HasForeignKey("TopicId")
@@ -528,6 +538,8 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("CurrentRevision");
 
                     b.Navigation("OwnerUser");
+
+                    b.Navigation("Project");
 
                     b.Navigation("Topic");
                 });

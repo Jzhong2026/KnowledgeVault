@@ -3,7 +3,12 @@
     @for (item of items; track item.id) {
       <article class="knowledge-list__item" [class.is-selected]="item.id === selectedId">
         <div class="item-main">
-          <a class="title-link" [routerLink]="['/knowledge/detail', item.id]" target="_blank" rel="noopener">
+          <a
+            class="title-link"
+            [routerLink]="[item.scope === 'Project' ? '/project-documents/detail' : '/knowledge/detail', item.id]"
+            target="_blank"
+            rel="noopener"
+          >
             {{ item.title }}
           </a>
           <small>{{ item.summary || 'No summary' }}</small>
@@ -37,7 +42,12 @@
             <app-status-pill [status]="item.status" />
           </div>
           <div class="item-actions">
-            <a class="action action--view" [routerLink]="['/knowledge/detail', item.id]" target="_blank" rel="noopener">View</a>
+            <a
+              class="action action--view"
+              [routerLink]="[item.scope === 'Project' ? '/project-documents/detail' : '/knowledge/detail', item.id]"
+              target="_blank"
+              rel="noopener"
+            >View</a>
             <button type="button" class="action" (click)="openEditor(item.id, $event)">Edit</button>
           </div>
         </div>

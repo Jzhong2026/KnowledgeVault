@@ -18,8 +18,7 @@ public sealed class DocumentProvider(
     KnowledgeVaultDbContext dbContext,
     ICurrentUserContext currentUserContext,
     IDateTimeProvider dateTimeProvider,
-    IDocumentAccessService documentAccessService,
-    ITicketReferenceParser ticketReferenceParser) : IDocumentProvider
+    IDocumentAccessService documentAccessService) : IDocumentProvider
 {
     public async Task<PagedResult<KnowledgeItemSummaryDto>> ListAsync(DocumentQuery query, CancellationToken cancellationToken)
     {
@@ -49,14 +48,12 @@ public sealed class DocumentProvider(
         var query = dbContext.KnowledgeItems
             .AsNoTracking()
             .Where(x => x.Scope == DocumentScope.Project && x.Status != KnowledgeItemStatus.Deleted)
-            .Where(x => dbContext.ProjectTopics.Any(t =>
-                t.Id == x.TopicId &&
-                dbContext.ProjectMembers.Any(m => m.ProjectId == t.ProjectId && m.UserId == userId)));
+            .Where(x => dbContext.ProjectMembers.Any(m =>
+                m.ProjectId == x.ProjectId && m.UserId == userId));
 
         if (projectId.HasValue)
         {
-            query = query.Where(x => dbContext.ProjectTopics.Any(t =>
-                t.Id == x.TopicId && t.ProjectId == projectId.Value));
+            query = query.Where(x => x.ProjectId == projectId.Value);
         }
 
         return await query
@@ -84,18 +81,12 @@ public sealed class DocumentProvider(
         var userId = RequireCurrentUser();
         var now = dateTimeProvider.UtcNow;
 
-        var ticket = ticketReferenceParser.Parse(request.TicketUrl);
-
-        Guid? topicId = null;
-        if (request.Scope == DocumentScope.Project)
-        {
-            topicId = request.TopicId ?? throw new ValidationException("Project documents must be assigned to a topic.");
-            await EnsureCanCreateInTopicAsync(topicId.Value, userId, cancellationToken);
-        }
-        else if (request.TopicId is not null)
-        {
-            throw new ValidationException("Personal documents cannot be assigned to a topic.");
-        }
+        var location = await ResolveLocationAsync(
+            request.Scope,
+            request.ProjectId,
+            request.TopicId,
+            userId,
+            cancellationToken);
 
         await EnsureCategoryAsync(request.CategoryId, cancellationToken);
 
@@ -108,7 +99,8 @@ public sealed class DocumentProvider(
             Id = Guid.NewGuid(),
             OwnerUserId = userId,
             Scope = request.Scope,
-            TopicId = topicId,
+            ProjectId = location.ProjectId,
+            TopicId = location.TopicId,
             DocumentType = request.DocumentType,
             CategoryId = request.CategoryId,
             Status = request.Status,
@@ -124,21 +116,25 @@ public sealed class DocumentProvider(
             Summary = CleanOptional(request.Summary, 1024),
             Content = RequireText(content, "Content", int.MaxValue),
             SourceUrl = CleanOptional(request.SourceUrl, 2048),
-            TicketNo = ticket?.TicketNo,
-            TicketUrl = ticket?.TicketUrl,
+            LinkDisplayText = CleanOptional(request.LinkDisplayText, 256),
+            LinkUrl = CleanOptional(request.LinkUrl, 2048),
             ChangeNote = CleanOptional(request.ChangeNote, 1024),
             CreatedByUserId = userId,
             CreatedAt = now
         };
 
+        ApplyStatusTimestamps(item, now);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        dbContext.KnowledgeItems.Add(item);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         item.CurrentRevisionId = revision.Id;
         item.CurrentRevisionNumber = 1;
-
-        ApplyStatusTimestamps(item, now);
-        dbContext.KnowledgeItems.Add(item);
         dbContext.KnowledgeItemRevisions.Add(revision);
         await SyncTagsAsync(item, request.TagIds, request.TagNames, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ReloadAsync(item.Id, cancellationToken);
     }
@@ -162,7 +158,13 @@ public sealed class DocumentProvider(
                 $"The document has been modified. Current revision is {item.CurrentRevisionNumber}.");
         }
 
-        var ticket = ticketReferenceParser.Parse(request.TicketUrl);
+        var location = await ResolveLocationAsync(
+            item.Scope,
+            request.ProjectId ?? item.ProjectId,
+            request.TopicId,
+            userId,
+            cancellationToken);
+        await EnsureCategoryAsync(request.CategoryId, cancellationToken);
 
         var nextNumber = item.CurrentRevisionNumber + 1;
         var revision = new KnowledgeItemRevision
@@ -174,8 +176,8 @@ public sealed class DocumentProvider(
             Summary = CleanOptional(request.Summary, 1024),
             Content = RequireText(request.Content, "Content", int.MaxValue),
             SourceUrl = CleanOptional(request.SourceUrl, 2048),
-            TicketNo = ticket?.TicketNo,
-            TicketUrl = ticket?.TicketUrl,
+            LinkDisplayText = CleanOptional(request.LinkDisplayText, 256),
+            LinkUrl = CleanOptional(request.LinkUrl, 2048),
             ChangeNote = CleanOptional(request.ChangeNote, 1024),
             CreatedByUserId = userId,
             CreatedAt = now
@@ -183,6 +185,9 @@ public sealed class DocumentProvider(
 
         item.CurrentRevisionId = revision.Id;
         item.CurrentRevisionNumber = nextNumber;
+        item.ProjectId = location.ProjectId;
+        item.TopicId = location.TopicId;
+        item.CategoryId = request.CategoryId;
         item.Status = request.Status;
         item.UpdatedAt = now;
         ApplyStatusTimestamps(item, now);
@@ -207,18 +212,16 @@ public sealed class DocumentProvider(
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
-        if (item.Scope == DocumentScope.Project)
-        {
-            var topicId = request.TopicId ?? throw new ValidationException("Project documents must keep a topic.");
-            await EnsureTopicBelongsToAccessibleProjectAsync(topicId, userId, cancellationToken);
-            item.TopicId = topicId;
-        }
-        else if (request.TopicId is not null)
-        {
-            throw new ValidationException("Personal documents cannot be assigned to a topic.");
-        }
+        var location = await ResolveLocationAsync(
+            item.Scope,
+            request.ProjectId ?? item.ProjectId,
+            request.TopicId,
+            userId,
+            cancellationToken);
 
         await EnsureCategoryAsync(request.CategoryId, cancellationToken);
+        item.ProjectId = location.ProjectId;
+        item.TopicId = location.TopicId;
         item.CategoryId = request.CategoryId;
         item.Status = request.Status;
         item.UpdatedAt = now;
@@ -253,19 +256,19 @@ public sealed class DocumentProvider(
         else if (query.Scope == DocumentScope.Project)
         {
             itemsQuery = itemsQuery.Where(x => x.Scope == DocumentScope.Project &&
-                dbContext.ProjectTopics.Any(t => t.Id == x.TopicId && dbContext.ProjectMembers.Any(m => m.ProjectId == t.ProjectId && m.UserId == userId)));
+                dbContext.ProjectMembers.Any(m => m.ProjectId == x.ProjectId && m.UserId == userId));
         }
         else
         {
             itemsQuery = itemsQuery.Where(x =>
                 (x.Scope == DocumentScope.Personal && x.OwnerUserId == userId) ||
-                (x.Scope == DocumentScope.Project && dbContext.ProjectTopics.Any(t => t.Id == x.TopicId && dbContext.ProjectMembers.Any(m => m.ProjectId == t.ProjectId && m.UserId == userId))));
+                (x.Scope == DocumentScope.Project && dbContext.ProjectMembers.Any(m => m.ProjectId == x.ProjectId && m.UserId == userId)));
         }
 
         if (query.ProjectId.HasValue)
         {
             itemsQuery = itemsQuery.Where(x => x.Scope == DocumentScope.Project &&
-                dbContext.ProjectTopics.Any(t => t.Id == x.TopicId && t.ProjectId == query.ProjectId.Value));
+                x.ProjectId == query.ProjectId.Value);
         }
 
         if (query.TopicId.HasValue)
@@ -278,10 +281,11 @@ public sealed class DocumentProvider(
             itemsQuery = itemsQuery.Where(x => x.DocumentType == query.DocumentType.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(query.TicketNo))
+        if (!string.IsNullOrWhiteSpace(query.LinkDisplayText))
         {
-            var ticketNo = query.TicketNo.Trim();
-            itemsQuery = itemsQuery.Where(x => x.CurrentRevision != null && x.CurrentRevision.TicketNo == ticketNo);
+            var linkDisplayText = query.LinkDisplayText.Trim();
+            itemsQuery = itemsQuery.Where(x =>
+                x.CurrentRevision != null && x.CurrentRevision.LinkDisplayText == linkDisplayText);
         }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -323,7 +327,8 @@ public sealed class DocumentProvider(
         return dbContext.KnowledgeItems
             .AsNoTracking()
             .Include(x => x.OwnerUser)
-            .Include(x => x.Topic).ThenInclude(x => x!.Project)
+            .Include(x => x.Project)
+            .Include(x => x.Topic)
             .Include(x => x.Category)
             .Include(x => x.KnowledgeItemTags).ThenInclude(x => x.Tag)
             .Include(x => x.CurrentRevision);
@@ -337,37 +342,56 @@ public sealed class DocumentProvider(
         return item.ToDto();
     }
 
-    private async Task EnsureCanCreateInTopicAsync(Guid topicId, Guid userId, CancellationToken cancellationToken)
+    private async Task<(Guid? ProjectId, Guid? TopicId)> ResolveLocationAsync(
+        DocumentScope scope,
+        Guid? projectId,
+        Guid? topicId,
+        Guid userId,
+        CancellationToken cancellationToken)
     {
-        var topic = await dbContext.ProjectTopics
+        if (scope == DocumentScope.Personal)
+        {
+            if (projectId is not null || topicId is not null)
+            {
+                throw new ValidationException("Personal documents cannot be assigned to a project or group.");
+            }
+
+            return (null, null);
+        }
+
+        if (projectId is null || projectId == Guid.Empty)
+        {
+            throw new ValidationException("Project is required for project documents.");
+        }
+
+        var projectExists = await dbContext.Projects
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == topicId && !t.IsArchived, cancellationToken)
-            ?? throw new ValidationException("Topic is invalid or archived.");
+            .AnyAsync(x => x.Id == projectId.Value && !x.IsArchived, cancellationToken);
+        if (!projectExists)
+        {
+            throw new ValidationException("Project is invalid or archived.");
+        }
 
-        var role = await GetProjectRoleAsync(topic.ProjectId, userId, cancellationToken);
+        var role = await GetProjectRoleAsync(projectId.Value, userId, cancellationToken);
         if (role is not (ProjectRole.Owner or ProjectRole.Editor))
         {
-            throw new ForbiddenException("You do not have permission to create documents in this topic.");
+            throw new ForbiddenException("You do not have permission to create or move documents in this project.");
         }
-    }
 
-    private async Task EnsureTopicBelongsToAccessibleProjectAsync(Guid topicId, Guid userId, CancellationToken cancellationToken)
-    {
-        var projectId = await dbContext.ProjectTopics
-            .Where(t => t.Id == topicId && !t.IsArchived)
-            .Select(t => t.ProjectId)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (projectId == Guid.Empty)
+        if (topicId is not null)
         {
-            throw new ValidationException("Topic is invalid or archived.");
+            var topicExists = await dbContext.ProjectTopics
+                .AsNoTracking()
+                .AnyAsync(
+                    x => x.Id == topicId.Value && x.ProjectId == projectId.Value && !x.IsArchived,
+                    cancellationToken);
+            if (!topicExists)
+            {
+                throw new ValidationException("Group is invalid, archived, or belongs to another project.");
+            }
         }
 
-        var role = await GetProjectRoleAsync(projectId, userId, cancellationToken);
-        if (role is not (ProjectRole.Owner or ProjectRole.Editor))
-        {
-            throw new ForbiddenException("You do not have permission to assign this document to the topic.");
-        }
+        return (projectId, topicId);
     }
 
     private async Task<ProjectRole?> GetProjectRoleAsync(Guid projectId, Guid userId, CancellationToken cancellationToken)

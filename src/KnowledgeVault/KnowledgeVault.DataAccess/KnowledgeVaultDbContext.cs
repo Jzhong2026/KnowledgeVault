@@ -70,10 +70,15 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.Property(x => x.DocumentType).HasConversion<int>();
             builder.Property(x => x.Status).HasConversion<int>();
             builder.HasIndex(x => new { x.OwnerUserId, x.Scope, x.Status });
+            builder.HasIndex(x => new { x.ProjectId, x.Status });
             builder.HasIndex(x => new { x.TopicId, x.Status });
             builder.HasOne(x => x.OwnerUser)
                 .WithMany(x => x.KnowledgeItems)
                 .HasForeignKey(x => x.OwnerUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.NoAction);
             builder.HasOne(x => x.Topic)
                 .WithMany()
@@ -93,7 +98,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .OnDelete(DeleteBehavior.Cascade);
             builder.ToTable(tb => tb
                 .HasCheckConstraint("CK_KnowledgeItem_TopicScope",
-                    "[Scope] = 0 OR ([Scope] = 1 AND [TopicId] IS NOT NULL)"));
+                    "([Scope] = 0 AND [ProjectId] IS NULL AND [TopicId] IS NULL) OR ([Scope] = 1 AND [ProjectId] IS NOT NULL)"));
         });
 
         modelBuilder.Entity<KnowledgeItemRevision>(builder =>
@@ -103,8 +108,8 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.Property(x => x.Content).IsRequired();
             builder.Property(x => x.Summary).HasMaxLength(1024);
             builder.Property(x => x.SourceUrl).HasMaxLength(2048);
-            builder.Property(x => x.TicketNo).HasMaxLength(32);
-            builder.Property(x => x.TicketUrl).HasMaxLength(2048);
+            builder.Property(x => x.LinkDisplayText).HasMaxLength(256);
+            builder.Property(x => x.LinkUrl).HasMaxLength(2048);
             builder.Property(x => x.ChangeNote).HasMaxLength(1024);
             builder.HasIndex(x => new { x.KnowledgeItemId, x.RevisionNumber }).IsUnique();
             builder.HasOne(x => x.KnowledgeItem)

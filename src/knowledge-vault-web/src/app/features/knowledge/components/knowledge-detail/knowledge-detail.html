@@ -8,13 +8,23 @@
   >
     <div class="detail-actions">
       <button type="button" class="secondary" (click)="editItem.emit()">Edit</button>
-      <button type="button" class="icon-button" aria-label="Close knowledge detail" (click)="closeDetail.emit()">x</button>
+      <button
+        type="button"
+        class="icon-button"
+        aria-label="Close knowledge detail"
+        (click)="closeDetail.emit()"
+      >
+        x
+      </button>
     </div>
 
     <header class="article-header">
       <div class="article-meta">
         <span class="category">
-          <span class="category__swatch" [style.background]="item.category?.color || '#94a3b8'"></span>
+          <span
+            class="category__swatch"
+            [style.background]="item.category?.color || '#94a3b8'"
+          ></span>
           {{ item.category?.name || 'Uncategorized' }}
         </span>
         <span>{{ item.updatedAt || item.createdAt | date: 'mediumDate' }}</span>
@@ -51,9 +61,16 @@
       }
     </div>
 
-    @if (item.sourceUrl) {
+    @if (item.sourceUrl || (item.linkDisplayText && item.linkUrl)) {
       <footer class="article-footer">
-        <a [href]="item.sourceUrl" target="_blank" rel="noreferrer">Open source</a>
+        @if (item.linkDisplayText && item.linkUrl) {
+          <a class="document-link" [href]="item.linkUrl" target="_blank" rel="noreferrer">{{
+            item.linkDisplayText
+          }}</a>
+        }
+        @if (item.sourceUrl) {
+          <a [href]="item.sourceUrl" target="_blank" rel="noreferrer">Open source</a>
+        }
       </footer>
     }
   </article>

@@ -37,7 +37,7 @@ export interface KnowledgeItemSummary {
   currentRevisionNumber: number;
   title: string;
   summary?: string | null;
-  ticketNo?: string | null;
+  linkDisplayText?: string | null;
   status: KnowledgeItemStatus;
   category?: Category | null;
   tags: Tag[];
@@ -48,7 +48,7 @@ export interface KnowledgeItemSummary {
 export interface KnowledgeItem extends KnowledgeItemSummary {
   content: string;
   sourceUrl?: string | null;
-  ticketUrl?: string | null;
+  linkUrl?: string | null;
   changeNote?: string | null;
   publishedAt?: string | null;
   archivedAt?: string | null;
@@ -60,7 +60,7 @@ export interface RevisionSummary {
   title: string;
   summary?: string | null;
   changeNote?: string | null;
-  ticketNo?: string | null;
+  linkDisplayText?: string | null;
   createdByUserId: string;
   createdByUserName: string;
   createdAt: string;
@@ -69,7 +69,7 @@ export interface RevisionSummary {
 export interface Revision extends RevisionSummary {
   content: string;
   sourceUrl?: string | null;
-  ticketUrl?: string | null;
+  linkUrl?: string | null;
 }
 
 export interface Comment {
@@ -96,7 +96,7 @@ export interface KnowledgeItemQuery {
   projectId?: string;
   topicId?: string;
   documentType?: DocumentType;
-  ticketNo?: string;
+  linkDisplayText?: string;
   search?: string;
   categoryId?: string;
   ownerUserId?: string;
@@ -114,13 +114,15 @@ export interface DocumentOwner {
 
 export interface SaveDocumentRequest {
   scope: DocumentScope;
+  projectId?: string | null;
   topicId?: string | null;
   documentType: DocumentType;
   title: string;
   content: string;
   summary?: string | null;
   sourceUrl?: string | null;
-  ticketUrl?: string | null;
+  linkDisplayText?: string | null;
+  linkUrl?: string | null;
   changeNote?: string | null;
   categoryId?: string | null;
   status: KnowledgeItemStatus;

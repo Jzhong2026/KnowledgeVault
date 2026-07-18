@@ -7,133 +7,171 @@
     (click)="$event.stopPropagation()"
   >
     <div class="editor-dialog__header">
-      <div>
-        <p>{{ item ? 'Editing' : 'New item' }}</p>
-        <h3 id="knowledge-editor-title">{{ item?.title || 'Untitled knowledge' }}</h3>
-      </div>
-      <div class="header-actions">
-        <button type="button" class="icon-button" title="Close" (click)="closeDialog.emit()">x</button>
-      </div>
+      <h3 id="knowledge-editor-title">{{ item ? 'Edit document' : 'New document' }}</h3>
+      <button
+        type="button"
+        class="icon-button"
+        title="Close"
+        aria-label="Close editor"
+        (click)="closeDialog.emit()"
+      >
+        &times;
+      </button>
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="field-row field-row--static">
-        <span class="field-label">Scope</span>
-        <span class="fixed-value">{{ workspaceScope }}</span>
-      </div>
+      <div class="editor-dialog__body">
+        @if (workspaceScope === 'Project') {
+          <section class="form-section" aria-labelledby="document-location-heading">
+            <div class="section-heading">
+              <h4 id="document-location-heading">Project location</h4>
+              <p>Choose the project this document belongs to. A group is optional.</p>
+            </div>
 
-      @if (form.controls.scope.value === 'Project') {
-        <div class="grid">
-          <label class="field-row">
-            <span class="field-label">Project</span>
-            <select formControlName="projectId" (change)="onProjectChange()">
-              <option value="">Select project</option>
-              @for (project of projects; track project.id) {
-                <option [value]="project.id">{{ project.name }}</option>
-              }
-            </select>
-          </label>
+            <div class="grid">
+              <label class="field-row">
+                <span class="field-label">Project <span class="required-marker">*</span></span>
+                <select formControlName="projectId" (change)="onProjectChange()">
+                  <option value="">Select project</option>
+                  @for (project of projects; track project.id) {
+                    <option [value]="project.id">{{ project.name }}</option>
+                  }
+                </select>
+                @if (form.controls.projectId.touched && form.controls.projectId.invalid) {
+                  <span class="field-error">Project is required.</span>
+                }
+              </label>
 
-          <label class="field-row">
-            <span class="field-label">Group</span>
-            <select formControlName="topicId">
-              <option value="">Select group</option>
-              @for (topic of topics; track topic.id) {
-                <option [value]="topic.id">{{ topic.name }}</option>
-              }
-            </select>
-          </label>
-        </div>
-      }
-
-      <label class="field-row">
-        <span class="field-label">Title</span>
-        <input type="text" formControlName="title" />
-      </label>
-
-      <label class="field-row">
-        <span class="field-label">Summary</span>
-        <input type="text" formControlName="summary" />
-      </label>
-
-      <label class="field-row field-row--textarea">
-        <span class="field-label">Content</span>
-        <textarea formControlName="content" rows="10"></textarea>
-      </label>
-
-      <div class="grid">
-        <label class="field-row">
-          <span class="field-label">Category</span>
-          <select formControlName="categoryId">
-            <option value="">Uncategorized</option>
-            @for (category of categories; track category.id) {
-              <option [value]="category.id">{{ category.name }}</option>
-            }
-          </select>
-        </label>
-
-        <label class="field-row">
-          <span class="field-label">Status</span>
-          <select formControlName="status">
-            @for (status of statuses; track status) {
-              <option [value]="status">{{ status }}</option>
-            }
-          </select>
-        </label>
-      </div>
-
-      <div class="grid">
-        <label class="field-row">
-          <span class="field-label">Ticket URL</span>
-          <input type="url" formControlName="ticketUrl" placeholder="https://ticket/123" />
-        </label>
-
-        <label class="field-row">
-          <span class="field-label">Change note</span>
-          <input type="text" formControlName="changeNote" placeholder="What changed in this revision" />
-        </label>
-      </div>
-
-      <div class="grid">
-        <label class="field-row">
-          <span class="field-label">Source URL</span>
-          <input type="url" formControlName="sourceUrl" />
-        </label>
-
-        <label class="field-row">
-          <span class="field-label">New tags</span>
-          <input type="text" formControlName="tagNames" placeholder="comma separated" />
-        </label>
-      </div>
-
-      <div class="field-row field-row--tags">
-        <span class="field-label">Existing tags</span>
-        @if (tags.length) {
-          <div class="tag-options" aria-label="Existing tags">
-          @for (tag of tags; track tag.id) {
-              <button
-                type="button"
-                class="tag-option"
-                [class.is-selected]="isTagSelected(tag.id)"
-                [attr.aria-pressed]="isTagSelected(tag.id)"
-                (click)="toggleTag(tag.id)"
-              >
-                <span class="tag-option__swatch" [style.background]="tag.color || '#94a3b8'"></span>
-                {{ tag.name }}
-              </button>
-          }
-          </div>
-        } @else {
-          <span class="empty-tags">No existing tags yet.</span>
+              <label class="field-row">
+                <span class="field-label">
+                  Group <span class="optional-marker">Optional</span>
+                </span>
+                <select formControlName="topicId">
+                  <option value="">No group</option>
+                  @for (topic of topics; track topic.id) {
+                    <option [value]="topic.id">{{ topic.name }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+          </section>
         }
+
+        <section class="form-section" aria-labelledby="document-content-heading">
+          <div class="section-heading">
+            <h4 id="document-content-heading">Document</h4>
+          </div>
+
+          <label class="field-row">
+            <span class="field-label">Title <span class="required-marker">*</span></span>
+            <input type="text" formControlName="title" placeholder="Document title" />
+            @if (form.controls.title.touched && form.controls.title.invalid) {
+              <span class="field-error">Title is required.</span>
+            }
+          </label>
+
+          <label class="field-row">
+            <span class="field-label">Summary</span>
+            <input type="text" formControlName="summary" placeholder="Short description" />
+          </label>
+
+          <label class="field-row">
+            <span class="field-label">Content <span class="required-marker">*</span></span>
+            <textarea
+              formControlName="content"
+              rows="9"
+              placeholder="Write the document content"
+            ></textarea>
+            @if (form.controls.content.touched && form.controls.content.invalid) {
+              <span class="field-error">Content is required.</span>
+            }
+          </label>
+        </section>
+
+        <fieldset class="link-group">
+          <legend>Related link <span>Optional</span></legend>
+          <p class="link-group__hint">
+            These two fields create one clickable link in the document view.
+          </p>
+          <div class="grid">
+            <label class="field-row">
+              <span class="field-label">Link text</span>
+              <input
+                type="text"
+                formControlName="linkDisplayText"
+                placeholder="Text shown to readers"
+              />
+            </label>
+
+            <label class="field-row">
+              <span class="field-label">Link destination</span>
+              <input type="text" formControlName="linkUrl" placeholder="URL or destination" />
+            </label>
+          </div>
+        </fieldset>
+
+        <section class="form-section" aria-labelledby="document-organize-heading">
+          <div class="section-heading">
+            <h4 id="document-organize-heading">Organization</h4>
+          </div>
+
+          <div class="grid">
+            <label class="field-row">
+              <span class="field-label">Category</span>
+              <select formControlName="categoryId">
+                <option value="">Uncategorized</option>
+                @for (category of categories; track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="field-row">
+              <span class="field-label">Status</span>
+              <select formControlName="status">
+                @for (status of statuses; track status) {
+                  <option [value]="status">{{ status }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <span class="field-label">Tags</span>
+            @if (tags.length) {
+              <div class="tag-options" aria-label="Tags">
+                @for (tag of tags; track tag.id) {
+                  <button
+                    type="button"
+                    class="tag-option"
+                    [class.is-selected]="isTagSelected(tag.id)"
+                    [attr.aria-pressed]="isTagSelected(tag.id)"
+                    (click)="toggleTag(tag.id)"
+                  >
+                    <span
+                      class="tag-option__swatch"
+                      [style.background]="tag.color || '#94a3b8'"
+                    ></span>
+                    {{ tag.name }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <span class="empty-tags">No tags available.</span>
+            }
+          </div>
+        </section>
       </div>
 
       <div class="editor-dialog__actions">
         @if (item) {
           <button type="button" class="danger" (click)="deleteItem.emit()">Delete</button>
         }
+        <span class="action-spacer"></span>
         <button type="button" class="ghost" (click)="closeDialog.emit()">Cancel</button>
-        <button type="submit" class="primary" [disabled]="saving">{{ saving ? 'Saving' : 'Save' }}</button>
+        <button type="submit" class="primary" [disabled]="saving">
+          {{ saving ? 'Saving' : 'Save document' }}
+        </button>
       </div>
     </form>
   </section>

@@ -70,7 +70,7 @@
 }
 
 .brand strong {
-  font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
   font-size: 15px;
   font-weight: 780;
   letter-spacing: -0.015em;
@@ -121,13 +121,52 @@
 
 .nav {
   display: grid;
-  gap: 26px;
-  margin-top: 38px;
+  gap: 18px;
+  margin-top: 32px;
 }
 
 .nav__group {
   display: grid;
   gap: 5px;
+}
+
+.nav__section {
+  display: grid;
+  gap: 6px;
+}
+
+.nav__parent {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 11px;
+  color: #263c50;
+  font-size: 13px;
+  font-weight: 780;
+  padding: 4px 11px;
+  white-space: nowrap;
+}
+
+.nav__parent svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #5d7483;
+  stroke-width: 1.7;
+}
+
+.nav__children {
+  display: grid;
+  gap: 4px;
+  margin-left: 19px;
+  border-left: 1px solid #d8e4e6;
+  padding-left: 10px;
+}
+
+.nav__children a {
+  min-height: 42px;
+  font-size: 13px;
+  padding-block: 8px;
 }
 
 .nav__heading {
@@ -204,7 +243,7 @@
   margin-top: auto;
   border-top: 1px solid #dde7e9;
   color: #83949e;
-  font-family: "Cascadia Code", Consolas, monospace;
+  font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 9px;
   font-weight: 650;
   letter-spacing: 0.09em;
@@ -219,7 +258,9 @@
   flex: 0 0 7px;
   border-radius: 50%;
   background: #36dda2;
-  box-shadow: 0 0 0 3px rgba(54, 221, 162, 0.1), 0 0 12px rgba(54, 221, 162, 0.65);
+  box-shadow:
+    0 0 0 3px rgba(54, 221, 162, 0.1),
+    0 0 12px rgba(54, 221, 162, 0.65);
 }
 
 .sidebar--collapsed {
@@ -236,6 +277,16 @@
 .sidebar--collapsed .nav a span,
 .sidebar--collapsed .sidebar__footer span:last-child {
   display: none;
+}
+
+.sidebar--collapsed .nav__parent {
+  display: none;
+}
+
+.sidebar--collapsed .nav__children {
+  margin-left: 0;
+  border-left: 0;
+  padding-left: 0;
 }
 
 .sidebar--collapsed .nav a {
@@ -269,6 +320,16 @@
   .nav a span,
   .sidebar__footer span:last-child {
     display: none;
+  }
+
+  .nav__parent {
+    display: none;
+  }
+
+  .nav__children {
+    margin-left: 0;
+    border-left: 0;
+    padding-left: 0;
   }
 
   .nav a {
