@@ -1,12 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
 import { getErrorMessage } from '../../../core/http/error-message';
 import {
   Category,
+  DocumentScope,
   KnowledgeItem,
   KnowledgeItemStatus,
   KnowledgeItemSummary,
@@ -27,6 +28,11 @@ import { KnowledgeList } from '../components/knowledge-list/knowledge-list';
 export class KnowledgePage {
   private readonly api = inject(ApiClient);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  readonly workspaceScope =
+    (this.route.snapshot.data['scope'] as DocumentScope | undefined) ?? 'Personal';
+  readonly isProjectWorkspace = this.workspaceScope === 'Project';
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -38,7 +44,8 @@ export class KnowledgePage {
   readonly categories = signal<Category[]>([]);
   readonly tags = signal<Tag[]>([]);
   readonly projects = signal<ProjectSummary[]>([]);
-  readonly topics = signal<ProjectTopic[]>([]);
+  readonly filterGroups = signal<ProjectTopic[]>([]);
+  readonly editorGroups = signal<ProjectTopic[]>([]);
   readonly search = signal('');
   readonly status = signal<KnowledgeItemStatus | ''>('');
   readonly projectId = signal<string | null>(null);
@@ -52,22 +59,27 @@ export class KnowledgePage {
 
   loadWorkspace(): void {
     this.loading.set(true);
+    this.error.set(null);
     forkJoin({
       categories: this.api.listCategories(),
       tags: this.api.listTags(),
       knowledge: this.api.listKnowledgeItems({
+        scope: this.workspaceScope,
         page: 1,
         pageSize: 50,
         projectId: this.projectId() ?? undefined,
         topicId: this.topicId() ?? undefined,
       }),
-      projects: this.api.listProjects({ pageSize: 100 }),
+      projects: this.api.listProjects({ followingOnly: true, pageSize: 100 }),
     }).subscribe({
       next: ({ categories, tags, knowledge, projects }) => {
         this.categories.set(categories);
         this.tags.set(tags);
         this.items.set(knowledge.items);
         this.projects.set(projects.items);
+        if (this.isProjectWorkspace && this.projectId()) {
+          this.loadFilterGroups(this.projectId()!);
+        }
       },
       error: (error) => this.error.set(getErrorMessage(error)),
       complete: () => this.loading.set(false),
@@ -78,6 +90,7 @@ export class KnowledgePage {
     this.loading.set(true);
     this.api
       .listKnowledgeItems({
+        scope: this.workspaceScope,
         page: 1,
         pageSize: 50,
         search: this.search(),
@@ -92,10 +105,51 @@ export class KnowledgePage {
       });
   }
 
+  onProjectFilterChange(projectId: string): void {
+    this.projectId.set(projectId || null);
+    this.topicId.set(null);
+    this.filterGroups.set([]);
+
+    if (projectId) {
+      this.loadFilterGroups(projectId);
+    }
+
+    this.updateQueryParams();
+    this.applyFilters();
+  }
+
+  onGroupFilterChange(topicId: string): void {
+    this.topicId.set(topicId || null);
+    this.updateQueryParams();
+    this.applyFilters();
+  }
+
+  private loadFilterGroups(projectId: string): void {
+    this.api.listGroups(projectId).subscribe({
+      next: (result) => this.filterGroups.set(result.items),
+      error: (error) => {
+        this.filterGroups.set([]);
+        this.error.set(getErrorMessage(error));
+      },
+    });
+  }
+
+  private updateQueryParams(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        projectId: this.projectId(),
+        topicId: this.topicId(),
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
   onProjectSelected(projectId: string): void {
     this.api.listTopics(projectId).subscribe({
-      next: (result) => this.topics.set(result.items),
-      error: () => this.topics.set([]),
+      next: (result) => this.editorGroups.set(result.items),
+      error: () => this.editorGroups.set([]),
     });
   }
 
@@ -106,8 +160,8 @@ export class KnowledgePage {
         this.selectedItem.set(item);
         if (item.scope === 'Project' && item.projectId) {
           this.api.listTopics(item.projectId).subscribe({
-            next: (result) => this.topics.set(result.items),
-            error: () => this.topics.set([]),
+            next: (result) => this.editorGroups.set(result.items),
+            error: () => this.editorGroups.set([]),
           });
         }
         this.editorOpen.set(true);
@@ -117,6 +171,24 @@ export class KnowledgePage {
   }
 
   createNew(): void {
+    if (this.isProjectWorkspace && this.projects().length === 0) {
+      this.error.set('Follow a project before creating or querying project documents.');
+      return;
+    }
+
+    if (this.isProjectWorkspace && !this.projectId() && this.projects().length === 1) {
+      const projectId = this.projects()[0].id;
+      this.projectId.set(projectId);
+      this.loadFilterGroups(projectId);
+      this.updateQueryParams();
+    }
+
+    if (this.isProjectWorkspace && this.projectId()) {
+      this.onProjectSelected(this.projectId()!);
+    } else {
+      this.editorGroups.set([]);
+    }
+
     this.selectedId.set(null);
     this.selectedItem.set(null);
     this.editorOpen.set(true);

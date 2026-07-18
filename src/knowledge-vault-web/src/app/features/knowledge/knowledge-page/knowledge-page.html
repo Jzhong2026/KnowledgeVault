@@ -1,10 +1,17 @@
 <section class="knowledge-page">
   <div class="page-heading">
     <div>
-      <p>Library</p>
-      <h2>Knowledge items</h2>
+      <p>{{ isProjectWorkspace ? 'Team library' : 'Personal library' }}</p>
+      <h2>{{ isProjectWorkspace ? 'Project documents' : 'Personal documents' }}</h2>
+      <span>
+        {{ isProjectWorkspace
+          ? 'Query documents from projects you follow, optionally narrowed to a group.'
+          : 'Create and query documents that belong to your personal knowledge vault.' }}
+      </span>
     </div>
-    <button type="button" class="primary" (click)="createNew()">New item</button>
+    <button type="button" class="primary" [disabled]="isProjectWorkspace && projects().length === 0" (click)="createNew()">
+      New document
+    </button>
   </div>
 
   @if (error()) {
@@ -21,6 +28,29 @@
           (ngModelChange)="search.set($event)"
           (keyup.enter)="applyFilters()"
         />
+        @if (isProjectWorkspace) {
+          <select
+            aria-label="Filter by project"
+            [ngModel]="projectId() || ''"
+            (ngModelChange)="onProjectFilterChange($event)"
+          >
+            <option value="">All followed projects</option>
+            @for (project of projects(); track project.id) {
+              <option [value]="project.id">{{ project.name }}</option>
+            }
+          </select>
+          <select
+            aria-label="Filter by group"
+            [disabled]="!projectId()"
+            [ngModel]="topicId() || ''"
+            (ngModelChange)="onGroupFilterChange($event)"
+          >
+            <option value="">All groups</option>
+            @for (topic of filterGroups(); track topic.id) {
+              <option [value]="topic.id">{{ topic.name }}</option>
+            }
+          </select>
+        }
         <select [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
           <option value="">All statuses</option>
           <option value="Draft">Draft</option>
@@ -49,10 +79,12 @@
         [categories]="categories()"
         [tags]="tags()"
         [projects]="projects()"
-        [topics]="topics()"
+        [topics]="editorGroups()"
         [saving]="saving()"
+        [workspaceScope]="workspaceScope"
+        [defaultProjectId]="projectId()"
+        [defaultTopicId]="topicId()"
         (projectSelected)="onProjectSelected($event)"
-        (createNew)="createNew()"
         (closeDialog)="closeEditor()"
         (saveItem)="save($event)"
         (deleteItem)="deleteSelected()"

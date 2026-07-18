@@ -8,6 +8,9 @@
           </a>
           <small>{{ item.summary || 'No summary' }}</small>
           <span class="meta">
+            @if (item.scope === 'Project') {
+              <span>{{ item.projectName }} / {{ item.groupName }}</span>
+            }
             <span class="category">
               <span class="category__swatch" [style.background]="item.category?.color || '#94a3b8'"></span>
               {{ item.category?.name || 'Uncategorized' }}

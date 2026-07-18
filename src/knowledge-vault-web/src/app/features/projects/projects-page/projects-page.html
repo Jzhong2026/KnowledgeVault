@@ -70,7 +70,12 @@
           </div>
 
           <footer class="project-card__actions">
-            <a class="open-project" [routerLink]="['/projects', project.id]">Open project</a>
+            <div class="project-card__links">
+              <a class="open-project" [routerLink]="['/projects', project.id]">Open project</a>
+              @if (project.isFollowing) {
+                <a class="project-documents" routerLink="/project-documents" [queryParams]="{ projectId: project.id }">Documents</a>
+              }
+            </div>
             <button
               type="button"
               class="follow-button"

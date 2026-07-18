@@ -35,7 +35,10 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .project-card__meta { align-items: flex-start; border-top: 1px solid #edf1f2; color: var(--muted); font-size: 12px; padding-top: 13px; }
 .project-card__meta strong { color: var(--text); }
 .project-card__actions { border-top: 1px solid #e7edef; padding-top: 15px; }
+.project-card__links { display: flex; align-items: center; gap: 12px; }
 .open-project { color: var(--accent-strong); font-size: 13px; font-weight: 800; text-decoration: none; }
+.project-documents { color: #39707b; font-size: 13px; font-weight: 800; text-decoration: none; }
+.project-documents:hover, .open-project:hover { text-decoration: underline; }
 .follow-button { display: flex; align-items: center; gap: 6px; border: 1px solid #b8d9d0; background: #fff; color: #0b7552; padding: 8px 11px; }
 .follow-button.is-following { background: #eaf8f3; }
 .alert { margin: 0; border: 1px solid #efc4c0; border-radius: 9px; background: #fff7f6; color: #b42318; font-size: 14px; padding: 11px 13px; }

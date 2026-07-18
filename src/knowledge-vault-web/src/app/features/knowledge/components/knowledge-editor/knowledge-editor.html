@@ -12,36 +12,20 @@
         <h3 id="knowledge-editor-title">{{ item?.title || 'Untitled knowledge' }}</h3>
       </div>
       <div class="header-actions">
-        <button type="button" class="ghost" (click)="createNew.emit()">New</button>
         <button type="button" class="icon-button" title="Close" (click)="closeDialog.emit()">x</button>
       </div>
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="grid">
-        <label>
-          Scope
-          <select formControlName="scope" (change)="onScopeChange()">
-            @for (scope of scopes; track scope) {
-              <option [value]="scope">{{ scope }}</option>
-            }
-          </select>
-        </label>
-
-        <label>
-          Type
-          <select formControlName="documentType">
-            @for (type of documentTypes; track type.value) {
-              <option [value]="type.value">{{ type.label }}</option>
-            }
-          </select>
-        </label>
+      <div class="field-row field-row--static">
+        <span class="field-label">Scope</span>
+        <span class="fixed-value">{{ workspaceScope }}</span>
       </div>
 
       @if (form.controls.scope.value === 'Project') {
         <div class="grid">
-          <label>
-            Project
+          <label class="field-row">
+            <span class="field-label">Project</span>
             <select formControlName="projectId" (change)="onProjectChange()">
               <option value="">Select project</option>
               @for (project of projects; track project.id) {
@@ -50,10 +34,10 @@
             </select>
           </label>
 
-          <label>
-            Topic
+          <label class="field-row">
+            <span class="field-label">Group</span>
             <select formControlName="topicId">
-              <option value="">Select topic</option>
+              <option value="">Select group</option>
               @for (topic of topics; track topic.id) {
                 <option [value]="topic.id">{{ topic.name }}</option>
               }
@@ -62,24 +46,24 @@
         </div>
       }
 
-      <label>
-        Title
+      <label class="field-row">
+        <span class="field-label">Title</span>
         <input type="text" formControlName="title" />
       </label>
 
-      <label>
-        Summary
+      <label class="field-row">
+        <span class="field-label">Summary</span>
         <input type="text" formControlName="summary" />
       </label>
 
-      <label>
-        Content
+      <label class="field-row field-row--textarea">
+        <span class="field-label">Content</span>
         <textarea formControlName="content" rows="10"></textarea>
       </label>
 
       <div class="grid">
-        <label>
-          Category
+        <label class="field-row">
+          <span class="field-label">Category</span>
           <select formControlName="categoryId">
             <option value="">Uncategorized</option>
             @for (category of categories; track category.id) {
@@ -88,8 +72,8 @@
           </select>
         </label>
 
-        <label>
-          Status
+        <label class="field-row">
+          <span class="field-label">Status</span>
           <select formControlName="status">
             @for (status of statuses; track status) {
               <option [value]="status">{{ status }}</option>
@@ -99,30 +83,30 @@
       </div>
 
       <div class="grid">
-        <label>
-          Ticket URL
+        <label class="field-row">
+          <span class="field-label">Ticket URL</span>
           <input type="url" formControlName="ticketUrl" placeholder="https://ticket/123" />
         </label>
 
-        <label>
-          Change note
+        <label class="field-row">
+          <span class="field-label">Change note</span>
           <input type="text" formControlName="changeNote" placeholder="What changed in this revision" />
         </label>
       </div>
 
       <div class="grid">
-        <label>
-          Source URL
+        <label class="field-row">
+          <span class="field-label">Source URL</span>
           <input type="url" formControlName="sourceUrl" />
         </label>
 
-        <label>
-          New tags
+        <label class="field-row">
+          <span class="field-label">New tags</span>
           <input type="text" formControlName="tagNames" placeholder="comma separated" />
         </label>
       </div>
 
-      <div class="tag-field">
+      <div class="field-row field-row--tags">
         <span class="field-label">Existing tags</span>
         @if (tags.length) {
           <div class="tag-options" aria-label="Existing tags">

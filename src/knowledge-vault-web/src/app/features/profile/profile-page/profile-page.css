@@ -78,7 +78,7 @@
 .keys-panel__header > div > span,
 .identity > div > span {
   color: var(--accent-strong);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -101,7 +101,7 @@
   max-width: 760px;
   margin-top: 6px;
   color: #9bb1bc;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -116,7 +116,7 @@
 .page-heading__context > span {
   color: #718b98;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -126,7 +126,7 @@
   align-items: center;
   gap: 8px;
   color: #d9f7ef;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -200,7 +200,7 @@
 .identity p {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -214,7 +214,7 @@
 .key-form > label,
 .scopes legend {
   color: #263646;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -222,7 +222,7 @@
 .scopes > p {
   margin: 5px 0 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -239,7 +239,7 @@ input {
   border-radius: 8px;
   background: #fbfdfd;
   color: var(--text);
-  font-size: 12px;
+  font-size: 14px;
   padding: 9px 11px;
   transition: 150ms ease;
 }
@@ -257,7 +257,7 @@ input::placeholder {
 button {
   border-radius: 8px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 780;
   padding: 10px 14px;
 }
@@ -283,7 +283,7 @@ button:disabled {
 .success-message {
   margin-top: 7px;
   color: #067647;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -315,7 +315,7 @@ button:disabled {
 
 .section-heading h3 {
   margin-top: 4px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 750;
   letter-spacing: -0.02em;
 }
@@ -323,7 +323,7 @@ button:disabled {
 .section-heading p {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .section-heading__actions {
@@ -341,7 +341,7 @@ button:disabled {
   background: #eefaf6;
   color: #0b6e4a;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.055em;
   padding: 8px 11px;
@@ -396,13 +396,13 @@ button:disabled {
 
 .created-key__content strong {
   color: #e5fff7;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .created-key__content p {
   margin: 3px 0 9px;
   color: #91bdb3;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .created-key__content code {
@@ -413,7 +413,7 @@ button:disabled {
   background: rgba(3, 20, 25, 0.5);
   color: #abf3de;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 10px;
+  font-size: 13px;
   padding: 9px 10px;
   white-space: nowrap;
 }
@@ -421,6 +421,26 @@ button:disabled {
 .created-key__actions {
   display: flex;
   gap: 8px;
+}
+
+.copy-key-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.copy-key-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.copy-error {
+  grid-column: 2 / -1;
+  margin: 0;
+  color: #ffd0ca;
+  font-size: 12px;
 }
 
 .ghost {
@@ -450,7 +470,7 @@ button:disabled {
   top: 50%;
   right: 12px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   transform: translateY(-50%);
 }
 
@@ -463,7 +483,7 @@ button:disabled {
 
 .expiry-heading label {
   color: #263646;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -472,7 +492,7 @@ button:disabled {
   border-radius: 999px;
   background: #eef9f5;
   color: var(--accent-strong);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
   padding: 4px 8px;
 }
@@ -526,7 +546,7 @@ button:disabled {
 }
 
 .scope-option strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .scope-option small {
@@ -534,13 +554,13 @@ button:disabled {
   margin-top: 2px;
   color: var(--muted);
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
   text-overflow: ellipsis;
 }
 
 .field-error {
   color: #b42318;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -561,8 +581,15 @@ button:disabled {
 
 .keys-panel__header h4 {
   margin-top: 4px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 750;
+}
+
+.keys-panel__header p {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .count {
@@ -575,7 +602,7 @@ button:disabled {
   background: #eef8f5;
   color: var(--accent-strong);
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -597,13 +624,13 @@ button:disabled {
 
 .empty-keys strong {
   color: #405361;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .empty-keys p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -633,7 +660,7 @@ button:disabled {
   background: #f6f9fa;
   color: #667988;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -641,7 +668,7 @@ button:disabled {
 
 .keys td {
   color: #4b5f6c;
-  font-size: 10px;
+  font-size: 12px;
   vertical-align: middle;
 }
 
@@ -652,13 +679,13 @@ button:disabled {
 
 .keys td:first-child strong {
   color: var(--text);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .keys td:first-child code {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .scope-summary {
@@ -666,7 +693,7 @@ button:disabled {
   min-width: 220px;
   max-width: 330px;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.6;
   overflow-wrap: anywhere;
   white-space: normal;
@@ -680,7 +707,7 @@ button:disabled {
   border: 1px solid #efc4c0;
   background: #fff7f6;
   color: #b42318;
-  font-size: 9px;
+  font-size: 11px;
   padding: 7px 9px;
 }
 
@@ -689,10 +716,29 @@ button:disabled {
   min-width: 58px;
   border: 1px solid transparent;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
   padding: 5px 9px;
   text-align: center;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.copy-id {
+  border: 1px solid #bcd9d2;
+  background: #f3faf8;
+  color: #08744e;
+  font-size: 11px;
+  padding: 7px 9px;
+}
+
+.copy-id:hover {
+  border-color: #80bba9;
+  background: #e9f7f2;
 }
 
 .key-status--active {

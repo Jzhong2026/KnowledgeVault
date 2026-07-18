@@ -53,32 +53,49 @@ form {
   display: grid;
   max-height: calc(100dvh - 150px);
   overflow-y: auto;
-  gap: 15px;
+  gap: 12px;
   padding: 18px;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 18px;
 }
 
-label {
+.field-row {
   display: grid;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 800;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
-.tag-field {
-  display: grid;
-  gap: 10px;
+.grid .field-row {
+  grid-template-columns: 88px minmax(0, 1fr);
 }
 
 .field-label {
   color: var(--text);
   font-size: 13px;
   font-weight: 800;
+}
+
+.fixed-value {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  padding-block: 8px;
+}
+
+.field-row--textarea,
+.field-row--tags {
+  align-items: start;
+}
+
+.field-row--textarea .field-label,
+.field-row--tags .field-label {
+  padding-top: 11px;
 }
 
 input,
@@ -192,6 +209,17 @@ button {
 
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .field-row,
+  .grid .field-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .field-row--textarea .field-label,
+  .field-row--tags .field-label {
+    padding-top: 0;
   }
 
   .editor-dialog__header,

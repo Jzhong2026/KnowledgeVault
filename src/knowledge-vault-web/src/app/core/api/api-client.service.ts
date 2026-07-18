@@ -221,8 +221,8 @@ export class ApiClient {
     return this.http.delete<void>(`${this.baseUrl}/projects/${id}`);
   }
 
-  followProject(id: string): Observable<Project> {
-    return this.http.post<Project>(`${this.baseUrl}/projects/${id}/follow`, {});
+  followProject(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/projects/${id}/follow`, {});
   }
 
   unfollowProject(id: string): Observable<void> {

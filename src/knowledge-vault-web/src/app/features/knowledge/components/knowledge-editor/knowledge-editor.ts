@@ -25,20 +25,16 @@ export class KnowledgeEditor implements OnChanges {
   @Input() projects: ProjectSummary[] = [];
   @Input() topics: ProjectTopic[] = [];
   @Input() saving = false;
+  @Input() workspaceScope: DocumentScope = 'Personal';
+  @Input() defaultProjectId: string | null = null;
+  @Input() defaultTopicId: string | null = null;
 
   @Output() saveItem = new EventEmitter<SaveDocumentRequest>();
   @Output() deleteItem = new EventEmitter<void>();
-  @Output() createNew = new EventEmitter<void>();
   @Output() closeDialog = new EventEmitter<void>();
   @Output() projectSelected = new EventEmitter<string>();
 
   readonly statuses: KnowledgeItemStatus[] = ['Draft', 'Active', 'Archived'];
-  readonly scopes: DocumentScope[] = ['Personal', 'Project'];
-  readonly documentTypes: { value: DocumentType; label: string }[] = [
-    { value: 'General', label: 'General' },
-    { value: 'PlanningReview', label: 'Planning review' },
-    { value: 'TaskBreakdown', label: 'Task breakdown' },
-  ];
 
   readonly form = new FormBuilder().nonNullable.group({
     scope: ['Personal' as DocumentScope, [Validators.required]],
@@ -58,15 +54,20 @@ export class KnowledgeEditor implements OnChanges {
   });
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!changes['item']) {
+    if (
+      !changes['item'] &&
+      !changes['workspaceScope'] &&
+      !changes['defaultProjectId'] &&
+      !changes['defaultTopicId']
+    ) {
       return;
     }
 
     if (!this.item) {
       this.form.reset({
-        scope: 'Personal',
-        projectId: '',
-        topicId: '',
+        scope: this.workspaceScope,
+        projectId: this.workspaceScope === 'Project' ? this.defaultProjectId ?? '' : '',
+        topicId: this.workspaceScope === 'Project' ? this.defaultTopicId ?? '' : '',
         documentType: 'General',
         title: '',
         summary: '',
@@ -84,7 +85,7 @@ export class KnowledgeEditor implements OnChanges {
 
     this.form.reset({
       scope: this.item.scope,
-      projectId: '',
+      projectId: this.item.projectId ?? '',
       topicId: this.item.topicId ?? '',
       documentType: this.item.documentType,
       title: this.item.title,
@@ -98,13 +99,6 @@ export class KnowledgeEditor implements OnChanges {
       tagIds: this.item.tags.map((tag) => tag.id),
       tagNames: '',
     });
-  }
-
-  onScopeChange(): void {
-    if (this.form.controls.scope.value !== 'Project') {
-      this.form.controls.projectId.setValue('');
-      this.form.controls.topicId.setValue('');
-    }
   }
 
   onProjectChange(): void {

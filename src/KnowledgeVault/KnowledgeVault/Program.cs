@@ -183,7 +183,13 @@ if (autoMigrateDatabase)
     await KnowledgeVaultDbInitializer.MigrateAsync(app.Services);
 }
 
-app.UseHttpsRedirection();
+// Local dev on this machine cannot bind HTTPS (no usable cert store), so only
+// enforce HTTPS redirection outside Development. Production/IIS still redirects.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

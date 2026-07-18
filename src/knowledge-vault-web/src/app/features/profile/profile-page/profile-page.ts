@@ -36,6 +36,8 @@ export class ProfilePage {
   readonly savingProfile = signal(false);
   readonly profileSaved = signal(false);
   readonly copied = signal(false);
+  readonly copiedKeyId = signal<string | null>(null);
+  readonly copyError = signal<string | null>(null);
 
   readonly nicknameForm = this.fb.nonNullable.group({
     nickname: [''],
@@ -168,15 +170,61 @@ export class ProfilePage {
   dismissCreatedKey(): void {
     this.createdKey.set(null);
     this.copied.set(false);
+    this.copyError.set(null);
   }
 
   async copyCreatedKey(): Promise<void> {
     const key = this.createdKey()?.key;
-    if (!key || typeof navigator === 'undefined' || !navigator.clipboard) {
+    if (!key) {
       return;
     }
 
-    await navigator.clipboard.writeText(key);
-    this.copied.set(true);
+    this.copyError.set(null);
+    if (await this.copyText(key)) {
+      this.copied.set(true);
+    } else {
+      this.copyError.set('Unable to access the clipboard. Select the key above and copy it manually.');
+    }
+  }
+
+  async copyKeyId(key: ApiKey): Promise<void> {
+    const keyId = `kv_${key.prefix}`;
+    if (await this.copyText(keyId)) {
+      this.copiedKeyId.set(key.id);
+      window.setTimeout(() => {
+        if (this.copiedKeyId() === key.id) {
+          this.copiedKeyId.set(null);
+        }
+      }, 2000);
+    }
+  }
+
+  private async copyText(value: string): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch {
+        // Fall through to the legacy browser clipboard path.
+      }
+    }
+
+    if (typeof document === 'undefined') {
+      return false;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      return document.execCommand('copy');
+    } finally {
+      textArea.remove();
+    }
   }
 }

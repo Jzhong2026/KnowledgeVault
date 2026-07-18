@@ -76,9 +76,15 @@
             <code>{{ createdKey()?.key }}</code>
           </div>
           <div class="created-key__actions">
-            <button type="button" class="primary" (click)="copyCreatedKey()">{{ copied() ? 'Copied' : 'Copy key' }}</button>
+            <button type="button" class="primary copy-key-button" (click)="copyCreatedKey()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v11H8zM5 16H4V5h11v1" /></svg>
+              {{ copied() ? 'API key copied' : 'Copy API key' }}
+            </button>
             <button type="button" class="ghost" (click)="dismissCreatedKey()">Done</button>
           </div>
+          @if (copyError()) {
+            <p class="copy-error">{{ copyError() }}</p>
+          }
         </div>
       }
 
@@ -87,6 +93,7 @@
           <div>
             <span>Credential inventory</span>
             <h4>API keys</h4>
+            <p>Full secrets are copyable only once, immediately after creation. Saved keys expose only their safe identifier.</p>
           </div>
           <span class="count">{{ apiKeys().length }}</span>
         </div>
@@ -132,9 +139,17 @@
                       >{{ keyStatus(key) }}</span>
                     </td>
                     <td>
-                      @if (!key.isRevoked) {
-                        <button type="button" class="danger" (click)="revokeKey(key.id)">Revoke</button>
-                      }
+                      <div class="row-actions">
+                        <button
+                          type="button"
+                          class="copy-id"
+                          title="Copy the non-secret key identifier"
+                          (click)="copyKeyId(key)"
+                        >{{ copiedKeyId() === key.id ? 'ID copied' : 'Copy ID' }}</button>
+                        @if (!key.isRevoked) {
+                          <button type="button" class="danger" (click)="revokeKey(key.id)">Revoke</button>
+                        }
+                      </div>
                     </td>
                   </tr>
                 }

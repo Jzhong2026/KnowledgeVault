@@ -30,6 +30,12 @@ export const routes: Routes = [
       },
       {
         path: 'knowledge',
+        data: { scope: 'Personal' },
+        loadComponent: () => import('./features/knowledge/knowledge-page/knowledge-page').then((m) => m.KnowledgePage),
+      },
+      {
+        path: 'project-documents',
+        data: { scope: 'Project' },
         loadComponent: () => import('./features/knowledge/knowledge-page/knowledge-page').then((m) => m.KnowledgePage),
       },
       {
