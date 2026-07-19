@@ -27,4 +27,6 @@ public sealed class KnowledgeItemRevision : AuditableEntity
     public User? CreatedByUser { get; set; }
 
     public ICollection<KnowledgeItemComment> Comments { get; set; } = [];
+
+    public ICollection<DocumentRevisionReview> Reviews { get; set; } = [];
 }

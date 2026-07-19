@@ -4,6 +4,7 @@ using KnowledgeVault.Contracts.Categories;
 using KnowledgeVault.Contracts.Comments;
 using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Projects;
+using KnowledgeVault.Contracts.Reviews;
 using KnowledgeVault.Contracts.Tags;
 using KnowledgeVault.Domain.Entities;
 using KnowledgeVault.Domain.Enums;
@@ -147,12 +148,39 @@ internal static class DtoMapper
         return new CommentDto(
             comment.Id,
             comment.Revision?.RevisionNumber ?? 0,
+            comment.ParentCommentId,
             comment.AuthorUserId,
             GetDisplayName(comment.AuthorUser),
             comment.DeletedAt is not null ? string.Empty : comment.Content,
             comment.CreatedAt,
             comment.UpdatedAt,
-            comment.DeletedAt is not null);
+            comment.DeletedAt is not null,
+            comment.ResolvedAt is not null,
+            comment.ResolvedByUserId,
+            comment.ResolvedByUserId.HasValue ? GetDisplayName(comment.ResolvedByUser) : null,
+            comment.ResolvedAt);
+    }
+
+    public static DocumentReviewDto ToDto(this DocumentRevisionReview review)
+    {
+        var revision = review.Revision
+            ?? throw new InvalidOperationException("Review revision must be loaded before mapping.");
+
+        return new DocumentReviewDto(
+            review.Id,
+            revision.KnowledgeItemId,
+            revision.Id,
+            revision.RevisionNumber,
+            revision.KnowledgeItem?.CurrentRevisionNumber == revision.RevisionNumber,
+            review.Status,
+            review.RequestedByUserId,
+            GetDisplayName(review.RequestedByUser),
+            review.ReviewerUserId,
+            GetDisplayName(review.ReviewerUser),
+            review.RequestMessage,
+            review.DecisionComment,
+            review.CreatedAt,
+            review.ReviewedAt);
     }
 
     public static ProjectDto ToDto(this Project project, ProjectRole? currentUserRole)

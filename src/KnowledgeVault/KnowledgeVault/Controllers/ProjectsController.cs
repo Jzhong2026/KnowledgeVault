@@ -138,7 +138,7 @@ public sealed class ProjectsController(
         return NoContent();
     }
 
-    [Authorize(Policy = "projects:write")]
+    [Authorize(Policy = "projects:read")]
     [HttpGet("{projectId:guid}/members")]
     public async Task<ActionResult<IReadOnlyList<ProjectMemberDto>>> ListMembers(
         Guid projectId,

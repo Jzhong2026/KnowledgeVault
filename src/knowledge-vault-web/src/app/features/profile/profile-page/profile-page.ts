@@ -36,7 +36,6 @@ export class ProfilePage {
   readonly savingProfile = signal(false);
   readonly profileSaved = signal(false);
   readonly copied = signal(false);
-  readonly copiedKeyId = signal<string | null>(null);
   readonly copyError = signal<string | null>(null);
 
   readonly nicknameForm = this.fb.nonNullable.group({
@@ -184,18 +183,6 @@ export class ProfilePage {
       this.copied.set(true);
     } else {
       this.copyError.set('Unable to access the clipboard. Select the key above and copy it manually.');
-    }
-  }
-
-  async copyKeyId(key: ApiKey): Promise<void> {
-    const keyId = `kv_${key.prefix}`;
-    if (await this.copyText(keyId)) {
-      this.copiedKeyId.set(key.id);
-      window.setTimeout(() => {
-        if (this.copiedKeyId() === key.id) {
-          this.copiedKeyId.set(null);
-        }
-      }, 2000);
     }
   }
 

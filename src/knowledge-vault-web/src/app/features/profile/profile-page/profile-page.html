@@ -72,7 +72,7 @@
           </div>
           <div class="created-key__content">
             <strong>Credential issued</strong>
-            <p>Copy this secret now. It is available only once and cannot be recovered later.</p>
+            <p>Save this secret now. It is available only once and cannot be recovered later.</p>
             <code>{{ createdKey()?.key }}</code>
           </div>
           <div class="created-key__actions">
@@ -93,7 +93,7 @@
           <div>
             <span>Credential inventory</span>
             <h4>API keys</h4>
-            <p>Full secrets are copyable only once, immediately after creation. Saved keys expose only their safe identifier.</p>
+            <p>Complete secrets are shown only once, immediately after creation. Saved keys expose only their safe identifier.</p>
           </div>
           <span class="count">{{ apiKeys().length }}</span>
         </div>
@@ -140,12 +140,6 @@
                     </td>
                     <td>
                       <div class="row-actions">
-                        <button
-                          type="button"
-                          class="copy-id"
-                          title="Copy the non-secret key identifier"
-                          (click)="copyKeyId(key)"
-                        >{{ copiedKeyId() === key.id ? 'ID copied' : 'Copy ID' }}</button>
                         @if (!key.isRevoked) {
                           <button type="button" class="danger" (click)="revokeKey(key.id)">Revoke</button>
                         }

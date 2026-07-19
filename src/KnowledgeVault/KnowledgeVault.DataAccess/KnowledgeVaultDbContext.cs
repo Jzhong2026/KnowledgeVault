@@ -18,6 +18,8 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
 
     public DbSet<KnowledgeItemComment> KnowledgeItemComments => Set<KnowledgeItemComment>();
 
+    public DbSet<DocumentRevisionReview> DocumentRevisionReviews => Set<DocumentRevisionReview>();
+
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     public DbSet<KnowledgeItemTag> KnowledgeItemTags => Set<KnowledgeItemTag>();
@@ -133,6 +135,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasKey(x => x.Id);
             builder.Property(x => x.Content).HasMaxLength(4000).IsRequired();
             builder.HasIndex(x => new { x.KnowledgeItemRevisionId, x.CreatedAt });
+            builder.HasIndex(x => x.ParentCommentId);
             builder.HasOne(x => x.Revision)
                 .WithMany(x => x.Comments)
                 .HasForeignKey(x => x.KnowledgeItemRevisionId)
@@ -140,6 +143,37 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasOne(x => x.AuthorUser)
                 .WithMany()
                 .HasForeignKey(x => x.AuthorUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.ParentComment)
+                .WithMany(x => x.Replies)
+                .HasForeignKey(x => x.ParentCommentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.ResolvedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ResolvedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<DocumentRevisionReview>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Status).HasConversion<int>();
+            builder.Property(x => x.RequestMessage).HasMaxLength(2000);
+            builder.Property(x => x.DecisionComment).HasMaxLength(4000);
+            builder.HasIndex(x => new { x.KnowledgeItemRevisionId, x.ReviewerUserId }).IsUnique();
+            builder.HasIndex(x => new { x.ReviewerUserId, x.Status, x.CreatedAt });
+            builder.HasIndex(x => new { x.RequestedByUserId, x.Status, x.CreatedAt });
+            builder.HasOne(x => x.Revision)
+                .WithMany(x => x.Reviews)
+                .HasForeignKey(x => x.KnowledgeItemRevisionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x => x.RequestedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.ReviewerUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReviewerUserId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
 

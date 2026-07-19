@@ -135,6 +135,16 @@ public sealed class DocumentsController(
     }
 
     [Authorize(Policy = "comments:write")]
+    [HttpPost("comments/{commentId:guid}/resolve")]
+    public async Task<ActionResult<CommentDto>> ResolveComment(
+        Guid commentId,
+        ResolveCommentRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await commentProvider.ResolveAsync(commentId, request, cancellationToken));
+    }
+
+    [Authorize(Policy = "comments:write")]
     [HttpDelete("comments/{commentId:guid}")]
     public async Task<IActionResult> DeleteComment(Guid commentId, CancellationToken cancellationToken)
     {

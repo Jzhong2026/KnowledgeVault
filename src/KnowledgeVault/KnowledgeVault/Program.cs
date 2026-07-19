@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using KnowledgeVault.Api.Middleware;
 using KnowledgeVault.Api.Security;
+using KnowledgeVault.Api.Mcp;
 using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
@@ -54,11 +55,18 @@ builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddKnowledgeVaultInfrastructure(builder.Configuration);
 builder.Services.AddKnowledgeVaultDataAccess(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddKnowledgeVaultProviders();
+builder.Services.AddScoped<McpRequestAuthorizer>();
 builder.Services.AddMcpServer()
     .WithHttpTransport()
-    .WithTools<KnowledgeVault.Api.Mcp.KnowledgeVaultMcp>()
-    .WithResources<KnowledgeVault.Api.Mcp.KnowledgeVaultMcp>()
-    .WithPrompts<KnowledgeVault.Api.Mcp.KnowledgeVaultMcp>();
+    .WithTools<ProjectMcpTools>()
+    .WithTools<CategoryMcpTools>()
+    .WithTools<DocumentMcpTools>()
+    .WithTools<RevisionMcpTools>()
+    .WithTools<CommentMcpTools>()
+    .WithTools<DocumentReviewMcpTools>()
+    .WithTools<ProjectMemoryMcpTools>()
+    .WithResources<KnowledgeVaultMcpResources>()
+    .WithPrompts<KnowledgeVaultMcpPrompts>();
 
 builder.Services
     .AddControllers()
@@ -146,6 +154,11 @@ builder.Services.AddAuthorization(options =>
     // Operations that have no corresponding API key write scope are JWT-only:
     // an API key can never satisfy this requirement, while JWT users bypass it.
     options.AddPolicy("projects:write", policy => policy.Requirements.Add(new ScopeRequirement("projects:write")));
+    options.AddPolicy(McpAuthorizationPolicies.ApiKeyOnly, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim("kid");
+    });
 });
 
 var app = builder.Build();
@@ -206,7 +219,7 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapMcp("/mcp").RequireAuthorization();
+app.MapMcp("/mcp").RequireAuthorization(McpAuthorizationPolicies.ApiKeyOnly);
 
 await app.RunAsync();
 }

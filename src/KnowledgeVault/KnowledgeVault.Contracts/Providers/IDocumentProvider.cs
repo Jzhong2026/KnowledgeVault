@@ -36,5 +36,7 @@ public interface ICommentProvider
 
     Task<CommentDto> UpdateAsync(Guid commentId, UpdateCommentRequest request, CancellationToken cancellationToken);
 
+    Task<CommentDto> ResolveAsync(Guid commentId, ResolveCommentRequest request, CancellationToken cancellationToken);
+
     Task DeleteAsync(Guid commentId, CancellationToken cancellationToken);
 }

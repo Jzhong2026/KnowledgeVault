@@ -19,6 +19,7 @@ public static class ProviderServiceCollectionExtensions
         services.AddScoped<IDocumentProvider, DocumentProvider>();
         services.AddScoped<IRevisionProvider, RevisionProvider>();
         services.AddScoped<ICommentProvider, CommentProvider>();
+        services.AddScoped<IDocumentReviewProvider, DocumentReviewProvider>();
         services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
         services.AddSingleton<ILookupProvider, LookupProvider>();
 

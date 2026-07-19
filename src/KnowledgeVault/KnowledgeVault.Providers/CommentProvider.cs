@@ -27,6 +27,7 @@ public sealed class CommentProvider(
         var commentsQuery = dbContext.KnowledgeItemComments
             .AsNoTracking()
             .Include(x => x.AuthorUser)
+            .Include(x => x.ResolvedByUser)
             .Include(x => x.Revision)
             .Where(x => x.Revision != null && x.Revision.KnowledgeItemId == documentId && x.Revision.RevisionNumber == revisionNumber);
 
@@ -54,12 +55,31 @@ public sealed class CommentProvider(
             .FirstOrDefaultAsync(x => x.KnowledgeItemId == documentId && x.RevisionNumber == revisionNumber, cancellationToken)
             ?? throw new NotFoundException("Revision was not found.");
 
+        if (request.ParentCommentId.HasValue)
+        {
+            var parent = await dbContext.KnowledgeItemComments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == request.ParentCommentId.Value, cancellationToken)
+                ?? throw new NotFoundException("Parent comment was not found.");
+
+            if (parent.KnowledgeItemRevisionId != revision.Id)
+            {
+                throw new ValidationException("A reply must target a comment on the same revision.");
+            }
+
+            if (parent.DeletedAt is not null)
+            {
+                throw new ValidationException("Deleted comments cannot receive replies.");
+            }
+        }
+
         var now = dateTimeProvider.UtcNow;
         var comment = new KnowledgeItemComment
         {
             Id = Guid.NewGuid(),
             KnowledgeItemRevisionId = revision.Id,
             AuthorUserId = userId,
+            ParentCommentId = request.ParentCommentId,
             Content = RequireText(request.Content, "Comment", 4000),
             CreatedAt = now
         };
@@ -75,6 +95,7 @@ public sealed class CommentProvider(
         var userId = RequireCurrentUser();
         var comment = await dbContext.KnowledgeItemComments
             .Include(x => x.AuthorUser)
+            .Include(x => x.ResolvedByUser)
             .FirstOrDefaultAsync(x => x.Id == commentId, cancellationToken)
             ?? throw new NotFoundException("Comment was not found.");
 
@@ -93,6 +114,41 @@ public sealed class CommentProvider(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return comment.ToDto();
+    }
+
+    public async Task<CommentDto> ResolveAsync(
+        Guid commentId,
+        ResolveCommentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        var comment = await dbContext.KnowledgeItemComments
+            .Include(x => x.AuthorUser)
+            .Include(x => x.ResolvedByUser)
+            .Include(x => x.Revision)
+            .FirstOrDefaultAsync(x => x.Id == commentId, cancellationToken)
+            ?? throw new NotFoundException("Comment was not found.");
+
+        if (comment.DeletedAt is not null)
+        {
+            throw new ValidationException("Deleted comments cannot be resolved.");
+        }
+
+        var documentId = comment.Revision?.KnowledgeItemId
+            ?? throw new NotFoundException("Comment revision was not found.");
+        if (comment.AuthorUserId != userId &&
+            !await documentAccessService.CanEditAsync(documentId, cancellationToken))
+        {
+            throw new ForbiddenException("Only the comment author or a document editor can resolve this comment.");
+        }
+
+        var now = dateTimeProvider.UtcNow;
+        comment.ResolvedAt = request.IsResolved ? now : null;
+        comment.ResolvedByUserId = request.IsResolved ? userId : null;
+        comment.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await ReloadAsync(comment.Id, cancellationToken);
     }
 
     public async Task DeleteAsync(Guid commentId, CancellationToken cancellationToken)
@@ -122,6 +178,7 @@ public sealed class CommentProvider(
         var comment = await dbContext.KnowledgeItemComments
             .AsNoTracking()
             .Include(x => x.AuthorUser)
+            .Include(x => x.ResolvedByUser)
             .Include(x => x.Revision)
             .FirstAsync(x => x.Id == commentId, cancellationToken);
 
