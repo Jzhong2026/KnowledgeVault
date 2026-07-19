@@ -37,6 +37,7 @@ internal static class DtoMapper
             category.Color,
             category.SortOrder,
             category.IsArchived,
+            category.IsSystem,
             category.CreatedAt,
             category.UpdatedAt);
     }

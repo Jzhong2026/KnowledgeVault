@@ -60,6 +60,9 @@
         <section class="form-section" aria-labelledby="document-content-heading">
           <div class="section-heading">
             <h4 id="document-content-heading">Document</h4>
+            @if (isProjectMemory()) {
+              <p>System-managed shared memory. Submit updates for review from the project workspace.</p>
+            }
           </div>
 
           <label class="field-row">
@@ -144,6 +147,7 @@
                   <button
                     type="button"
                     class="tag-option"
+                    [disabled]="isProjectMemory()"
                     [class.is-selected]="isTagSelected(tag.id)"
                     [attr.aria-pressed]="isTagSelected(tag.id)"
                     (click)="toggleTag(tag.id)"
@@ -164,13 +168,13 @@
       </div>
 
       <div class="editor-dialog__actions">
-        @if (item) {
+        @if (item && !isProjectMemory()) {
           <button type="button" class="danger" (click)="deleteItem.emit()">Delete</button>
         }
         <span class="action-spacer"></span>
         <button type="button" class="ghost" (click)="closeDialog.emit()">Cancel</button>
-        <button type="submit" class="primary" [disabled]="saving">
-          {{ saving ? 'Saving' : 'Save document' }}
+        <button type="submit" class="primary" [disabled]="saving || isProjectMemory()">
+          {{ isProjectMemory() ? 'Use project review flow' : (saving ? 'Saving' : 'Save document') }}
         </button>
       </div>
     </form>

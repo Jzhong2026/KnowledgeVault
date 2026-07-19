@@ -10,5 +10,5 @@ public sealed class JwtOptions
 
     public string SigningKey { get; set; } = "development-only-change-this-signing-key";
 
-    public int ExpirationMinutes { get; set; } = 120;
+    public int ExpirationMinutes { get; set; } = 24 * 60;
 }

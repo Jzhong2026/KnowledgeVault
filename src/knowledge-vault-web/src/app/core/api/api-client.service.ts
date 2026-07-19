@@ -20,8 +20,11 @@ import {
   Tag,
 } from '../models/knowledge.models';
 import {
+  CreateProjectMemoryCandidateRequest,
   Project,
+  ProjectMemoryCandidate,
   ProjectQuery,
+  ProjectRole,
   ProjectSummary,
   ProjectTopic,
   SaveProjectRequest,
@@ -205,6 +208,51 @@ export class ApiClient {
     return this.http.get<Project>(`${this.baseUrl}/projects/${id}`);
   }
 
+  getProjectMemory(id: string): Observable<KnowledgeItem> {
+    return this.http.get<KnowledgeItem>(`${this.baseUrl}/projects/${id}/memory`);
+  }
+
+  listProjectMemoryCandidates(
+    projectId: string,
+    includeResolved = false,
+  ): Observable<ProjectMemoryCandidate[]> {
+    const params = new HttpParams().set('includeResolved', includeResolved);
+    return this.http.get<ProjectMemoryCandidate[]>(
+      `${this.baseUrl}/projects/${projectId}/memory/candidates`,
+      { params },
+    );
+  }
+
+  createProjectMemoryCandidate(
+    projectId: string,
+    request: CreateProjectMemoryCandidateRequest,
+  ): Observable<ProjectMemoryCandidate> {
+    return this.http.post<ProjectMemoryCandidate>(
+      `${this.baseUrl}/projects/${projectId}/memory/candidates`,
+      request,
+    );
+  }
+
+  acceptProjectMemoryCandidate(
+    projectId: string,
+    candidateId: string,
+  ): Observable<ProjectMemoryCandidate> {
+    return this.http.post<ProjectMemoryCandidate>(
+      `${this.baseUrl}/projects/${projectId}/memory/candidates/${candidateId}/accept`,
+      {},
+    );
+  }
+
+  cancelProjectMemoryCandidate(
+    projectId: string,
+    candidateId: string,
+  ): Observable<ProjectMemoryCandidate> {
+    return this.http.post<ProjectMemoryCandidate>(
+      `${this.baseUrl}/projects/${projectId}/memory/candidates/${candidateId}/cancel`,
+      {},
+    );
+  }
+
   createProject(request: SaveProjectRequest): Observable<Project> {
     return this.http.post<Project>(`${this.baseUrl}/projects`, request);
   }
@@ -218,6 +266,16 @@ export class ApiClient {
 
   deleteProject(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/projects/${id}`);
+  }
+
+  updateProjectMemberRole(
+    projectId: string,
+    userId: string,
+    role: ProjectRole,
+  ): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/projects/${projectId}/members/${userId}`, {
+      role,
+    });
   }
 
   followProject(id: string): Observable<void> {

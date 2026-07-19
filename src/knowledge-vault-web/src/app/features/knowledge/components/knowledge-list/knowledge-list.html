@@ -48,7 +48,11 @@
               target="_blank"
               rel="noopener"
             >View</a>
-            <button type="button" class="action" (click)="openEditor(item.id, $event)">Edit</button>
+            @if (item.documentType === 'ProjectMemory' && item.projectId) {
+              <a class="action" [routerLink]="['/projects', item.projectId]">Review</a>
+            } @else {
+              <button type="button" class="action" (click)="openEditor(item.id, $event)">Edit</button>
+            }
           </div>
         </div>
       </article>

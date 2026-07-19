@@ -33,7 +33,9 @@ export class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem(storageKey);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(storageKey);
+    }
     this.state.set({ token: null, expiresAt: null, user: null });
   }
 

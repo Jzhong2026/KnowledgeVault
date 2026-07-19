@@ -70,6 +70,7 @@ public sealed class CategoryProvider(
         EnsureAuthenticated();
         var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
+        EnsureNotSystem(category);
         var name = RequireName(request.Name, 128);
         await EnsureNameAvailableAsync(name, id, cancellationToken);
 
@@ -91,6 +92,7 @@ public sealed class CategoryProvider(
         EnsureAuthenticated();
         var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
+        EnsureNotSystem(category);
 
         var now = dateTimeProvider.UtcNow;
         var knowledgeItems = await dbContext.KnowledgeItems
@@ -125,6 +127,14 @@ public sealed class CategoryProvider(
         if (!currentUserContext.IsAuthenticated || currentUserContext.UserId == Guid.Empty)
         {
             throw new UnauthorizedAppException("Authentication is required.");
+        }
+    }
+
+    private static void EnsureNotSystem(Category category)
+    {
+        if (category.IsSystem)
+        {
+            throw new ValidationException("System categories cannot be edited or deleted.");
         }
     }
 

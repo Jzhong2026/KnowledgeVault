@@ -49,7 +49,7 @@
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) repeat(auto-fit, minmax(150px, max-content));
+  grid-template-columns: minmax(240px, 420px) repeat(auto-fit, minmax(150px, max-content));
   align-items: center;
   gap: 10px;
   border-bottom: 1px solid var(--border);

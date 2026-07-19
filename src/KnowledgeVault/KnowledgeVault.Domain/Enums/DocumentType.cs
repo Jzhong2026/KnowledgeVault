@@ -4,5 +4,6 @@ public enum DocumentType
 {
     General = 0,
     PlanningReview = 1,
-    TaskBreakdown = 2
+    TaskBreakdown = 2,
+    ProjectMemory = 3
 }

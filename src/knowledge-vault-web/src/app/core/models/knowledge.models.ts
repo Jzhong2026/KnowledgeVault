@@ -2,7 +2,7 @@ export type KnowledgeItemStatus = 'Draft' | 'Active' | 'Archived' | 'Deleted';
 
 export type DocumentScope = 'Personal' | 'Project';
 
-export type DocumentType = 'General' | 'PlanningReview' | 'TaskBreakdown';
+export type DocumentType = 'General' | 'PlanningReview' | 'TaskBreakdown' | 'ProjectMemory';
 
 export interface Category {
   id: string;
@@ -11,6 +11,7 @@ export interface Category {
   color?: string | null;
   sortOrder: number;
   isArchived: boolean;
+  isSystem: boolean;
   createdAt: string;
   updatedAt?: string | null;
 }

@@ -123,6 +123,21 @@
   text-align: left;
 }
 
+.rows button:first-child:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.system-badge {
+  margin-left: auto;
+  border-radius: 999px;
+  background: #e8f5f0;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
 .rows strong,
 .rows small {
   display: block;

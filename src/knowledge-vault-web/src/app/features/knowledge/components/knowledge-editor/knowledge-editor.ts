@@ -76,6 +76,7 @@ export class KnowledgeEditor implements OnChanges {
         status: 'Draft',
         tagIds: [],
       });
+      this.configureSystemDocumentControls();
       return;
     }
 
@@ -92,6 +93,7 @@ export class KnowledgeEditor implements OnChanges {
       status: this.item.status,
       tagIds: this.item.tags.map((tag) => tag.id),
     });
+    this.configureSystemDocumentControls();
   }
 
   onProjectChange(): void {
@@ -103,7 +105,7 @@ export class KnowledgeEditor implements OnChanges {
   }
 
   submit(): void {
-    if (this.form.invalid) {
+    if (this.isProjectMemory() || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -146,6 +148,10 @@ export class KnowledgeEditor implements OnChanges {
   }
 
   toggleTag(tagId: string): void {
+    if (this.isProjectMemory()) {
+      return;
+    }
+
     const current = this.form.controls.tagIds.value;
     const next = current.includes(tagId)
       ? current.filter((id) => id !== tagId)
@@ -153,5 +159,33 @@ export class KnowledgeEditor implements OnChanges {
 
     this.form.controls.tagIds.setValue(next);
     this.form.controls.tagIds.markAsDirty();
+  }
+
+  isProjectMemory(): boolean {
+    return this.item?.documentType === 'ProjectMemory';
+  }
+
+  private configureSystemDocumentControls(): void {
+    const controls = [
+      this.form.controls.projectId,
+      this.form.controls.topicId,
+      this.form.controls.documentType,
+      this.form.controls.title,
+      this.form.controls.summary,
+      this.form.controls.content,
+      this.form.controls.linkDisplayText,
+      this.form.controls.linkUrl,
+      this.form.controls.categoryId,
+      this.form.controls.status,
+      this.form.controls.tagIds,
+    ];
+
+    for (const control of controls) {
+      if (this.isProjectMemory()) {
+        control.disable({ emitEvent: false });
+      } else {
+        control.enable({ emitEvent: false });
+      }
+    }
   }
 }

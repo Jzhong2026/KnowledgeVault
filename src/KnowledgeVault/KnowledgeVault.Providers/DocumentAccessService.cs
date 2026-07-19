@@ -50,7 +50,7 @@ public sealed class DocumentAccessService(
         }
 
         var role = await GetProjectRoleAsync(doc.ProjectId, userId, cancellationToken);
-        return role is ProjectRole.Owner or ProjectRole.Editor;
+        return role is ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor;
     }
 
     public async Task<bool> CanCommentAsync(Guid documentId, CancellationToken cancellationToken)

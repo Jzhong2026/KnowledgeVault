@@ -1,4 +1,16 @@
-export type ProjectRole = 'Owner' | 'Editor' | 'Viewer';
+export type ProjectRole = 'Owner' | 'Admin' | 'Editor' | 'Viewer';
+
+export type ProjectMemorySection =
+  | 'ProjectPurpose'
+  | 'CurrentContext'
+  | 'ConstraintsAndConventions'
+  | 'KeyDecisions'
+  | 'ImportantLocationsAndCommands'
+  | 'AgentPrompts'
+  | 'AgentHandoff'
+  | 'OpenQuestions';
+
+export type ProjectMemoryCandidateStatus = 'Pending' | 'Accepted' | 'Cancelled';
 
 export interface ProjectSummary {
   id: string;
@@ -53,6 +65,29 @@ export interface SaveProjectTopicRequest {
   name: string;
   description?: string | null;
   sortOrder?: number;
+}
+
+export interface ProjectMemoryCandidate {
+  id: string;
+  projectId: string;
+  targetSection: ProjectMemorySection;
+  proposedContent: string;
+  rationale?: string | null;
+  status: ProjectMemoryCandidateStatus;
+  proposedByUserId: string;
+  proposedByDisplayName: string;
+  memoryRevisionAtProposal: number;
+  reviewedByUserId?: string | null;
+  reviewedByDisplayName?: string | null;
+  reviewedAt?: string | null;
+  appliedMemoryRevisionNumber?: number | null;
+  createdAt: string;
+}
+
+export interface CreateProjectMemoryCandidateRequest {
+  targetSection: ProjectMemorySection;
+  proposedContent: string;
+  rationale?: string | null;
 }
 
 export type ProjectGroup = ProjectTopic;

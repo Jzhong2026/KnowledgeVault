@@ -20,14 +20,19 @@
       <div class="rows">
         @for (category of categories(); track category.id) {
           <article [class.is-selected]="selected()?.id === category.id">
-            <button type="button" (click)="edit(category)">
+            <button type="button" [disabled]="category.isSystem" (click)="edit(category)">
               <span class="swatch" [style.background]="category.color || '#94a3b8'"></span>
               <span>
                 <strong>{{ category.name }}</strong>
                 <small>{{ category.description || 'No description' }}</small>
               </span>
+              @if (category.isSystem) {
+                <span class="system-badge">Fixed</span>
+              }
             </button>
-            <button type="button" class="delete" (click)="delete(category)">Delete</button>
+            @if (!category.isSystem) {
+              <button type="button" class="delete" (click)="delete(category)">Delete</button>
+            }
           </article>
         }
       </div>

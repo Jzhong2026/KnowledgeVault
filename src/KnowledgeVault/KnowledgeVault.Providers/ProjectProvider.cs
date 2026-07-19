@@ -15,7 +15,8 @@ namespace KnowledgeVault.Providers;
 public sealed class ProjectProvider(
     KnowledgeVaultDbContext dbContext,
     ICurrentUserContext currentUserContext,
-    IDateTimeProvider dateTimeProvider) : IProjectProvider
+    IDateTimeProvider dateTimeProvider,
+    IProjectMemoryProvider projectMemoryProvider) : IProjectProvider
 {
     public async Task<PagedResult<ProjectSummaryDto>> ListAsync(ProjectQuery query, CancellationToken cancellationToken)
     {
@@ -103,8 +104,11 @@ public sealed class ProjectProvider(
             ]
         };
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await projectMemoryProvider.EnsureExistsAsync(project.Id, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await ReloadAsync(project.Id, userId, cancellationToken);
     }
@@ -137,13 +141,29 @@ public sealed class ProjectProvider(
     {
         var userId = RequireCurrentUser();
         var project = await dbContext.Projects
+            .Include(p => p.Members)
             .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
             ?? throw new NotFoundException("Project was not found.");
 
         RequireOwner(project, userId);
 
+        var memoryDocuments = await dbContext.KnowledgeItems
+            .Where(x => x.ProjectId == projectId && x.DocumentType == DocumentType.ProjectMemory)
+            .ToListAsync(cancellationToken);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        foreach (var memoryDocument in memoryDocuments)
+        {
+            memoryDocument.CurrentRevisionId = null;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        dbContext.KnowledgeItems.RemoveRange(memoryDocuments);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         dbContext.Projects.Remove(project);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<ProjectDto> FollowAsync(Guid projectId, CancellationToken cancellationToken)
@@ -163,12 +183,14 @@ public sealed class ProjectProvider(
         var existing = project.Members.FirstOrDefault(m => m.UserId == userId);
         if (existing is null)
         {
-            project.Members.Add(new ProjectMember
+            var member = new ProjectMember
             {
+                ProjectId = projectId,
                 UserId = userId,
                 Role = ProjectRole.Editor,
                 CreatedAt = dateTimeProvider.UtcNow
-            });
+            };
+            dbContext.ProjectMembers.Add(member);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -225,7 +247,8 @@ public sealed class ProjectProvider(
             .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
             ?? throw new NotFoundException("Project was not found.");
 
-        RequireOwner(project, userId);
+        var administrator = RequireAdministrator(project, userId);
+        ValidateAdministratorAssignment(administrator, request.Role);
 
         if (!await dbContext.Users.AnyAsync(u => u.Id == request.UserId, cancellationToken))
         {
@@ -259,10 +282,12 @@ public sealed class ProjectProvider(
             .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
             ?? throw new NotFoundException("Project was not found.");
 
-        RequireOwner(project, userId);
+        var administrator = RequireAdministrator(project, userId);
 
         var member = project.Members.FirstOrDefault(m => m.UserId == targetUserId)
             ?? throw new NotFoundException("Project member was not found.");
+
+        ValidateAdministratorMemberChange(administrator, member, request.Role, userId);
 
         if (member.Role == ProjectRole.Owner && request.Role != ProjectRole.Owner)
         {
@@ -284,10 +309,12 @@ public sealed class ProjectProvider(
             .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
             ?? throw new NotFoundException("Project was not found.");
 
-        RequireOwner(project, userId);
+        var administrator = RequireAdministrator(project, userId);
 
         var member = project.Members.FirstOrDefault(m => m.UserId == targetUserId)
             ?? throw new NotFoundException("Project member was not found.");
+
+        ValidateAdministratorMemberChange(administrator, member, null, userId);
 
         if (member.Role == ProjectRole.Owner)
         {
@@ -335,6 +362,59 @@ public sealed class ProjectProvider(
         if (member is null || member.Role != ProjectRole.Owner)
         {
             throw new ForbiddenException("Only the project owner can perform this action.");
+        }
+    }
+
+    private static ProjectMember RequireAdministrator(Project project, Guid userId)
+    {
+        var member = project.Members.FirstOrDefault(m => m.UserId == userId);
+        if (member is null || member.Role is not (ProjectRole.Owner or ProjectRole.Admin))
+        {
+            throw new ForbiddenException("Only a project owner or administrator can perform this action.");
+        }
+
+        return member;
+    }
+
+    private static void ValidateAdministratorAssignment(
+        ProjectMember administrator,
+        ProjectRole requestedRole)
+    {
+        if (!Enum.IsDefined(requestedRole))
+        {
+            throw new ValidationException("Project role is invalid.");
+        }
+
+        if (administrator.Role == ProjectRole.Admin && requestedRole == ProjectRole.Owner)
+        {
+            throw new ForbiddenException("Administrators cannot assign the project owner role.");
+        }
+    }
+
+    private static void ValidateAdministratorMemberChange(
+        ProjectMember administrator,
+        ProjectMember target,
+        ProjectRole? requestedRole,
+        Guid currentUserId)
+    {
+        if (requestedRole.HasValue && !Enum.IsDefined(requestedRole.Value))
+        {
+            throw new ValidationException("Project role is invalid.");
+        }
+
+        if (administrator.Role != ProjectRole.Admin)
+        {
+            return;
+        }
+
+        if (target.UserId == currentUserId)
+        {
+            throw new ForbiddenException("Administrators cannot change their own membership.");
+        }
+
+        if (target.Role == ProjectRole.Owner || requestedRole == ProjectRole.Owner)
+        {
+            throw new ForbiddenException("Administrators cannot change the project owner role.");
         }
     }
 

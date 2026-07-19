@@ -46,6 +46,10 @@ export class CategoriesPage {
   }
 
   edit(category: Category): void {
+    if (category.isSystem) {
+      return;
+    }
+
     this.selected.set(category);
     this.form.reset({
       name: category.name,
@@ -108,6 +112,10 @@ export class CategoriesPage {
   }
 
   delete(category: Category): void {
+    if (category.isSystem) {
+      return;
+    }
+
     this.api.deleteCategory(category.id).subscribe({
       next: () => {
         if (this.selected()?.id === category.id) {

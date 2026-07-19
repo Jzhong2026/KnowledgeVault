@@ -161,7 +161,10 @@ public sealed class ProjectTopicProvider(
             throw new NotFoundException("Project was not found.");
         }
 
-        if (member.Role > minimum)
+        var permitted = minimum == ProjectRole.Owner
+            ? member.Role is ProjectRole.Owner or ProjectRole.Admin
+            : member.Role is ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor;
+        if (!permitted)
         {
             throw new ForbiddenException("You do not have permission to perform this action.");
         }

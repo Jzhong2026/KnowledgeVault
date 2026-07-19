@@ -78,6 +78,11 @@ public sealed class DocumentProvider(
 
     public async Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken)
     {
+        if (request.DocumentType == DocumentType.ProjectMemory)
+        {
+            throw new ValidationException("MEMORY.md is created and managed automatically for each project.");
+        }
+
         var userId = RequireCurrentUser();
         var now = dateTimeProvider.UtcNow;
 
@@ -158,6 +163,8 @@ public sealed class DocumentProvider(
                 $"The document has been modified. Current revision is {item.CurrentRevisionNumber}.");
         }
 
+        EnsureProjectMemoryUpdateIsValid(item);
+
         var location = await ResolveLocationAsync(
             item.Scope,
             request.ProjectId ?? item.ProjectId,
@@ -212,6 +219,8 @@ public sealed class DocumentProvider(
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
+        EnsureProjectMemoryMetadataIsValid(item, request);
+
         var location = await ResolveLocationAsync(
             item.Scope,
             request.ProjectId ?? item.ProjectId,
@@ -239,10 +248,45 @@ public sealed class DocumentProvider(
         var item = await dbContext.KnowledgeItems.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
+        if (item.DocumentType == DocumentType.ProjectMemory)
+        {
+            throw new ValidationException("A project's shared MEMORY.md cannot be deleted.");
+        }
+
         item.Status = KnowledgeItemStatus.Deleted;
         item.ArchivedAt ??= now;
         item.UpdatedAt = now;
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void EnsureProjectMemoryUpdateIsValid(KnowledgeItem item)
+    {
+        if (item.DocumentType != DocumentType.ProjectMemory)
+        {
+            return;
+        }
+
+        throw new ValidationException(
+            "MEMORY.md cannot be edited directly. Submit a memory candidate for administrator review.");
+    }
+
+    private static void EnsureProjectMemoryMetadataIsValid(
+        KnowledgeItem item,
+        UpdateDocumentMetadataRequest request)
+    {
+        if (item.DocumentType != DocumentType.ProjectMemory)
+        {
+            return;
+        }
+
+        if ((request.ProjectId.HasValue && request.ProjectId != item.ProjectId) ||
+            request.TopicId.HasValue ||
+            request.CategoryId != item.CategoryId ||
+            request.Status != KnowledgeItemStatus.Active)
+        {
+            throw new ValidationException(
+                "MEMORY.md is a fixed active project document; its category, status, and location cannot be changed.");
+        }
     }
 
     private IQueryable<KnowledgeItem> BuildListQuery(Guid userId, DocumentQuery query)
@@ -373,7 +417,7 @@ public sealed class DocumentProvider(
         }
 
         var role = await GetProjectRoleAsync(projectId.Value, userId, cancellationToken);
-        if (role is not (ProjectRole.Owner or ProjectRole.Editor))
+        if (role is not (ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor))
         {
             throw new ForbiddenException("You do not have permission to create or move documents in this project.");
         }

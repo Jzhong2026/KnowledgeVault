@@ -7,6 +7,7 @@ public sealed record CategoryDto(
     string? Color,
     int SortOrder,
     bool IsArchived,
+    bool IsSystem,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 

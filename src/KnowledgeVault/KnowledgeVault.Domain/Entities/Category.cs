@@ -14,5 +14,7 @@ public sealed class Category : AuditableEntity
 
     public bool IsArchived { get; set; }
 
+    public bool IsSystem { get; set; }
+
     public ICollection<KnowledgeItem> KnowledgeItems { get; set; } = [];
 }

@@ -3,6 +3,7 @@ using System;
 using KnowledgeVault.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KnowledgeVault.DataAccess.Migrations
 {
     [DbContext(typeof(KnowledgeVaultDbContext))]
-    partial class KnowledgeVaultDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260719070316_AddProjectMemoryDocument")]
+    partial class AddProjectMemoryDocument
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -88,9 +91,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsArchived")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsSystem")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -361,61 +361,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.ToTable("ProjectMembers");
                 });
 
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectMemoryCandidate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("AppliedMemoryRevisionNumber")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("CreatedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("MemoryRevisionAtProposal")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ProposedByUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProposedContent")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Rationale")
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long?>("ReviewedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TargetSection")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("UpdatedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProposedByUserId");
-
-                    b.HasIndex("ReviewedByUserId");
-
-                    b.HasIndex("ProjectId", "Status", "CreatedAt");
-
-                    b.ToTable("ProjectMemoryCandidates");
-                });
-
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectTopic", b =>
                 {
                     b.Property<Guid>("Id")
@@ -678,32 +623,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectMemoryCandidate", b =>
-                {
-                    b.HasOne("KnowledgeVault.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("KnowledgeVault.Domain.Entities.User", "ProposedByUser")
-                        .WithMany()
-                        .HasForeignKey("ProposedByUserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("KnowledgeVault.Domain.Entities.User", "ReviewedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Project");
-
-                    b.Navigation("ProposedByUser");
-
-                    b.Navigation("ReviewedByUser");
                 });
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.ProjectTopic", b =>

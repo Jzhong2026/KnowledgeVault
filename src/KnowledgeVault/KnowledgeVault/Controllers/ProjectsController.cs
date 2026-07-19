@@ -9,7 +9,10 @@ namespace KnowledgeVault.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/projects")]
-public sealed class ProjectsController(IProjectProvider projectProvider) : ControllerBase
+public sealed class ProjectsController(
+    IProjectProvider projectProvider,
+    IProjectMemoryProvider projectMemoryProvider,
+    IProjectMemoryCandidateProvider projectMemoryCandidateProvider) : ControllerBase
 {
     [Authorize(Policy = "projects:read")]
     [HttpGet]
@@ -25,6 +28,71 @@ public sealed class ProjectsController(IProjectProvider projectProvider) : Contr
     public async Task<ActionResult<ProjectDto>> Get(Guid projectId, CancellationToken cancellationToken)
     {
         return Ok(await projectProvider.GetAsync(projectId, cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:read")]
+    [HttpGet("{projectId:guid}/memory")]
+    public async Task<ActionResult<KnowledgeVault.Contracts.Documents.KnowledgeItemDto>> GetMemory(
+        Guid projectId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await projectMemoryProvider.GetAsync(projectId, cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:read")]
+    [HttpGet("{projectId:guid}/memory/candidates")]
+    public async Task<ActionResult<IReadOnlyList<ProjectMemoryCandidateDto>>> ListMemoryCandidates(
+        Guid projectId,
+        [FromQuery] bool includeResolved,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await projectMemoryCandidateProvider.ListAsync(
+            projectId,
+            includeResolved,
+            cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:write")]
+    [HttpPost("{projectId:guid}/memory/candidates")]
+    public async Task<ActionResult<ProjectMemoryCandidateDto>> CreateMemoryCandidate(
+        Guid projectId,
+        CreateProjectMemoryCandidateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var candidate = await projectMemoryCandidateProvider.CreateAsync(
+            projectId,
+            request,
+            cancellationToken);
+        return CreatedAtAction(
+            nameof(ListMemoryCandidates),
+            new { projectId },
+            candidate);
+    }
+
+    [Authorize(Policy = "documents:write")]
+    [HttpPost("{projectId:guid}/memory/candidates/{candidateId:guid}/accept")]
+    public async Task<ActionResult<ProjectMemoryCandidateDto>> AcceptMemoryCandidate(
+        Guid projectId,
+        Guid candidateId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await projectMemoryCandidateProvider.AcceptAsync(
+            projectId,
+            candidateId,
+            cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:write")]
+    [HttpPost("{projectId:guid}/memory/candidates/{candidateId:guid}/cancel")]
+    public async Task<ActionResult<ProjectMemoryCandidateDto>> CancelMemoryCandidate(
+        Guid projectId,
+        Guid candidateId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await projectMemoryCandidateProvider.CancelAsync(
+            projectId,
+            candidateId,
+            cancellationToken));
     }
 
     [Authorize(Policy = "projects:write")]

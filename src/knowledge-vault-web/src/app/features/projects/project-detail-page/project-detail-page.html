@@ -45,6 +45,134 @@
         <button type="button" class="primary" [disabled]="followBusy()" (click)="toggleFollow()">Follow and collaborate</button>
       </section>
     } @else {
+      @if (memory(); as memory) {
+        <section class="shared-memory" aria-labelledby="shared-memory-title">
+          <div class="shared-memory__icon" aria-hidden="true">M</div>
+          <div class="shared-memory__content">
+            <p>Shared agent context</p>
+            <h3 id="shared-memory-title">{{ memory.title }}</h3>
+            <span>{{ memory.summary }}</span>
+            <small>
+              Revision {{ memory.currentRevisionNumber }} · Updated
+              {{ memory.updatedAt || memory.createdAt | date: 'mediumDate' }}
+            </small>
+          </div>
+          <div class="shared-memory__actions">
+            <a
+              class="shared-memory__open"
+              [routerLink]="['/project-documents/detail', memory.id]"
+            >Open shared memory</a>
+            <button type="button" class="memory-propose" (click)="toggleCandidateForm()">
+              {{ showCandidateForm() ? 'Close proposal' : 'Propose update' }}
+            </button>
+          </div>
+        </section>
+
+        @if (showCandidateForm()) {
+          <form class="candidate-form" [formGroup]="candidateForm" (ngSubmit)="submitMemoryCandidate()">
+            <div class="candidate-form__heading">
+              <h3>Propose a memory update</h3>
+              <p>Every proposal, including an administrator's, stays pending until it is reviewed.</p>
+            </div>
+            <label>
+              Target section
+              <select formControlName="targetSection">
+                @for (section of memorySections; track section.value) {
+                  <option [value]="section.value">{{ section.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="candidate-form__content">
+              Markdown to append
+              <textarea formControlName="proposedContent" rows="7" maxlength="16000" placeholder="Add durable project context or a reusable agent prompt"></textarea>
+            </label>
+            <label class="candidate-form__content">
+              Review note <span>Optional</span>
+              <input type="text" formControlName="rationale" maxlength="1024" placeholder="Why should this be added?" />
+            </label>
+            <button type="submit" class="primary" [disabled]="candidateSaving()">
+              {{ candidateSaving() ? 'Submitting...' : 'Submit for review' }}
+            </button>
+          </form>
+        }
+
+        <section class="candidate-section" aria-labelledby="memory-candidates-title">
+          <div class="section-heading">
+            <div>
+              <p>Review workflow</p>
+              <h3 id="memory-candidates-title">Memory candidates</h3>
+              <span>Accepted Markdown is appended to its target section and saved as a new revision.</span>
+            </div>
+            <button type="button" class="filter-toggle" (click)="toggleResolvedCandidates()">
+              {{ includeResolvedCandidates() ? 'Show pending only' : 'Show review history' }}
+            </button>
+          </div>
+
+          @if (memoryCandidates().length === 0) {
+            <div class="empty-candidates">No {{ includeResolvedCandidates() ? '' : 'pending ' }}memory candidates.</div>
+          } @else {
+            <div class="candidate-list">
+              @for (candidate of memoryCandidates(); track candidate.id) {
+                <article class="candidate-card">
+                  <header>
+                    <div>
+                      <span class="candidate-section-label">{{ memorySectionLabel(candidate.targetSection) }}</span>
+                      <strong>{{ candidate.proposedByDisplayName }}</strong>
+                      <small>Proposed against revision {{ candidate.memoryRevisionAtProposal }} &middot; {{ candidate.createdAt | date: 'medium' }}</small>
+                    </div>
+                    <span class="candidate-status" [class.is-accepted]="candidate.status === 'Accepted'" [class.is-cancelled]="candidate.status === 'Cancelled'">{{ candidate.status }}</span>
+                  </header>
+                  <pre>{{ candidate.proposedContent }}</pre>
+                  @if (candidate.rationale) {
+                    <p class="review-note"><strong>Why:</strong> {{ candidate.rationale }}</p>
+                  }
+                  @if (candidate.status !== 'Pending') {
+                    <footer>
+                      Reviewed by {{ candidate.reviewedByDisplayName || 'Administrator' }}
+                      @if (candidate.reviewedAt) { <span>&middot; {{ candidate.reviewedAt | date: 'medium' }}</span> }
+                      @if (candidate.appliedMemoryRevisionNumber) { <span>&middot; Memory revision {{ candidate.appliedMemoryRevisionNumber }}</span> }
+                    </footer>
+                  } @else if (canReviewMemory()) {
+                    <div class="candidate-actions">
+                      <button type="button" class="candidate-cancel" [disabled]="reviewingCandidateId() === candidate.id" (click)="reviewMemoryCandidate(candidate.id, 'cancel')">Cancel</button>
+                      <button type="button" class="candidate-accept" [disabled]="reviewingCandidateId() === candidate.id" (click)="reviewMemoryCandidate(candidate.id, 'accept')">Accept and merge</button>
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+          }
+        </section>
+
+        @if (canManageMembers()) {
+          <section class="members-section" aria-labelledby="project-members-title">
+            <div class="section-heading">
+              <div>
+                <p>Access control</p>
+                <h3 id="project-members-title">Project members</h3>
+                <span>Owners and administrators can appoint other members as administrators.</span>
+              </div>
+            </div>
+            <div class="member-list">
+              @for (member of project.members; track member.userId) {
+                <div class="member-row">
+                  <div>
+                    <strong>{{ member.userName }}</strong>
+                    <span>{{ member.email }}</span>
+                  </div>
+                  <span class="member-role">{{ member.role }}</span>
+                  @if (member.role !== 'Owner' && !isCurrentUser(member)) {
+                    <button type="button" class="member-admin-action" [disabled]="memberBusyId() === member.userId" (click)="toggleAdministrator(member)">
+                      {{ member.role === 'Admin' ? 'Remove admin' : 'Make admin' }}
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+        }
+      }
+
       <section class="groups-section">
         <div class="section-heading">
           <div>
@@ -93,7 +221,7 @@
                 </div>
                 <footer>
                   <a routerLink="/project-documents" [queryParams]="{ projectId: project.id, topicId: group.id }">View documents</a>
-                  @if (project.currentUserRole === 'Owner') {
+                  @if (canReviewMemory()) {
                     <button type="button" (click)="deleteGroup(group.id)">Delete</button>
                   }
                 </footer>

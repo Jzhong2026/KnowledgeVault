@@ -24,6 +24,9 @@
             @if (knowledge.scope === 'Project') {
               <span class="badge">Project</span>
             }
+            @if (knowledge.documentType === 'ProjectMemory') {
+              <span class="badge badge--accent">Shared memory</span>
+            }
             <span>{{
               viewingRevision()?.createdAt || knowledge.updatedAt || knowledge.createdAt
                 | date: 'mediumDate'

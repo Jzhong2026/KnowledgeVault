@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using KnowledgeVault.Api.Middleware;
 using KnowledgeVault.Api.Security;
+using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
 using KnowledgeVault.DataAccess.DependencyInjection;
@@ -181,6 +182,18 @@ if (autoMigrateDatabase)
 {
     app.Logger.LogInformation("Applying database migrations.");
     await KnowledgeVaultDbInitializer.MigrateAsync(app.Services);
+}
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var projectMemoryProvider = scope.ServiceProvider.GetRequiredService<IProjectMemoryProvider>();
+    var createdMemoryCount = await projectMemoryProvider.EnsureAllExistAsync(CancellationToken.None);
+    if (createdMemoryCount > 0)
+    {
+        app.Logger.LogInformation(
+            "Created shared MEMORY.md documents for {ProjectCount} existing projects.",
+            createdMemoryCount);
+    }
 }
 
 // Local dev on this machine cannot bind HTTPS (no usable cert store), so only

@@ -28,6 +28,8 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
 
     public DbSet<ProjectTopic> ProjectTopics => Set<ProjectTopic>();
 
+    public DbSet<ProjectMemoryCandidate> ProjectMemoryCandidates => Set<ProjectMemoryCandidate>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(builder =>
@@ -72,6 +74,10 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasIndex(x => new { x.OwnerUserId, x.Scope, x.Status });
             builder.HasIndex(x => new { x.ProjectId, x.Status });
             builder.HasIndex(x => new { x.TopicId, x.Status });
+            builder.HasIndex(x => x.ProjectId)
+                .HasDatabaseName("IX_KnowledgeItems_ProjectId_ProjectMemory")
+                .IsUnique()
+                .HasFilter("[DocumentType] = 3");
             builder.HasOne(x => x.OwnerUser)
                 .WithMany(x => x.KnowledgeItems)
                 .HasForeignKey(x => x.OwnerUserId)
@@ -200,6 +206,28 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .WithMany()
                 .HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProjectMemoryCandidate>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.TargetSection).HasConversion<int>();
+            builder.Property(x => x.ProposedContent).IsRequired();
+            builder.Property(x => x.Rationale).HasMaxLength(1024);
+            builder.Property(x => x.Status).HasConversion<int>();
+            builder.HasIndex(x => new { x.ProjectId, x.Status, x.CreatedAt });
+            builder.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(x => x.ProposedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ProposedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         ConfigureDateTimeOffsetStorage(modelBuilder);
