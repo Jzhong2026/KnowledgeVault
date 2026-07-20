@@ -10,6 +10,15 @@ public interface IDocumentProvider
 
     Task<IReadOnlyList<DocumentOwnerDto>> ListOwnersAsync(Guid? projectId, CancellationToken cancellationToken);
 
+    Task<ProjectDocumentStatsDto> GetProjectDocumentStatsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<DocumentActivityDayDto>> ListProjectActivityAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        int utcOffsetMinutes,
+        Guid? projectId,
+        CancellationToken cancellationToken);
+
     Task<KnowledgeItemDto> GetAsync(Guid id, CancellationToken cancellationToken);
 
     Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken);

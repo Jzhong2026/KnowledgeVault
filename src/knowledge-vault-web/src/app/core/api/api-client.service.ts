@@ -6,12 +6,14 @@ import { API_BASE_URL } from '../config/api.config';
 import {
   Category,
   Comment,
+  DocumentActivityDay,
   DocumentOwner,
   KnowledgeItem,
   KnowledgeItemQuery,
   KnowledgeItemSummary,
   LookupItem,
   PagedResult,
+  ProjectDocumentStats,
   Revision,
   RevisionSummary,
   SaveCategoryRequest,
@@ -121,6 +123,29 @@ export class ApiClient {
   listDocumentOwners(projectId?: string): Observable<DocumentOwner[]> {
     const params = projectId ? new HttpParams().set('projectId', projectId) : undefined;
     return this.http.get<DocumentOwner[]>(`${this.baseUrl}/documents/owners`, { params });
+  }
+
+  listProjectDocumentActivity(query: {
+    from: string;
+    to: string;
+    utcOffsetMinutes: number;
+    projectId?: string;
+  }): Observable<DocumentActivityDay[]> {
+    let params = new HttpParams()
+      .set('from', query.from)
+      .set('to', query.to)
+      .set('utcOffsetMinutes', query.utcOffsetMinutes);
+    if (query.projectId) {
+      params = params.set('projectId', query.projectId);
+    }
+
+    return this.http.get<DocumentActivityDay[]>(`${this.baseUrl}/documents/activity`, {
+      params,
+    });
+  }
+
+  getProjectDocumentStats(): Observable<ProjectDocumentStats> {
+    return this.http.get<ProjectDocumentStats>(`${this.baseUrl}/documents/stats`);
   }
 
   getKnowledgeItem(id: string): Observable<KnowledgeItem> {

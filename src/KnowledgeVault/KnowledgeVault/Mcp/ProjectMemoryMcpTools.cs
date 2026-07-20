@@ -15,12 +15,12 @@ public sealed class ProjectMemoryMcpTools(
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
     [McpServerTool]
-    [Description("Get the shared MEMORY.md for a project the API key owner belongs to.")]
+    [Description("Get the shared MEMORY.md for a project by id.")]
     public Task<string> GetProjectMemory(
         [Description("Project id (Guid)")] string projectId,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IProjectMemoryProvider>();
             var memory = await provider.GetAsync(
@@ -60,7 +60,7 @@ public sealed class ProjectMemoryMcpTools(
         [Description("Include accepted and cancelled candidates")] bool includeResolved = false,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IProjectMemoryCandidateProvider>();
             var candidates = await provider.ListAsync(

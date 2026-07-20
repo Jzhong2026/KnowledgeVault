@@ -45,7 +45,7 @@ export class ProfilePage {
   readonly keyForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(64)]],
     expiresInDays: [365, [Validators.min(1), Validators.max(365)]],
-    scopes: this.fb.nonNullable.control<string[]>([], [Validators.required, Validators.minLength(1)]),
+    scopes: this.fb.nonNullable.control<string[]>([]),
   });
 
   constructor() {

@@ -20,15 +20,7 @@ public sealed class ProjectMemoryProvider(
 
     public async Task<KnowledgeItemDto> GetAsync(Guid projectId, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
-        var isMember = await dbContext.ProjectMembers
-            .AsNoTracking()
-            .AnyAsync(x => x.ProjectId == projectId && x.UserId == userId, cancellationToken);
-
-        if (!isMember)
-        {
-            throw new NotFoundException("Project was not found.");
-        }
+        RequireCurrentUser();
 
         var memoryId = await EnsureExistsAsync(projectId, cancellationToken);
         var memory = await BuildDetailQuery()

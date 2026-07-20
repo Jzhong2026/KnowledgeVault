@@ -43,12 +43,7 @@ public sealed class ApiKeyProvider(
         var userId = RequireCurrentUser();
         var name = RequireText(request.Name, "Name", 64);
 
-        if (request.Scopes is null || request.Scopes.Count == 0)
-        {
-            throw new ValidationException("At least one scope is required.");
-        }
-
-        var normalizedScopes = request.Scopes
+        var normalizedScopes = (request.Scopes ?? [])
             .Select(x => x.Trim().ToLowerInvariant())
             .Where(x => !string.IsNullOrEmpty(x))
             .Distinct()

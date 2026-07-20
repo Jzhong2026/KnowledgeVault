@@ -18,7 +18,7 @@ public sealed class KnowledgeVaultMcpPrompts(
         [Description("Document id (Guid) to summarize")] string id,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
             var document = await provider.GetAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);

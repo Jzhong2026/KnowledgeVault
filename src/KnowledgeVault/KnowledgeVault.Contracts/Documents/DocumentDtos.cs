@@ -48,6 +48,10 @@ public sealed record KnowledgeItemSummaryDto(
 
 public sealed record DocumentOwnerDto(Guid Id, string DisplayName);
 
+public sealed record DocumentActivityDayDto(DateOnly Date, int ChangeCount);
+
+public sealed record ProjectDocumentStatsDto(int DocumentCount, int CategoryCount, int TagCount);
+
 public sealed record RevisionSummaryDto(
     Guid Id,
     int RevisionNumber,

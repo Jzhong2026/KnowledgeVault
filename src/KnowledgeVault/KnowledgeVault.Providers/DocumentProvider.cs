@@ -65,6 +65,87 @@ public sealed class DocumentProvider(
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<ProjectDocumentStatsDto> GetProjectDocumentStatsAsync(
+        CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        var projectDocuments = dbContext.KnowledgeItems
+            .AsNoTracking()
+            .Where(item =>
+                item.Scope == DocumentScope.Project &&
+                item.Status != KnowledgeItemStatus.Deleted &&
+                dbContext.ProjectMembers.Any(member =>
+                    member.ProjectId == item.ProjectId && member.UserId == userId));
+
+        var documentCount = await projectDocuments.CountAsync(cancellationToken);
+        var categoryCount = await projectDocuments
+            .Where(item => item.CategoryId.HasValue)
+            .Select(item => item.CategoryId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+        var tagCount = await projectDocuments
+            .SelectMany(item => item.KnowledgeItemTags)
+            .Select(itemTag => itemTag.TagId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+        return new ProjectDocumentStatsDto(documentCount, categoryCount, tagCount);
+    }
+
+    public async Task<IReadOnlyList<DocumentActivityDayDto>> ListProjectActivityAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        int utcOffsetMinutes,
+        Guid? projectId,
+        CancellationToken cancellationToken)
+    {
+        var userId = RequireCurrentUser();
+        if (from >= to)
+        {
+            throw new ValidationException("The activity start must be earlier than the end.");
+        }
+
+        if (to - from > TimeSpan.FromDays(370))
+        {
+            throw new ValidationException("The activity range cannot exceed 370 days.");
+        }
+
+        if (utcOffsetMinutes is < -840 or > 840)
+        {
+            throw new ValidationException("The UTC offset must be between -840 and 840 minutes.");
+        }
+
+        var activityQuery = dbContext.KnowledgeItemRevisions
+            .AsNoTracking()
+            .Where(revision =>
+                revision.CreatedAt >= from &&
+                revision.CreatedAt < to &&
+                revision.KnowledgeItem != null &&
+                revision.KnowledgeItem.Scope == DocumentScope.Project &&
+                revision.KnowledgeItem.Status != KnowledgeItemStatus.Deleted &&
+                dbContext.ProjectMembers.Any(member =>
+                    member.ProjectId == revision.KnowledgeItem.ProjectId &&
+                    member.UserId == userId));
+
+        if (projectId.HasValue)
+        {
+            activityQuery = activityQuery.Where(revision =>
+                revision.KnowledgeItem != null &&
+                revision.KnowledgeItem.ProjectId == projectId.Value);
+        }
+
+        var timestamps = await activityQuery
+            .Select(revision => revision.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return timestamps
+            .GroupBy(timestamp => DateOnly.FromDateTime(
+                timestamp.UtcDateTime.AddMinutes(utcOffsetMinutes)))
+            .OrderBy(group => group.Key)
+            .Select(group => new DocumentActivityDayDto(group.Key, group.Count()))
+            .ToArray();
+    }
+
     public async Task<KnowledgeItemDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         await documentAccessService.EnsureViewAsync(id, cancellationToken);

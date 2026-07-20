@@ -19,7 +19,7 @@ public sealed class RevisionMcpTools(
         [Description("Page size from 1 to 100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IRevisionProvider>();
             var revisions = await provider.ListAsync(
@@ -38,7 +38,7 @@ public sealed class RevisionMcpTools(
         [Description("Revision number")] int revisionNumber,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IRevisionProvider>();
             var revision = await provider.GetAsync(

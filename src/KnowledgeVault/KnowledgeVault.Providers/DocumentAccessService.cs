@@ -25,9 +25,7 @@ public sealed class DocumentAccessService(
             return false;
         }
 
-        return doc.Scope == DocumentScope.Personal
-            ? doc.OwnerUserId == userId
-            : await IsProjectMemberAsync(doc.ProjectId, userId, cancellationToken);
+        return doc.Status != KnowledgeItemStatus.Deleted;
     }
 
     public async Task<bool> CanEditAsync(Guid documentId, CancellationToken cancellationToken)

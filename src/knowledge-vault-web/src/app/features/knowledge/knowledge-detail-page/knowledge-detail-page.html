@@ -1,7 +1,28 @@
 <section class="detail-page">
   <div class="detail-toolbar">
     <a [routerLink]="documentListRoute">{{ documentListLabel }}</a>
+    @if (item()) {
+      <button
+        type="button"
+        class="copy-button copy-markdown-button"
+        [attr.aria-label]="
+          'Copy Markdown source for revision ' +
+          (viewingRevision()?.revisionNumber || item()?.currentRevisionNumber)
+        "
+        (click)="copyDocumentMarkdown()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 8h11v11H8z"></path>
+          <path d="M5 16H4V5h11v1"></path>
+        </svg>
+        {{ copiedTarget() === documentCopyTarget() ? 'Copied' : 'Copy Markdown' }}
+      </button>
+    }
   </div>
+
+  @if (copyError()) {
+    <p class="copy-error" role="alert">{{ copyError() }}</p>
+  }
 
   @if (loading()) {
     <div class="loading">
@@ -147,8 +168,24 @@
           @for (comment of comments(); track comment.id) {
             <li class="comment">
               <div class="comment__head">
-                <strong>{{ comment.authorDisplayName }}</strong>
-                <span class="muted">{{ comment.createdAt | date: 'short' }}</span>
+                <div class="comment__meta">
+                  <strong>{{ comment.authorDisplayName }}</strong>
+                  <span class="muted">{{ comment.createdAt | date: 'short' }}</span>
+                </div>
+                @if (!comment.isDeleted) {
+                  <button
+                    type="button"
+                    class="copy-button copy-button--compact comment-copy-button"
+                    [attr.aria-label]="'Copy comment by ' + comment.authorDisplayName"
+                    (click)="copyComment(comment)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M8 8h11v11H8z"></path>
+                      <path d="M5 16H4V5h11v1"></path>
+                    </svg>
+                    {{ copiedTarget() === 'comment:' + comment.id ? 'Copied' : 'Copy' }}
+                  </button>
+                }
               </div>
               @if (!comment.isDeleted) {
                 <p>{{ comment.content }}</p>

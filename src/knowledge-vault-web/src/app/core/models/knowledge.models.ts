@@ -113,6 +113,17 @@ export interface DocumentOwner {
   displayName: string;
 }
 
+export interface DocumentActivityDay {
+  date: string;
+  changeCount: number;
+}
+
+export interface ProjectDocumentStats {
+  documentCount: number;
+  categoryCount: number;
+  tagCount: number;
+}
+
 export interface SaveDocumentRequest {
   scope: DocumentScope;
   projectId?: string | null;

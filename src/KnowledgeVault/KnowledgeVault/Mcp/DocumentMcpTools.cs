@@ -22,7 +22,7 @@ public sealed class DocumentMcpTools(
         [Description("Page size from 1 to 100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var parsedProjectId = McpArguments.OptionalGuid(projectId, nameof(projectId));
             var provider = services.GetRequiredService<IDocumentProvider>();
@@ -58,7 +58,7 @@ public sealed class DocumentMcpTools(
         [Description("Page size from 1 to 100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
             var result = await provider.ListAsync(
@@ -87,7 +87,7 @@ public sealed class DocumentMcpTools(
         [Description("Document id (Guid)")] string id,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
             var document = await provider.GetAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);

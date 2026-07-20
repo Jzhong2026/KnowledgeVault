@@ -18,7 +18,7 @@ public sealed class KnowledgeVaultMcpResources(
         [Description("Document id (Guid)")] string id,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
             var document = await provider.GetAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);
@@ -37,7 +37,7 @@ public sealed class KnowledgeVaultMcpResources(
         [Description("Project id (Guid)")] string projectId,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IProjectMemoryProvider>();
             var memory = await provider.GetAsync(
@@ -59,7 +59,7 @@ public sealed class KnowledgeVaultMcpResources(
         [Description("Revision number")] int revisionNumber,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IRevisionProvider>();
             var revision = await provider.GetAsync(

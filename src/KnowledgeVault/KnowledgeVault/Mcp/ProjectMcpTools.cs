@@ -21,7 +21,7 @@ public sealed class ProjectMcpTools(
         [Description("Page size from 1 to 100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.ProjectsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IProjectProvider>();
             var result = await provider.ListAsync(
@@ -37,7 +37,7 @@ public sealed class ProjectMcpTools(
         [Description("Project id (Guid)")] string projectId,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.ProjectsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IProjectProvider>();
             var project = await provider.GetAsync(
@@ -58,7 +58,7 @@ public sealed class ProjectMcpTools(
         [Description("Project id (Guid)")] string projectId,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.ProjectsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IProjectProvider>();
             var members = await provider.ListMembersAsync(

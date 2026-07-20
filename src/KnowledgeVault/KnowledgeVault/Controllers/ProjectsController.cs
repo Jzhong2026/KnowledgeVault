@@ -30,7 +30,6 @@ public sealed class ProjectsController(
         return Ok(await projectProvider.GetAsync(projectId, cancellationToken));
     }
 
-    [Authorize(Policy = "documents:read")]
     [HttpGet("{projectId:guid}/memory")]
     public async Task<ActionResult<KnowledgeVault.Contracts.Documents.KnowledgeItemDto>> GetMemory(
         Guid projectId,

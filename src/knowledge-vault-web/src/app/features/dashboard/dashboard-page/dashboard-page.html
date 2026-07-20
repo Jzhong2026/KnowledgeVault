@@ -1,49 +1,191 @@
 <section class="dashboard">
-  <div class="page-heading">
+  <header class="page-heading">
     <div>
-      <p>Overview</p>
-      <h2>Vault activity</h2>
+      <p>Knowledge workspace</p>
+      <h2>Dashboard</h2>
+      <span>Track project knowledge activity and learn how to use your hub.</span>
     </div>
-  </div>
+  </header>
 
-  @if (loading()) {
-    <app-loading-indicator label="Loading workspace" />
-  } @else {
-    <div class="stats">
-      <article>
-        <span>Knowledge items</span>
-        <strong>{{ totalItems() }}</strong>
-      </article>
-      <article>
-        <span>Categories</span>
-        <strong>{{ categories().length }}</strong>
-      </article>
-      <article>
-        <span>Tags</span>
-        <strong>{{ tags().length }}</strong>
-      </article>
-    </div>
+  <nav class="dashboard-tabs" aria-label="Dashboard sections">
+    <button
+      type="button"
+      [class.is-active]="activeTab() === 'statistics'"
+      [attr.aria-selected]="activeTab() === 'statistics'"
+      role="tab"
+      (click)="setTab('statistics')"
+    >Statistics</button>
+    <button
+      type="button"
+      [class.is-active]="activeTab() === 'hub'"
+      [attr.aria-selected]="activeTab() === 'hub'"
+      role="tab"
+      (click)="setTab('hub')"
+    >Knowledge Hub</button>
+  </nav>
 
-    <section class="panel">
-      <div class="panel__header">
-        <h3>Recent knowledge</h3>
-      </div>
-
-      @if (recentItems().length) {
-        <div class="recent-list">
-          @for (item of recentItems(); track item.id) {
-            <article>
-              <div>
-                <h4>{{ item.title }}</h4>
-                <p>{{ item.summary || 'No summary yet' }}</p>
-              </div>
-              <app-status-pill [status]="item.status" />
-            </article>
-          }
-        </div>
-      } @else {
-        <app-empty-state title="No knowledge yet" message="Create the first note, reference, or article in your vault." />
+  @if (activeTab() === 'statistics') {
+    <div role="tabpanel" class="tab-panel">
+      @if (error()) {
+        <p class="alert">{{ error() }}</p>
       }
-    </section>
+      @if (loading()) {
+        <div class="loading-panel"><app-loading-indicator label="Loading workspace statistics" /></div>
+      } @else {
+        <div class="stats">
+          <article>
+            <span>Project documents</span>
+            <strong>{{ totalItems() }}</strong>
+            <small>Across your followed projects</small>
+          </article>
+          <article>
+            <span>Followed projects</span>
+            <strong>{{ projects().length }}</strong>
+            <small>Included in project activity</small>
+          </article>
+          <article>
+            <span>Categories</span>
+            <strong>{{ categoryCount() }}</strong>
+            <small>Used by project documents</small>
+          </article>
+          <article>
+            <span>Tags</span>
+            <strong>{{ tagCount() }}</strong>
+            <small>Used by project documents</small>
+          </article>
+        </div>
+
+        <section class="activity-panel">
+          <header class="activity-panel__header">
+            <div>
+              <p>Revision activity</p>
+              <h3>Project document changes</h3>
+              <span>Each saved revision, including the first version of a document, counts as one change.</span>
+            </div>
+            <strong class="activity-total"><span>{{ totalChanges() }}</span> changes</strong>
+          </header>
+
+          <div class="activity-controls">
+            <label class="project-filter">
+              <span>Project</span>
+              <select [value]="selectedProjectId()" [disabled]="projects().length === 0" (change)="selectProject($event)">
+                <option value="">All followed projects</option>
+                @for (project of projects(); track project.id) {
+                  <option [value]="project.id">{{ project.name }}</option>
+                }
+              </select>
+            </label>
+
+            <div class="control-group">
+              <span>Group by</span>
+              <div class="segmented" aria-label="Activity granularity">
+                <button type="button" [class.is-active]="granularity() === 'day'" (click)="setGranularity('day')">Day</button>
+                <button type="button" [class.is-active]="granularity() === 'week'" (click)="setGranularity('week')">Week</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <span>Time range</span>
+              <div class="segmented" aria-label="Activity time range">
+                <button type="button" [class.is-active]="activityRange() === '7d'" (click)="setRange('7d')">Last 7 days</button>
+                <button type="button" [class.is-active]="activityRange() === '1m'" (click)="setRange('1m')">Last month</button>
+                <button type="button" [class.is-active]="activityRange() === '6m'" (click)="setRange('6m')">Last 6 months</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-caption">
+            <div><i></i><strong>{{ selectedProjectName() }}</strong></div>
+            <span>{{ granularity() === 'day' ? 'Daily' : 'Weekly' }} revision count</span>
+          </div>
+
+          @if (activityError()) {
+            <p class="activity-error">Unable to load project activity. Please refresh after the API is updated.</p>
+          }
+
+          @if (activityLoading()) {
+            <div class="chart-loading"><app-loading-indicator label="Loading project activity" /></div>
+          } @else if (projects().length === 0) {
+            <div class="chart-empty">
+              <h4>No followed projects</h4>
+              <p>Follow a project to include its document changes in this chart.</p>
+              <a routerLink="/projects">Browse projects</a>
+            </div>
+          } @else {
+            <div class="chart-scroll" tabindex="0" aria-label="Scrollable project document activity chart">
+              <div class="chart" [style.min-width.px]="chartMinimumWidth()">
+                <div class="chart__grid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                <div class="chart__bars" role="img" [attr.aria-label]="totalChanges() + ' project document changes for ' + selectedProjectName()">
+                  @for (point of chartPoints(); track point.key) {
+                    <div class="bar" tabindex="0" [attr.aria-label]="point.label + ': ' + point.count + ' changes'">
+                      <span class="bar__value">{{ point.count || '' }}</span>
+                      <div class="bar__track">
+                        <i [style.height.%]="point.height" [class.has-value]="point.count > 0"></i>
+                      </div>
+                      <span class="bar__label">{{ point.axisLabel }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </section>
+      }
+    </div>
+  } @else {
+    <div role="tabpanel" class="hub tab-panel">
+      <section class="hub-hero">
+        <div>
+          <p>Knowledge Hub</p>
+          <h3>Keep useful context close to the work.</h3>
+          <span>KnowledgeVault gives you one place for personal notes, shared project documents, revision history, and collaborative review.</span>
+        </div>
+        <a class="github-link" href="https://github.com/Jzhong2026/KnowledgeVault" target="_blank" rel="noopener noreferrer">
+          View on GitHub
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+        </a>
+      </section>
+
+      <section class="quick-start">
+        <header>
+          <p>Quick start</p>
+          <h3>How to use KnowledgeVault</h3>
+        </header>
+        <div class="steps">
+          <article>
+            <span>01</span>
+            <h4>Capture personal knowledge</h4>
+            <p>Create notes, references, and reusable articles in Personal Documents. Add a category and tags so they remain easy to find.</p>
+            <a routerLink="/knowledge">Open Personal Documents</a>
+          </article>
+          <article>
+            <span>02</span>
+            <h4>Follow a project</h4>
+            <p>Follow the projects you work on. Their documents appear in your project workspace and their activity appears on the dashboard.</p>
+            <a routerLink="/projects">Browse Projects</a>
+          </article>
+          <article>
+            <span>03</span>
+            <h4>Organize shared documents</h4>
+            <p>Use Groups, document types, categories, and tags to keep plans, task breakdowns, and shared context structured.</p>
+            <a routerLink="/project-documents">Open Project Documents</a>
+          </article>
+          <article>
+            <span>04</span>
+            <h4>Review and reuse</h4>
+            <p>Every save creates a revision. Share a detail link for reading, discuss changes with comments, or connect an MCP client with an API key.</p>
+            <a routerLink="/profile">Manage API keys</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="hub-footer">
+        <div>
+          <strong>Open source and ready to extend</strong>
+          <p>Explore the source code, report an issue, or adapt KnowledgeVault for your own workflow.</p>
+        </div>
+        <a href="https://github.com/Jzhong2026/KnowledgeVault" target="_blank" rel="noopener noreferrer">github.com/Jzhong2026/KnowledgeVault</a>
+      </section>
+    </div>
   }
 </section>

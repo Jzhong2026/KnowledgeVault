@@ -789,10 +789,13 @@ flowchart LR
 
 ### 17.3 未完成任务 / 待排查问题
 
-- **KV-DEP-1（高）：文档创建返回 500**。`POST /api/documents` 在部署环境抛 500，真实异常被通用错误处理器吞掉。需打开部署 `web.config` 的 stdout 日志（或临时开 `ASPNETCORE_ENVIRONMENT=Development`）抓取真实异常；本地用 `dotnet run` 复现时因 `Data Source=.` 连不上 SQL Server（部署实例可达，疑似命名实例/服务账号差异），未能本地复现。
-- **KV-DEP-2（高）：JWT 用户访问带 GUID 的文档路由返回 403**。`GET /api/documents/{guid}` 与 `GET /api/documents/{guid}/revisions` 返回 403，而 `GET /api/documents`（列表，同样要求 `documents:read`）返回 200。`ScopeAuthorizationHandler` 对 JWT 用户应自动满足，需排查列表路由与 GUID 路由的策略/授权注册差异，以及是否存在控制器级 `[Authorize]` 与 handler 叠加导致的拒绝。
-- **KV-DEP-3（中）：确认部署 DLL 与源码一致**。源码已含 Project/Topic/Revision/Comment/API Key 等能力，但部署是否重新构建并拷贝最新 DLL 未确认；KV-DEP-1/2 不排除是陈旧构建所致。下次会话应先重新发布再验证。
+> **2026-07-20 重要修正（测试方法论）**：本机 PowerShell 的 `Invoke-WebRequest`/`Invoke-RestMethod` 默认会走系统代理，而该代理会**挂起对 `http://localhost` 的 POST 请求**（GET 不受影响，浏览器默认对 localhost 绕过代理故不受影响）。因此 2026-07-17 会话中通过 PowerShell 得出的 `POST /api/documents` 返回 500、`GET /documents/{guid}` 返回 403 等结论**可能受到代理污染，不一定是真实后端缺陷**。后续所有本地 API 验证必须在脚本开头加 `[System.Net.WebRequest]::DefaultWebProxy = $null` 再发请求。另：PowerShell 的 `Invoke-WebRequest` 在本机版本不支持 `-NoProxy` 参数（会直接报 ParameterBindingException）。
+
+- **KV-DEP-1（高·需重验）：文档创建返回 500**。原结论基于被代理污染的 POST 测试，需在无代理下重测 `POST /api/documents` 是否真抛 500；若仍 500，真实异常被通用错误处理器吞掉，需打开部署 `web.config` 的 stdout 日志（或临时开 `ASPNETCORE_ENVIRONMENT=Development`）抓取。注意用户要求不要随意改 `web.config`，开启日志属诊断例外，抓完应还原。
+- **KV-DEP-2（高·需重验）：JWT 用户访问带 GUID 的文档路由返回 403**。`GET /api/documents/{guid}` 与 `GET /api/documents/{guid}/revisions` 原报 403，而列表 `GET /api/documents` 返回 200。需在无代理下用登录 JWT 重测，确认是否真实 403 还是代理污染；若真实，排查 `ScopeAuthorizationHandler` 与路由策略/授权注册差异。
+- **KV-DEP-3（中）：确认部署 DLL 与源码一致**。源码已含 Project/Topic/Revision/Comment/API Key 等能力，但部署是否重新构建并拷贝最新 DLL 未确认。下次会话应先重新发布再验证。
 - **KV-DEP-4（待定）：数据库提供方**。用户记忆中此前使用 SQLite，但部署 `D:\Web\KnowledgeVault\appsettings.json` 的 `KnowledgeVaultDb` 已是 SQL Server 连接串（`Data Source=.;Initial Catalog=KnowledgeVault;User Id=kv_app;...`）。本次会话未改动该配置。若用户希望回退 SQLite，需先确认源码 `Program.cs` 是否仍保留 SQLite provider 分支及对应 migration 集，再决定切换方案。
+- **KV-DEP-5（待定）：登录凭据**。2026-07-20 用 `testuser / Test@123456` 登录返回 401，但 DB 中 `Users` 表确实存在 `testuser`（id `297941e7-1351-4500-b44a-dc65b4b6ed6e`，email `test@example.com`），说明密码被拒（可能密码已变更或部署/DB 状态变化）。需确认该测试账号密码，或为用户重置/新建可用账号。注意：浏览器访问不受上述代理影响，用户用自己真实账号应能正常登录。
 
 ### 17.4 后续会话建议顺序
 

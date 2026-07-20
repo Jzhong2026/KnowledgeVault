@@ -3,7 +3,12 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { of } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
-import { KnowledgeItem, RevisionSummary } from '../../../core/models/knowledge.models';
+import {
+  Comment,
+  KnowledgeItem,
+  Revision,
+  RevisionSummary,
+} from '../../../core/models/knowledge.models';
 import { KnowledgeDetailPage } from './knowledge-detail-page';
 
 describe('KnowledgeDetailPage', () => {
@@ -123,5 +128,88 @@ describe('KnowledgeDetailPage', () => {
       ['/project-documents/detail', item.id],
       { replaceUrl: true },
     );
+  });
+
+  it('copies the selected revision Markdown and individual comment content', async () => {
+    const item: KnowledgeItem = {
+      id: 'document-id',
+      scope: 'Personal',
+      ownerUserId: 'owner-id',
+      ownerDisplayName: 'Owner',
+      documentType: 'General',
+      currentRevisionNumber: 2,
+      title: 'Document',
+      content: '# Current Markdown',
+      status: 'Active',
+      tags: [],
+      createdAt: '2026-07-18T00:00:00Z',
+    };
+    const revision: Revision = {
+      id: 'revision-1',
+      revisionNumber: 1,
+      title: 'First revision',
+      content: '# Original Markdown',
+      createdByUserId: 'owner-id',
+      createdByUserName: 'Owner',
+      createdAt: '2026-07-17T00:00:00Z',
+    };
+    const comment: Comment = {
+      id: 'comment-id',
+      revisionNumber: 2,
+      authorUserId: 'reviewer-id',
+      authorDisplayName: 'Reviewer',
+      content: 'Keep this exact comment.',
+      createdAt: '2026-07-18T01:00:00Z',
+      isDeleted: false,
+    };
+    const api = {
+      getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
+      listRevisions: vi.fn().mockReturnValue(
+        of({ items: [revision], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }),
+      ),
+      getRevision: vi.fn().mockReturnValue(of(revision)),
+      listComments: vi.fn().mockReturnValue(
+        of({ items: [comment], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }),
+      ),
+    };
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeDetailPage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              data: { scope: 'Personal' },
+              paramMap: convertToParamMap({ id: item.id }),
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeDetailPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.viewRevision(1);
+    await component.copyDocumentMarkdown();
+    expect(writeText).toHaveBeenLastCalledWith('# Original Markdown');
+    expect(component.copiedTarget()).toBe('revision:1');
+
+    await component.copyComment(comment);
+    expect(writeText).toHaveBeenLastCalledWith('Keep this exact comment.');
+    expect(component.copiedTarget()).toBe('comment:comment-id');
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.copy-markdown-button')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.comment-copy-button')).not.toBeNull();
   });
 });

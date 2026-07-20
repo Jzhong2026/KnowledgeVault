@@ -15,13 +15,22 @@ public sealed class McpRequestAuthorizer(
     IAuthorizationService authorizationService,
     IHttpContextAccessor httpContextAccessor)
 {
-    public async Task RequireScopeAsync(string scope)
+    public Task RequireApiKeyAsync()
     {
         var principal = httpContextAccessor.HttpContext?.User;
         if (principal is null || !principal.HasClaim(claim => claim.Type == "kid"))
         {
             throw new UnauthorizedAppException("A user-created API key is required for MCP access.");
         }
+
+        return Task.CompletedTask;
+    }
+
+    public async Task RequireScopeAsync(string scope)
+    {
+        await RequireApiKeyAsync();
+
+        var principal = httpContextAccessor.HttpContext!.User;
 
         var result = await authorizationService.AuthorizeAsync(principal, policyName: scope);
         if (!result.Succeeded)
@@ -35,6 +44,11 @@ public abstract class McpOperation(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer)
 {
+    protected Task<T> ExecuteReadAsync<T>(Func<IServiceProvider, Task<T>> operation)
+    {
+        return ExecuteReadCoreAsync(operation);
+    }
+
     protected Task<T> ExecuteAsync<T>(
         string requiredScope,
         Func<IServiceProvider, Task<T>> operation)
@@ -58,6 +72,13 @@ public abstract class McpOperation(
             await authorizer.RequireScopeAsync(scope);
         }
 
+        await using var serviceScope = scopeFactory.CreateAsyncScope();
+        return await operation(serviceScope.ServiceProvider);
+    }
+
+    private async Task<T> ExecuteReadCoreAsync<T>(Func<IServiceProvider, Task<T>> operation)
+    {
+        await authorizer.RequireApiKeyAsync();
         await using var serviceScope = scopeFactory.CreateAsyncScope();
         return await operation(serviceScope.ServiceProvider);
     }

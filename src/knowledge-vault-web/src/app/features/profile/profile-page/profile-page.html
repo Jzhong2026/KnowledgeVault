@@ -126,7 +126,7 @@
                       <strong>{{ key.name }}</strong>
                       <code>{{ key.prefix }}...</code>
                     </td>
-                    <td><span class="scope-summary">{{ key.scopes.join(', ') }}</span></td>
+                    <td><span class="scope-summary">{{ key.scopes.length ? key.scopes.join(', ') : 'View only' }}</span></td>
                     <td>{{ key.createdAt | date: 'mediumDate' }}</td>
                     <td>{{ key.expiresAt ? (key.expiresAt | date: 'mediumDate') : 'Never' }}</td>
                     <td>{{ key.lastUsedAt ? (key.lastUsedAt | date: 'short') : 'Never' }}</td>
@@ -204,7 +204,7 @@
 
         <fieldset class="scopes">
           <legend>Permissions</legend>
-          <p>Select only the access this integration needs.</p>
+          <p>View access is included by default. Select only the write access this integration needs.</p>
           <div class="scope-grid">
             @for (scope of availableScopes; track scope.value) {
               <label class="scope-option">
@@ -221,10 +221,6 @@
             }
           </div>
         </fieldset>
-
-        @if (keyForm.controls.scopes.touched && keyForm.controls.scopes.invalid) {
-          <span class="field-error">Select at least one permission.</span>
-        }
 
         <footer class="dialog-actions">
           <button type="button" class="dialog-cancel" [disabled]="creating()" (click)="closeCreateDialog()">Cancel</button>

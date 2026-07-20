@@ -17,7 +17,7 @@ public sealed class CategoryMcpTools(
         [Description("Include archived categories")] bool includeArchived = false,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.DocumentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<ICategoryProvider>();
             var categories = await provider.ListAsync(includeArchived, cancellationToken);

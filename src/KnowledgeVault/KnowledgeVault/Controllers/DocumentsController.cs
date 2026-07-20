@@ -33,6 +33,31 @@ public sealed class DocumentsController(
         return Ok(await documentProvider.ListOwnersAsync(projectId, cancellationToken));
     }
 
+    [Authorize(Policy = "documents:read")]
+    [HttpGet("stats")]
+    public async Task<ActionResult<ProjectDocumentStatsDto>> GetProjectDocumentStats(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await documentProvider.GetProjectDocumentStatsAsync(cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:read")]
+    [HttpGet("activity")]
+    public async Task<ActionResult<IReadOnlyList<DocumentActivityDayDto>>> ListProjectActivity(
+        [FromQuery] DateTimeOffset from,
+        [FromQuery] DateTimeOffset to,
+        [FromQuery] int utcOffsetMinutes,
+        [FromQuery] Guid? projectId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await documentProvider.ListProjectActivityAsync(
+            from,
+            to,
+            utcOffsetMinutes,
+            projectId,
+            cancellationToken));
+    }
+
     [Authorize(Policy = "documents:write")]
     [HttpPost]
     public async Task<ActionResult<KnowledgeItemDto>> Create(
@@ -43,7 +68,6 @@ public sealed class DocumentsController(
         return CreatedAtAction(nameof(Get), new { documentId = document.Id }, document);
     }
 
-    [Authorize(Policy = "documents:read")]
     [HttpGet("{documentId:guid}")]
     public async Task<ActionResult<KnowledgeItemDto>> Get(Guid documentId, CancellationToken cancellationToken)
     {
@@ -79,7 +103,6 @@ public sealed class DocumentsController(
         return NoContent();
     }
 
-    [Authorize(Policy = "documents:read")]
     [HttpGet("{documentId:guid}/revisions")]
     public async Task<ActionResult<PagedResult<RevisionSummaryDto>>> ListRevisions(
         Guid documentId,
@@ -90,7 +113,6 @@ public sealed class DocumentsController(
         return Ok(await revisionProvider.ListAsync(documentId, page, pageSize, cancellationToken));
     }
 
-    [Authorize(Policy = "documents:read")]
     [HttpGet("{documentId:guid}/revisions/{revisionNumber:int}")]
     public async Task<ActionResult<RevisionDto>> GetRevision(
         Guid documentId,
@@ -100,7 +122,6 @@ public sealed class DocumentsController(
         return Ok(await revisionProvider.GetAsync(documentId, revisionNumber, cancellationToken));
     }
 
-    [Authorize(Policy = "comments:read")]
     [HttpGet("{documentId:guid}/revisions/{revisionNumber:int}/comments")]
     public async Task<ActionResult<PagedResult<CommentDto>>> ListComments(
         Guid documentId,

@@ -33,9 +33,6 @@ export interface CreateApiKeyRequest {
 }
 
 export const AVAILABLE_SCOPES: ReadonlyArray<{ value: string; label: string }> = [
-  { value: 'documents:read', label: 'Documents (read)' },
   { value: 'documents:write', label: 'Documents (write)' },
-  { value: 'comments:read', label: 'Comments (read)' },
   { value: 'comments:write', label: 'Comments (write)' },
-  { value: 'projects:read', label: 'Projects (read)' },
 ];

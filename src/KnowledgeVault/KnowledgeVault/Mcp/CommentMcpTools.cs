@@ -21,7 +21,7 @@ public sealed class CommentMcpTools(
         [Description("Page size from 1 to 100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteAsync(ApiKeyScopes.CommentsRead, async services =>
+        return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<ICommentProvider>();
             var comments = await provider.ListAsync(
