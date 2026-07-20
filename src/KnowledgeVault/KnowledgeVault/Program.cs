@@ -53,7 +53,7 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddKnowledgeVaultInfrastructure(builder.Configuration);
-builder.Services.AddKnowledgeVaultDataAccess(builder.Configuration, builder.Environment.ContentRootPath);
+builder.Services.AddKnowledgeVaultDataAccess(builder.Configuration);
 builder.Services.AddKnowledgeVaultProviders();
 builder.Services.AddScoped<McpRequestAuthorizer>();
 builder.Services.AddMcpServer()

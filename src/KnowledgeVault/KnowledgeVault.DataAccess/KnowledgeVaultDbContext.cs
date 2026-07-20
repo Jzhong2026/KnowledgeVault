@@ -55,6 +55,40 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.Property(x => x.Description).HasMaxLength(512);
             builder.Property(x => x.Color).HasMaxLength(32);
             builder.HasIndex(x => x.NormalizedName).IsUnique();
+            builder.HasData(
+                new Category
+                {
+                    Id = Guid.Parse("10000000-0000-0000-0000-000000000001"),
+                    Name = "Memory",
+                    NormalizedName = "MEMORY",
+                    Description = "Shared durable context maintained through project review.",
+                    Color = "#0f766e",
+                    SortOrder = -300,
+                    IsSystem = true,
+                    CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(1784455654355)
+                },
+                new Category
+                {
+                    Id = Guid.Parse("10000000-0000-0000-0000-000000000002"),
+                    Name = "Task",
+                    NormalizedName = "TASK",
+                    Description = "Task definitions, execution notes, and delivery tracking.",
+                    Color = "#2563eb",
+                    SortOrder = -200,
+                    IsSystem = true,
+                    CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(1784455654355)
+                },
+                new Category
+                {
+                    Id = Guid.Parse("10000000-0000-0000-0000-000000000003"),
+                    Name = "Design",
+                    NormalizedName = "DESIGN",
+                    Description = "Architecture, product, and implementation design documents.",
+                    Color = "#7c3aed",
+                    SortOrder = -100,
+                    IsSystem = true,
+                    CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(1784455654355)
+                });
         });
 
         modelBuilder.Entity<Tag>(builder =>
@@ -79,7 +113,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasIndex(x => x.ProjectId)
                 .HasDatabaseName("IX_KnowledgeItems_ProjectId_ProjectMemory")
                 .IsUnique()
-                .HasFilter("[DocumentType] = 3");
+                .HasFilter("\"DocumentType\" = 3");
             builder.HasOne(x => x.OwnerUser)
                 .WithMany(x => x.KnowledgeItems)
                 .HasForeignKey(x => x.OwnerUserId)
@@ -106,7 +140,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .OnDelete(DeleteBehavior.Cascade);
             builder.ToTable(tb => tb
                 .HasCheckConstraint("CK_KnowledgeItem_TopicScope",
-                    "([Scope] = 0 AND [ProjectId] IS NULL AND [TopicId] IS NULL) OR ([Scope] = 1 AND [ProjectId] IS NOT NULL)"));
+                    "(\"Scope\" = 0 AND \"ProjectId\" IS NULL AND \"TopicId\" IS NULL) OR (\"Scope\" = 1 AND \"ProjectId\" IS NOT NULL)"));
         });
 
         modelBuilder.Entity<KnowledgeItemRevision>(builder =>
@@ -264,10 +298,13 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
-        ConfigureDateTimeOffsetStorage(modelBuilder);
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            ConfigureSqliteDateTimeOffsetStorage(modelBuilder);
+        }
     }
 
-    private static void ConfigureDateTimeOffsetStorage(ModelBuilder modelBuilder)
+    private static void ConfigureSqliteDateTimeOffsetStorage(ModelBuilder modelBuilder)
     {
         var dateTimeOffsetConverter = new ValueConverter<DateTimeOffset, long>(
             value => value.ToUnixTimeMilliseconds(),

@@ -24,7 +24,7 @@ public sealed class DesignTimeKnowledgeVaultDbContextFactory : IDesignTimeDbCont
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<KnowledgeVaultDbContext>();
-        optionsBuilder.UseSqlite(connectionString);
+        optionsBuilder.UseNpgsql(connectionString);
 
         return new KnowledgeVaultDbContext(optionsBuilder.Options);
     }
