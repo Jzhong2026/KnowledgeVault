@@ -1,0 +1,1 @@
+﻿Unable to retrieve project metadata. Ensure it's an SDK-style project.

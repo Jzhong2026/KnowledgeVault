@@ -30,6 +30,8 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
 
     public DbSet<ProjectTopic> ProjectTopics => Set<ProjectTopic>();
 
+    public DbSet<Folder> Folders => Set<Folder>();
+
     public DbSet<ProjectMemoryCandidate> ProjectMemoryCandidates => Set<ProjectMemoryCandidate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -125,6 +127,10 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasOne(x => x.Topic)
                 .WithMany()
                 .HasForeignKey(x => x.TopicId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.Folder)
+                .WithMany(x => x.KnowledgeItems)
+                .HasForeignKey(x => x.FolderId)
                 .OnDelete(DeleteBehavior.NoAction);
             builder.HasOne(x => x.Category)
                 .WithMany(x => x.KnowledgeItems)
@@ -274,6 +280,36 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .WithMany()
                 .HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Folder>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Name).HasMaxLength(128).IsRequired();
+            builder.Property(x => x.NormalizedName).HasMaxLength(128).IsRequired();
+            builder.Property(x => x.Description).HasMaxLength(512);
+            builder.Property(x => x.Scope).HasConversion<int>();
+            // Same-level unique name. SQLite treats NULLs as distinct, so use filtered
+            // indexes: one for project scope (ProjectId not null), one for personal
+            // scope (OwnerUserId not null).
+            builder.HasIndex(x => new { x.ProjectId, x.ParentFolderId, x.NormalizedName })
+                .HasDatabaseName("IX_Folders_Project_Siblings")
+                .IsUnique()
+                .HasFilter("\"Scope\" = 1 AND \"ProjectId\" IS NOT NULL");
+            builder.HasIndex(x => new { x.OwnerUserId, x.ParentFolderId, x.NormalizedName })
+                .HasDatabaseName("IX_Folders_Personal_Siblings")
+                .IsUnique()
+                .HasFilter("\"Scope\" = 0 AND \"OwnerUserId\" IS NOT NULL");
+            builder.HasIndex(x => x.ParentFolderId).HasDatabaseName("IX_Folders_ParentFolderId");
+            builder.HasIndex(x => x.ProjectId).HasDatabaseName("IX_Folders_ProjectId");
+            builder.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.ParentFolder)
+                .WithMany(x => x.ChildFolders)
+                .HasForeignKey(x => x.ParentFolderId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<ProjectMemoryCandidate>(builder =>

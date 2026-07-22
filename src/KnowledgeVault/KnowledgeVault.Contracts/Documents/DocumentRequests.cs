@@ -15,7 +15,8 @@ public sealed record DocumentQuery(
     IReadOnlyList<Guid>? TagIds,
     DocumentSort? Sort,
     int Page = 1,
-    int PageSize = 20);
+    int PageSize = 20,
+    Guid? FolderId = null);
 
 public sealed record CreateDocumentRequest(
     DocumentScope Scope,
@@ -32,7 +33,8 @@ public sealed record CreateDocumentRequest(
     Guid? CategoryId,
     KnowledgeItemStatus Status,
     IReadOnlyList<Guid>? TagIds,
-    IReadOnlyList<string>? TagNames);
+    IReadOnlyList<string>? TagNames,
+    Guid? FolderId = null);
 
 public sealed record UpdateDocumentRequest(
     int ExpectedRevisionNumber,
@@ -48,7 +50,8 @@ public sealed record UpdateDocumentRequest(
     Guid? CategoryId,
     KnowledgeItemStatus Status,
     IReadOnlyList<Guid>? TagIds,
-    IReadOnlyList<string>? TagNames);
+    IReadOnlyList<string>? TagNames,
+    Guid? FolderId = null);
 
 public sealed record UpdateDocumentMetadataRequest(
     Guid? ProjectId,
@@ -56,4 +59,10 @@ public sealed record UpdateDocumentMetadataRequest(
     Guid? CategoryId,
     KnowledgeItemStatus Status,
     IReadOnlyList<Guid>? TagIds,
-    IReadOnlyList<string>? TagNames);
+    IReadOnlyList<string>? TagNames,
+    Guid? FolderId = null);
+
+// Explicit document move. folderId = null moves the document to the root (no folder);
+// a non-null folderId moves it into that folder. Scope/project consistency and write
+// permission are validated by the provider.
+public sealed record MoveDocumentRequest(Guid? FolderId);

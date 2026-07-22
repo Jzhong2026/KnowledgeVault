@@ -1,0 +1,16 @@
+﻿info : X.509 certificate chain validation will use the default trust store selected by .NET for code signing.
+info : X.509 certificate chain validation will use the default trust store selected by .NET for timestamping.
+info : Adding PackageReference for package 'Microsoft.Data.Sqlite' into project 'D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj'.
+info : Restoring packages for D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj...
+info :   GET https://api.nuget.org/v3/vulnerabilities/index.json
+info :   OK https://api.nuget.org/v3/vulnerabilities/index.json 1199ms
+info :   GET https://api.nuget.org/v3-vulnerabilities/2026.07.21.23.34.12/vulnerability.base.json
+info :   GET https://api.nuget.org/v3-vulnerabilities/2026.07.21.23.34.12/2026.07.21.23.34.12/vulnerability.update.json
+info :   OK https://api.nuget.org/v3-vulnerabilities/2026.07.21.23.34.12/vulnerability.base.json 470ms
+info :   OK https://api.nuget.org/v3-vulnerabilities/2026.07.21.23.34.12/2026.07.21.23.34.12/vulnerability.update.json 655ms
+warn : NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
+info : Package 'Microsoft.Data.Sqlite' is compatible with all the specified frameworks in project 'D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj'.
+info : PackageReference for package 'Microsoft.Data.Sqlite' version '10.0.8' added to file 'D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj'.
+info : Generating MSBuild file D:\AI\Projects\KnowledgeVault\tmp_mighist\obj\tmp_mighist.csproj.nuget.g.targets.
+info : Writing assets file to disk. Path: D:\AI\Projects\KnowledgeVault\tmp_mighist\obj\project.assets.json
+log  : Restored D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj (in 2.08 sec).

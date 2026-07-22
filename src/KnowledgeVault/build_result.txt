@@ -1,0 +1,14 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  KnowledgeVault.Infrastructure -> D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault.Infrastructure\bin\Debug\net10.0\KnowledgeVault.Infrastructure.dll
+  KnowledgeVault.Domain -> D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault.Domain\bin\Debug\net10.0\KnowledgeVault.Domain.dll
+  KnowledgeVault.Contracts -> D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault.Contracts\bin\Debug\net10.0\KnowledgeVault.Contracts.dll
+  KnowledgeVault.DataAccess -> D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault.DataAccess\bin\Debug\net10.0\KnowledgeVault.DataAccess.dll
+  KnowledgeVault.Providers -> D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault.Providers\bin\Debug\net10.0\KnowledgeVault.Providers.dll
+  KnowledgeVault -> D:\AI\Projects\KnowledgeVault\src\KnowledgeVault\KnowledgeVault\bin\Debug\net10.0\KnowledgeVault.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.45

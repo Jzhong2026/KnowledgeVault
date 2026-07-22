@@ -27,6 +27,8 @@ public interface IDocumentProvider
 
     Task UpdateMetadataAsync(Guid id, UpdateDocumentMetadataRequest request, CancellationToken cancellationToken);
 
+    Task MoveDocumentAsync(Guid id, Guid? folderId, CancellationToken cancellationToken);
+
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
 }
 

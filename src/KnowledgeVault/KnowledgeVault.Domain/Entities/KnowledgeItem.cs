@@ -12,6 +12,10 @@ public sealed class KnowledgeItem : AuditableEntity
 
     public Guid? TopicId { get; set; }
 
+    public Guid? FolderId { get; set; }
+
+    public Folder? Folder { get; set; }
+
     public DocumentType DocumentType { get; set; } = DocumentType.General;
 
     public Guid? CurrentRevisionId { get; set; }

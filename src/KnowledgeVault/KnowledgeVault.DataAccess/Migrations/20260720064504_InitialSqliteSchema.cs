@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace KnowledgeVault.DataAccess.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialPostgreSqlSchema : Migration
+    public partial class InitialSqliteSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,16 +17,16 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "Categories",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    NormalizedName = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Description = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    Color = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: true),
-                    SortOrder = table.Column<int>(type: "integer", nullable: false),
-                    IsArchived = table.Column<bool>(type: "boolean", nullable: false),
-                    IsSystem = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    NormalizedName = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Description = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    Color = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
+                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsArchived = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsSystem = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -37,13 +37,13 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "Projects",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Description = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    OwnerUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    IsArchived = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Description = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    OwnerUserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    IsArchived = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -54,12 +54,12 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "Tags",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    NormalizedName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Color = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    NormalizedName = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    Color = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -70,17 +70,17 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    NormalizedUserName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    NormalizedEmail = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    PasswordHash = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    PasswordSalt = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Nickname = table.Column<string>(type: "text", nullable: true),
-                    LastLoginAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserName = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    NormalizedUserName = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    Email = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    NormalizedEmail = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    PasswordHash = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    PasswordSalt = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Nickname = table.Column<string>(type: "TEXT", nullable: true),
+                    LastLoginAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -91,15 +91,15 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "ProjectTopics",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    NormalizedName = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Description = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    SortOrder = table.Column<int>(type: "integer", nullable: false),
-                    IsArchived = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    NormalizedName = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Description = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsArchived = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -116,17 +116,17 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "ApiKeys",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Prefix = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    SecretHash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Scopes = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    LastUsedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    Prefix = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    SecretHash = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Scopes = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    ExpiresAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    LastUsedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    RevokedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -142,12 +142,12 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "ProjectMembers",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Role = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Role = table.Column<int>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -169,19 +169,19 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "ProjectMemoryCandidates",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TargetSection = table.Column<int>(type: "integer", nullable: false),
-                    ProposedContent = table.Column<string>(type: "text", nullable: false),
-                    Rationale = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    ProposedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    MemoryRevisionAtProposal = table.Column<int>(type: "integer", nullable: false),
-                    ReviewedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ReviewedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    AppliedMemoryRevisionNumber = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    TargetSection = table.Column<int>(type: "INTEGER", nullable: false),
+                    ProposedContent = table.Column<string>(type: "TEXT", nullable: false),
+                    Rationale = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    ProposedByUserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    MemoryRevisionAtProposal = table.Column<int>(type: "INTEGER", nullable: false),
+                    ReviewedByUserId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    ReviewedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    AppliedMemoryRevisionNumber = table.Column<int>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -208,16 +208,16 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "DocumentRevisionReviews",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    KnowledgeItemRevisionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RequestedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ReviewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    RequestMessage = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
-                    DecisionComment = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
-                    ReviewedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    KnowledgeItemRevisionId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    RequestedByUserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ReviewerUserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    RequestMessage = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
+                    DecisionComment = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: true),
+                    ReviewedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -238,16 +238,16 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "KnowledgeItemComments",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    KnowledgeItemRevisionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AuthorUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ParentCommentId = table.Column<Guid>(type: "uuid", nullable: true),
-                    Content = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
-                    DeletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    ResolvedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    ResolvedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    KnowledgeItemRevisionId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    AuthorUserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ParentCommentId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    Content = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: false),
+                    DeletedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    ResolvedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    ResolvedByUserId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -273,19 +273,19 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "KnowledgeItemRevisions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    KnowledgeItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RevisionNumber = table.Column<int>(type: "integer", nullable: false),
-                    Title = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    Summary = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
-                    Content = table.Column<string>(type: "text", nullable: false),
-                    SourceUrl = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
-                    LinkDisplayText = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    LinkUrl = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
-                    ChangeNote = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
-                    CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    KnowledgeItemId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    RevisionNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    Title = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    Summary = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
+                    Content = table.Column<string>(type: "TEXT", nullable: false),
+                    SourceUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
+                    LinkDisplayText = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    LinkUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
+                    ChangeNote = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: true),
+                    CreatedByUserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -301,20 +301,20 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "KnowledgeItems",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Scope = table.Column<int>(type: "integer", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: true),
-                    TopicId = table.Column<Guid>(type: "uuid", nullable: true),
-                    DocumentType = table.Column<int>(type: "integer", nullable: false),
-                    CurrentRevisionId = table.Column<Guid>(type: "uuid", nullable: true),
-                    CurrentRevisionNumber = table.Column<int>(type: "integer", nullable: false),
-                    CategoryId = table.Column<Guid>(type: "uuid", nullable: true),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    PublishedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    ArchivedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Scope = table.Column<int>(type: "INTEGER", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    TopicId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    DocumentType = table.Column<int>(type: "INTEGER", nullable: false),
+                    CurrentRevisionId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    CurrentRevisionNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    CategoryId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    PublishedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    ArchivedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -351,8 +351,8 @@ namespace KnowledgeVault.DataAccess.Migrations
                 name: "KnowledgeItemTags",
                 columns: table => new
                 {
-                    KnowledgeItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TagId = table.Column<Guid>(type: "uuid", nullable: false)
+                    KnowledgeItemId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    TagId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -375,9 +375,9 @@ namespace KnowledgeVault.DataAccess.Migrations
                 columns: new[] { "Id", "Color", "CreatedAt", "Description", "IsArchived", "IsSystem", "Name", "NormalizedName", "SortOrder", "UpdatedAt" },
                 values: new object[,]
                 {
-                    { new Guid("10000000-0000-0000-0000-000000000001"), "#0f766e", new DateTimeOffset(new DateTime(2026, 7, 19, 10, 7, 34, 355, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "Shared durable context maintained through project review.", false, true, "Memory", "MEMORY", -300, null },
-                    { new Guid("10000000-0000-0000-0000-000000000002"), "#2563eb", new DateTimeOffset(new DateTime(2026, 7, 19, 10, 7, 34, 355, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "Task definitions, execution notes, and delivery tracking.", false, true, "Task", "TASK", -200, null },
-                    { new Guid("10000000-0000-0000-0000-000000000003"), "#7c3aed", new DateTimeOffset(new DateTime(2026, 7, 19, 10, 7, 34, 355, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "Architecture, product, and implementation design documents.", false, true, "Design", "DESIGN", -100, null }
+                    { new Guid("10000000-0000-0000-0000-000000000001"), "#0f766e", 1784455654355L, "Shared durable context maintained through project review.", false, true, "Memory", "MEMORY", -300, null },
+                    { new Guid("10000000-0000-0000-0000-000000000002"), "#2563eb", 1784455654355L, "Task definitions, execution notes, and delivery tracking.", false, true, "Task", "TASK", -200, null },
+                    { new Guid("10000000-0000-0000-0000-000000000003"), "#7c3aed", 1784455654355L, "Architecture, product, and implementation design documents.", false, true, "Design", "DESIGN", -100, null }
                 });
 
             migrationBuilder.CreateIndex(
@@ -397,7 +397,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_DocumentRevisionReviews_KnowledgeItemRevisionId_ReviewerUse~",
+                name: "IX_DocumentRevisionReviews_KnowledgeItemRevisionId_ReviewerUserId",
                 table: "DocumentRevisionReviews",
                 columns: new[] { "KnowledgeItemRevisionId", "ReviewerUserId" },
                 unique: true);
@@ -541,7 +541,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                 unique: true);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_DocumentRevisionReviews_KnowledgeItemRevisions_KnowledgeIte~",
+                name: "FK_DocumentRevisionReviews_KnowledgeItemRevisions_KnowledgeItemRevisionId",
                 table: "DocumentRevisionReviews",
                 column: "KnowledgeItemRevisionId",
                 principalTable: "KnowledgeItemRevisions",
@@ -549,7 +549,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_KnowledgeItemComments_KnowledgeItemRevisions_KnowledgeItemR~",
+                name: "FK_KnowledgeItemComments_KnowledgeItemRevisions_KnowledgeItemRevisionId",
                 table: "KnowledgeItemComments",
                 column: "KnowledgeItemRevisionId",
                 principalTable: "KnowledgeItemRevisions",

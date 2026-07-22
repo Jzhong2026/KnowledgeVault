@@ -1,0 +1,11 @@
+﻿Possible reasons for this include:
+  * You misspelled a built-in dotnet command.
+  * You intended to execute a .NET program, but dotnet-ef does not exist.
+  * You intended to run a global tool, but a dotnet-prefixed executable with this name could not be found on the PATH.
+dotnet : Could not execute because the specified command or file was not found.
+At line:1 char:205
++ ... ncoding]::UTF8; $env:WSL_UTF8 = '1'; dotnet ef --version 2>&1 | Out-F ...
++                                          ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Could not execu... was not found.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

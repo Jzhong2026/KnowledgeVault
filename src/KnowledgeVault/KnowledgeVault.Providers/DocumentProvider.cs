@@ -174,6 +174,8 @@ public sealed class DocumentProvider(
             userId,
             cancellationToken);
 
+        var folder = await ResolveFolderAsync(request.Scope, location.ProjectId, request.FolderId, userId, cancellationToken);
+
         await EnsureCategoryAsync(request.CategoryId, cancellationToken);
 
         var content = string.IsNullOrWhiteSpace(request.Content)
@@ -187,6 +189,7 @@ public sealed class DocumentProvider(
             Scope = request.Scope,
             ProjectId = location.ProjectId,
             TopicId = location.TopicId,
+            FolderId = folder?.Id,
             DocumentType = request.DocumentType,
             CategoryId = request.CategoryId,
             Status = request.Status,
@@ -309,6 +312,12 @@ public sealed class DocumentProvider(
             userId,
             cancellationToken);
 
+        if (request.FolderId.HasValue)
+        {
+            var folder = await ResolveFolderAsync(item.Scope, item.ProjectId, request.FolderId, userId, cancellationToken);
+            item.FolderId = folder?.Id;
+        }
+
         await EnsureCategoryAsync(request.CategoryId, cancellationToken);
         item.ProjectId = location.ProjectId;
         item.TopicId = location.TopicId;
@@ -336,6 +345,23 @@ public sealed class DocumentProvider(
 
         item.Status = KnowledgeItemStatus.Deleted;
         item.ArchivedAt ??= now;
+        item.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task MoveDocumentAsync(Guid id, Guid? folderId, CancellationToken cancellationToken)
+    {
+        await documentAccessService.EnsureEditAsync(id, cancellationToken);
+
+        var userId = RequireCurrentUser();
+        var now = dateTimeProvider.UtcNow;
+
+        var item = await dbContext.KnowledgeItems
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+
+        var folder = await ResolveFolderAsync(item.Scope, item.ProjectId, folderId, userId, cancellationToken);
+        item.FolderId = folder?.Id;
         item.UpdatedAt = now;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -525,6 +551,51 @@ public sealed class DocumentProvider(
             .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId, cancellationToken);
 
         return member?.Role;
+    }
+
+    private async Task<Folder?> ResolveFolderAsync(
+        DocumentScope scope,
+        Guid? projectId,
+        Guid? folderId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        if (folderId is null)
+        {
+            return null;
+        }
+
+        var folder = await dbContext.Folders.AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == folderId, cancellationToken)
+            ?? throw new ValidationException("The target folder does not exist.");
+
+        if (folder.Scope != scope)
+        {
+            throw new ValidationException("The target folder does not match the document scope.");
+        }
+
+        if (scope == DocumentScope.Project)
+        {
+            if (folder.ProjectId != projectId)
+            {
+                throw new ValidationException("The target folder does not belong to this project.");
+            }
+
+            var role = await GetProjectRoleAsync(projectId ?? Guid.Empty, userId, cancellationToken);
+            if (role is not (ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor))
+            {
+                throw new ForbiddenException("You do not have permission to place documents in this folder.");
+            }
+        }
+        else
+        {
+            if (folder.OwnerUserId != userId)
+            {
+                throw new ForbiddenException("You do not have permission to place documents in this folder.");
+            }
+        }
+
+        return folder;
     }
 
     private async Task EnsureCategoryAsync(Guid? categoryId, CancellationToken cancellationToken)

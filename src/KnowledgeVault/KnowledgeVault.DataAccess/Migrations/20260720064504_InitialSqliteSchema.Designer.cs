@@ -3,6 +3,7 @@ using System;
 using KnowledgeVault.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KnowledgeVault.DataAccess.Migrations
 {
     [DbContext(typeof(KnowledgeVaultDbContext))]
-    partial class KnowledgeVaultDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720064504_InitialSqliteSchema")]
+    partial class InitialSqliteSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -202,68 +205,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.ToTable("DocumentRevisionReviews");
                 });
 
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Folder", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("CreatedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(512)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("OwnerUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ParentFolderId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ProjectId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Scope")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("UpdatedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParentFolderId")
-                        .HasDatabaseName("IX_Folders_ParentFolderId");
-
-                    b.HasIndex("ProjectId")
-                        .HasDatabaseName("IX_Folders_ProjectId");
-
-                    b.HasIndex("OwnerUserId", "ParentFolderId", "NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Folders_Personal_Siblings")
-                        .HasFilter("\"Scope\" = 0 AND \"OwnerUserId\" IS NOT NULL");
-
-                    b.HasIndex("ProjectId", "ParentFolderId", "NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Folders_Project_Siblings")
-                        .HasFilter("\"Scope\" = 1 AND \"ProjectId\" IS NOT NULL");
-
-                    b.ToTable("Folders");
-                });
-
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -287,9 +228,6 @@ namespace KnowledgeVault.DataAccess.Migrations
 
                     b.Property<int>("DocumentType")
                         .HasColumnType("INTEGER");
-
-                    b.Property<Guid?>("FolderId")
-                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("TEXT")
@@ -318,8 +256,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("CurrentRevisionId");
-
-                    b.HasIndex("FolderId");
 
                     b.HasIndex("ProjectId")
                         .IsUnique()
@@ -757,23 +693,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("Revision");
                 });
 
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Folder", b =>
-                {
-                    b.HasOne("KnowledgeVault.Domain.Entities.Folder", "ParentFolder")
-                        .WithMany("ChildFolders")
-                        .HasForeignKey("ParentFolderId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("KnowledgeVault.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("ParentFolder");
-
-                    b.Navigation("Project");
-                });
-
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItem", b =>
                 {
                     b.HasOne("KnowledgeVault.Domain.Entities.Category", "Category")
@@ -784,11 +703,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.HasOne("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", "CurrentRevision")
                         .WithMany()
                         .HasForeignKey("CurrentRevisionId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("KnowledgeVault.Domain.Entities.Folder", "Folder")
-                        .WithMany("KnowledgeItems")
-                        .HasForeignKey("FolderId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("KnowledgeVault.Domain.Entities.User", "OwnerUser")
@@ -810,8 +724,6 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("CurrentRevision");
-
-                    b.Navigation("Folder");
 
                     b.Navigation("OwnerUser");
 
@@ -949,13 +861,6 @@ namespace KnowledgeVault.DataAccess.Migrations
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.Category", b =>
                 {
-                    b.Navigation("KnowledgeItems");
-                });
-
-            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Folder", b =>
-                {
-                    b.Navigation("ChildFolders");
-
                     b.Navigation("KnowledgeItems");
                 });
 

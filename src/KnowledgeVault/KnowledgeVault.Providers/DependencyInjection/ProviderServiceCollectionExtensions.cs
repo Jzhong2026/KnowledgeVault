@@ -16,6 +16,7 @@ public static class ProviderServiceCollectionExtensions
         services.AddScoped<IProjectMemoryCandidateProvider, ProjectMemoryCandidateProvider>();
         services.AddScoped<IProjectTopicProvider, ProjectTopicProvider>();
         services.AddScoped<IDocumentAccessService, DocumentAccessService>();
+        services.AddScoped<IFolderProvider, FolderProvider>();
         services.AddScoped<IDocumentProvider, DocumentProvider>();
         services.AddScoped<IRevisionProvider, RevisionProvider>();
         services.AddScoped<ICommentProvider, CommentProvider>();

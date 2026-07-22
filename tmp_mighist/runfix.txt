@@ -1,0 +1,4 @@
+﻿D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj : warning NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
+D:\AI\Projects\KnowledgeVault\tmp_mighist\tmp_mighist.csproj : warning NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
+Inserted initial migration history row (affected=1).
+Total history rows: 2

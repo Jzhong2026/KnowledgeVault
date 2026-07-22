@@ -96,6 +96,17 @@ public sealed class DocumentsController(
     }
 
     [Authorize(Policy = "documents:write")]
+    [HttpPatch("{documentId:guid}/folder")]
+    public async Task<ActionResult<KnowledgeItemDto>> MoveDocument(
+        Guid documentId,
+        MoveDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        await documentProvider.MoveDocumentAsync(documentId, request.FolderId, cancellationToken);
+        return Ok(await documentProvider.GetAsync(documentId, cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:write")]
     [HttpDelete("{documentId:guid}")]
     public async Task<IActionResult> Delete(Guid documentId, CancellationToken cancellationToken)
     {

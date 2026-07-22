@@ -14,12 +14,12 @@ public static class DataAccessServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "ConnectionStrings:KnowledgeVaultDb is not configured. Provide a PostgreSQL connection string via appsettings, user secrets, or the ConnectionStrings__KnowledgeVaultDb environment variable.");
+                "ConnectionStrings:KnowledgeVaultDb is not configured. Provide a SQLite connection string via appsettings or the ConnectionStrings__KnowledgeVaultDb environment variable.");
         }
 
         services.AddDbContext<KnowledgeVaultDbContext>(options =>
         {
-            options.UseNpgsql(connectionString);
+            options.UseSqlite(connectionString);
         });
 
         return services;

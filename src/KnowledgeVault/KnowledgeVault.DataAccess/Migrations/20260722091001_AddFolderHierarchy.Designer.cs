@@ -5,69 +5,64 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace KnowledgeVault.DataAccess.Migrations
 {
     [DbContext(typeof(KnowledgeVaultDbContext))]
-    [Migration("20260720014517_InitialPostgreSqlSchema")]
-    partial class InitialPostgreSqlSchema
+    [Migration("20260722091001_AddFolderHierarchy")]
+    partial class AddFolderHierarchy
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.8")
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
-
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.ApiKey", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("ExpiresAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("LastUsedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Prefix")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("RevokedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Scopes")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("SecretHash")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -82,40 +77,40 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Color")
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
                         .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsArchived")
-                        .HasColumnType("boolean");
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsSystem")
-                        .HasColumnType("boolean");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -129,7 +124,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                         {
                             Id = new Guid("10000000-0000-0000-0000-000000000001"),
                             Color = "#0f766e",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 7, 19, 10, 7, 34, 355, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = 1784455654355L,
                             Description = "Shared durable context maintained through project review.",
                             IsArchived = false,
                             IsSystem = true,
@@ -141,7 +136,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                         {
                             Id = new Guid("10000000-0000-0000-0000-000000000002"),
                             Color = "#2563eb",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 7, 19, 10, 7, 34, 355, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = 1784455654355L,
                             Description = "Task definitions, execution notes, and delivery tracking.",
                             IsArchived = false,
                             IsSystem = true,
@@ -153,7 +148,7 @@ namespace KnowledgeVault.DataAccess.Migrations
                         {
                             Id = new Guid("10000000-0000-0000-0000-000000000003"),
                             Color = "#7c3aed",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 7, 19, 10, 7, 34, 355, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = 1784455654355L,
                             Description = "Architecture, product, and implementation design documents.",
                             IsArchived = false,
                             IsSystem = true,
@@ -167,36 +162,36 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DecisionComment")
                         .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("KnowledgeItemRevisionId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("RequestMessage")
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("RequestedByUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("ReviewedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("ReviewerUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -210,57 +205,124 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.ToTable("DocumentRevisionReviews");
                 });
 
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Folder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OwnerUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ParentFolderId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentFolderId")
+                        .HasDatabaseName("IX_Folders_ParentFolderId");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("IX_Folders_ProjectId");
+
+                    b.HasIndex("OwnerUserId", "ParentFolderId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Folders_Personal_Siblings")
+                        .HasFilter("\"Scope\" = 0 AND \"OwnerUserId\" IS NOT NULL");
+
+                    b.HasIndex("ProjectId", "ParentFolderId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Folders_Project_Siblings")
+                        .HasFilter("\"Scope\" = 1 AND \"ProjectId\" IS NOT NULL");
+
+                    b.ToTable("Folders");
+                });
+
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ArchivedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("ArchivedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("CategoryId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("CurrentRevisionId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("CurrentRevisionNumber")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("DocumentType")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("OwnerUserId")
-                        .HasColumnType("uuid")
+                        .HasColumnType("TEXT")
                         .HasColumnName("UserId");
 
                     b.Property<Guid?>("ProjectId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("PublishedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("PublishedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Scope")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("TopicId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("CurrentRevisionId");
+
+                    b.HasIndex("FolderId");
 
                     b.HasIndex("ProjectId")
                         .IsUnique()
@@ -283,36 +345,36 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("AuthorUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("DeletedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("KnowledgeItemRevisionId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ParentCommentId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("ResolvedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("ResolvedByUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -331,51 +393,51 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ChangeNote")
                         .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("KnowledgeItemId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("LinkDisplayText")
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("LinkUrl")
                         .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("RevisionNumber")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("SourceUrl")
                         .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Summary")
                         .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -390,10 +452,10 @@ namespace KnowledgeVault.DataAccess.Migrations
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItemTag", b =>
                 {
                     b.Property<Guid>("KnowledgeItemId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("TagId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("KnowledgeItemId", "TagId");
 
@@ -406,28 +468,28 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
                         .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsArchived")
-                        .HasColumnType("boolean");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("OwnerUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -440,22 +502,22 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Role")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -471,45 +533,45 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("AppliedMemoryRevisionNumber")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("MemoryRevisionAtProposal")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ProposedByUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ProposedContent")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Rationale")
                         .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("ReviewedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("TargetSection")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -526,36 +588,36 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
                         .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsArchived")
-                        .HasColumnType("boolean");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -571,27 +633,27 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Color")
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedName")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -605,49 +667,49 @@ namespace KnowledgeVault.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("LastLoginAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Nickname")
-                        .HasColumnType("text");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedEmail")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedUserName")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordSalt")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -698,6 +760,23 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("Revision");
                 });
 
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Folder", b =>
+                {
+                    b.HasOne("KnowledgeVault.Domain.Entities.Folder", "ParentFolder")
+                        .WithMany("ChildFolders")
+                        .HasForeignKey("ParentFolderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("KnowledgeVault.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("ParentFolder");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.KnowledgeItem", b =>
                 {
                     b.HasOne("KnowledgeVault.Domain.Entities.Category", "Category")
@@ -708,6 +787,11 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.HasOne("KnowledgeVault.Domain.Entities.KnowledgeItemRevision", "CurrentRevision")
                         .WithMany()
                         .HasForeignKey("CurrentRevisionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("KnowledgeVault.Domain.Entities.Folder", "Folder")
+                        .WithMany("KnowledgeItems")
+                        .HasForeignKey("FolderId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("KnowledgeVault.Domain.Entities.User", "OwnerUser")
@@ -729,6 +813,8 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("CurrentRevision");
+
+                    b.Navigation("Folder");
 
                     b.Navigation("OwnerUser");
 
@@ -866,6 +952,13 @@ namespace KnowledgeVault.DataAccess.Migrations
 
             modelBuilder.Entity("KnowledgeVault.Domain.Entities.Category", b =>
                 {
+                    b.Navigation("KnowledgeItems");
+                });
+
+            modelBuilder.Entity("KnowledgeVault.Domain.Entities.Folder", b =>
+                {
+                    b.Navigation("ChildFolders");
+
                     b.Navigation("KnowledgeItems");
                 });
 
