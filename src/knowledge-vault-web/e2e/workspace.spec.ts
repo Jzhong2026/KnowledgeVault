@@ -213,6 +213,7 @@ test.describe('Workspace plan — folder REST API', () => {
 test.describe('Workspace plan — UI acceptance', () => {
   let auth: Awaited<ReturnType<typeof loginViaApi>>;
   let headers: Record<string, string>;
+  let seededRootName = '';
   const seededFolderIds: string[] = [];
   const seededDocIds: string[] = [];
 
@@ -227,7 +228,8 @@ test.describe('Workspace plan — UI acceptance', () => {
       headers,
       data: { scope: SCOPE, name: uniqName('ui-root') },
     });
-    const rootBody = (await root.json()) as { id: string };
+    const rootBody = (await root.json()) as { id: string; name: string };
+    seededRootName = rootBody.name;
     seededFolderIds.push(rootBody.id);
 
     const child = await request.post(FOLDERS, {
@@ -275,7 +277,7 @@ test.describe('Workspace plan — UI acceptance', () => {
 
   test('left-clicking a Folder tile opens it and enters Workspace mode', async ({ page }) => {
     await page.goto('/knowledge');
-    await page.locator('app-folder-tile').first().click();
+    await page.locator('app-folder-tile', { hasText: seededRootName }).first().click();
     await expect(page.locator('app-workspace-mode').first()).toBeVisible();
     await expect(page.locator('app-folder-tree').first()).toBeVisible();
     await expect(page.locator('aside.sidebar')).toBeHidden();
@@ -290,7 +292,7 @@ test.describe('Workspace plan — UI acceptance', () => {
 
   test('Exit Workspace restores the normal sidebar navigation', async ({ page }) => {
     await page.goto('/knowledge');
-    await page.locator('app-folder-tile').first().click();
+    await page.locator('app-folder-tile', { hasText: seededRootName }).first().click();
     await page.getByRole('button', { name: /Exit Workspace/i }).click();
     await expect(page.locator('aside.sidebar')).toBeVisible();
     await expect(page.locator('app-workspace-mode').first()).toBeHidden();
@@ -301,7 +303,8 @@ test.describe('Workspace plan — UI acceptance', () => {
       headers,
       data: { scope: SCOPE, name: uniqName('ws-deeplink') },
     });
-    const rootBody = (await root.json()) as { id: string };
+    const rootBody = (await root.json()) as { id: string; name: string };
+    seededRootName = rootBody.name;
     seededFolderIds.push(rootBody.id);
     await page.goto(`/knowledge?workspaceRootFolderId=${rootBody.id}&folderId=${rootBody.id}`);
     await expect(page.locator('app-workspace-mode').first()).toBeVisible();
