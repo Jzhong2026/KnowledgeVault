@@ -62,6 +62,9 @@ categories_debug.png
 # MSBuild Binary and Structured Log
 *.binlog
 
+# Node (stray root install, e.g. npm run at repo root)
+/node_modules/
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
