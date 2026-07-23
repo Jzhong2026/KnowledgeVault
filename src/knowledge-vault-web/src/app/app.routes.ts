@@ -32,7 +32,8 @@ export const routes: Routes = [
       {
         path: 'knowledge',
         data: { scope: 'Personal' },
-        loadComponent: () => import('./features/knowledge/knowledge-page/knowledge-page').then((m) => m.KnowledgePage),
+        loadComponent: () =>
+          import('./features/knowledge/workspace-page/workspace-page').then((m) => m.WorkspacePage),
       },
       {
         path: 'project-documents/detail/:id',
@@ -43,7 +44,8 @@ export const routes: Routes = [
       {
         path: 'project-documents',
         data: { scope: 'Project' },
-        loadComponent: () => import('./features/knowledge/knowledge-page/knowledge-page').then((m) => m.KnowledgePage),
+        loadComponent: () =>
+          import('./features/knowledge/workspace-page/workspace-page').then((m) => m.WorkspacePage),
       },
       {
         path: 'settings/categories',

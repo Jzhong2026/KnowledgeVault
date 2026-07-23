@@ -140,6 +140,7 @@ export interface SaveDocumentRequest {
   status: KnowledgeItemStatus;
   tagIds?: string[];
   tagNames?: string[];
+  folderId?: string | null;
   expectedRevisionNumber?: number;
 }
 

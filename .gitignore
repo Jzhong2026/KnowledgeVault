@@ -79,3 +79,11 @@ nunit-*.xml
 /src/KnowledgeVault/.vs/ProjectEvaluation/knowledgevault.metadata.v10.bin
 /src/KnowledgeVault/.vs/ProjectEvaluation/knowledgevault.projects.v10.bin
 /src/KnowledgeVault/.vs/ProjectEvaluation/knowledgevault.strings.v10.bin
+
+# Stray dev/tooling artifacts (never commit)
+$null
+npm_err.txt
+ef_install.txt
+ef_version.txt
+tmp_mighist/
+playwright-report/

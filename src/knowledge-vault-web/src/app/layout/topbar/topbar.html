@@ -1,9 +1,17 @@
 <header class="topbar">
-  <div class="workspace-title">
-    <p class="eyebrow"><span></span> Team collaboration workspace</p>
-    <h1>Project Knowledge Hub</h1>
-    <small>Planning <i></i> Tasks <i></i> Knowledge</small>
-  </div>
+  @if (isWorkspaceMode()) {
+    <div class="workspace-context">
+      <span class="workspace-context__badge">Workspace</span>
+      <app-breadcrumb [path]="breadcrumbPath()" (navigate)="onBreadcrumbNavigate($event)" />
+      <button type="button" class="workspace-context__exit" (click)="exitWorkspace()">Exit workspace</button>
+    </div>
+  } @else {
+    <div class="workspace-title">
+      <p class="eyebrow"><span></span> Team collaboration workspace</p>
+      <h1>Project Knowledge Hub</h1>
+      <small>Planning <i></i> Tasks <i></i> Knowledge</small>
+    </div>
+  }
 
   <div class="user-actions">
     <div class="user-menu">

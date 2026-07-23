@@ -1,0 +1,189 @@
+<section class="workspace-page">
+  <div class="page-heading">
+    <div class="page-heading__text">
+      <p>{{ isProjectScope ? 'Team library' : 'Personal library' }}</p>
+      <h2>{{ isProjectScope ? 'Project documents' : 'Personal documents' }}</h2>
+      @if (!workspace.isWorkspaceMode()) {
+        <small>Open a folder to browse it as a workspace, or open it as a dedicated workspace from the tile menu.</small>
+      } @else {
+        <small>Browsing a workspace. The sidebar shows the folder tree; use Exit workspace to return.</small>
+      }
+    </div>
+
+    <div class="page-actions">
+      @if (isProjectScope) {
+        <select
+          aria-label="Filter by project"
+          [ngModel]="projectId() ?? ''"
+          (ngModelChange)="onProjectChange($event)"
+        >
+          <option value="">All followed projects</option>
+          @for (project of projects(); track project.id) {
+            <option [value]="project.id">{{ project.name }}</option>
+          }
+        </select>
+      }
+      <button type="button" class="ghost" [disabled]="saving()" (click)="openCreateFolder()">New folder</button>
+      <button type="button" class="primary" [disabled]="saving()" (click)="createNew()">New document</button>
+      @if (workspace.isWorkspaceMode()) {
+        <button
+          type="button"
+          class="ghost"
+          [disabled]="saving()"
+          (click)="openWorkspace(workspace.currentFolderId()!)"
+        >
+          Open as workspace
+        </button>
+        <button type="button" class="ghost" (click)="exitWorkspace()">Exit workspace</button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="panel__loading">
+      <app-loading-indicator label="Loading workspace" />
+    </div>
+  } @else if (folders().length === 0 && documents().length === 0) {
+    <app-empty-state
+      [title]="workspace.isWorkspaceMode() ? 'This folder is empty' : 'No documents yet'"
+      [message]="workspace.isWorkspaceMode()
+        ? 'Create a subfolder or add a document to get started.'
+        : 'Create a folder to organise your documents, or add a document directly.'"
+    />
+  } @else {
+    <app-tile-grid
+      [folders]="folders()"
+      [documents]="documents()"
+      [currentFolderId]="workspace.currentFolderId()"
+      (openFolder)="openFolder($event)"
+      (openWorkspace)="openWorkspace($event)"
+      (renameFolder)="openRenameFolder($event)"
+      (deleteFolder)="confirmDeleteFolder($event)"
+      (openDocument)="openDocument($event)"
+      (moveDocument)="openMoveDocument($event)"
+      (deleteDocument)="deleteDocument($event)"
+    />
+  }
+
+  @if (editorOpen()) {
+    <app-knowledge-editor
+      [item]="selectedItem()"
+      [categories]="categories()"
+      [tags]="tags()"
+      [projects]="projects()"
+      [topics]="editorTopics()"
+      [saving]="saving()"
+      [workspaceScope]="workspaceScope"
+      [defaultProjectId]="projectId()"
+      [defaultFolderId]="workspace.currentFolderId()"
+      (projectSelected)="onEditorProjectSelected($event)"
+      (closeDialog)="closeEditor()"
+      (saveItem)="saveDocument($event)"
+    />
+  }
+
+  @if (createFolderOpen()) {
+    <div class="dialog-backdrop" (click)="createFolderOpen.set(false)">
+      <div class="dialog" (click)="$event.stopPropagation()">
+        <h3>New folder</h3>
+        <label class="field-row">
+          <span class="field-label">Name</span>
+          <input
+            type="text"
+            placeholder="Folder name"
+            [ngModel]="createFolderName()"
+            (ngModelChange)="createFolderName.set($event)"
+            (keyup.enter)="submitCreateFolder()"
+          />
+        </label>
+        <label class="field-row">
+          <span class="field-label">Description</span>
+          <input
+            type="text"
+            placeholder="Optional"
+            [ngModel]="createFolderDescription()"
+            (ngModelChange)="createFolderDescription.set($event)"
+          />
+        </label>
+        <div class="dialog__actions">
+          <button type="button" class="ghost" (click)="createFolderOpen.set(false)">Cancel</button>
+          <button type="button" class="primary" [disabled]="saving() || !createFolderName().trim()" (click)="submitCreateFolder()">
+            Create folder
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (renameFolderOpen()) {
+    <div class="dialog-backdrop" (click)="renameFolderOpen.set(false)">
+      <div class="dialog" (click)="$event.stopPropagation()">
+        <h3>Rename folder</h3>
+        <label class="field-row">
+          <span class="field-label">Name</span>
+          <input
+            type="text"
+            [ngModel]="renameFolderName()"
+            (ngModelChange)="renameFolderName.set($event)"
+            (keyup.enter)="submitRenameFolder()"
+          />
+        </label>
+        <div class="dialog__actions">
+          <button type="button" class="ghost" (click)="renameFolderOpen.set(false)">Cancel</button>
+          <button type="button" class="primary" [disabled]="saving() || !renameFolderName().trim()" (click)="submitRenameFolder()">
+            Rename
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (deleteFolderId()) {
+    <div class="dialog-backdrop" (click)="cancelDeleteFolder()">
+      <div class="dialog" (click)="$event.stopPropagation()">
+        <h3>Delete folder</h3>
+        <p class="dialog__message">This permanently removes the folder. Empty folders can be deleted; folders with contents cannot.</p>
+        <div class="dialog__actions">
+          <button type="button" class="ghost" (click)="cancelDeleteFolder()">Cancel</button>
+          <button type="button" class="danger" [disabled]="saving()" (click)="executeDeleteFolder()">Delete folder</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (moveDocOpen()) {
+    <div class="dialog-backdrop" (click)="moveDocOpen.set(false)">
+      <div class="dialog" (click)="$event.stopPropagation()">
+        <h3>Move document</h3>
+        <p class="dialog__message">Choose a destination folder. Selecting the root places it outside any folder.</p>
+        <div class="folder-picker">
+          <button
+            type="button"
+            class="folder-picker__item"
+            [class.is-selected]="moveTargets().length === 0"
+            (click)="submitMoveDocument(null)"
+          >
+            Root (no folder)
+          </button>
+          @for (target of moveTargets(); track target.id) {
+            <button
+              type="button"
+              class="folder-picker__item"
+              [style.padding-left.px]="12 + target.depth * 16"
+              (click)="submitMoveDocument(target.id)"
+            >
+              {{ target.name }}
+            </button>
+          }
+        </div>
+        <div class="dialog__actions">
+          <button type="button" class="ghost" (click)="moveDocOpen.set(false)">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

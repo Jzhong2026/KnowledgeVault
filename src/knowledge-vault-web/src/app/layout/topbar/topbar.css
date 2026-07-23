@@ -257,6 +257,43 @@ h1 {
   }
 }
 
+.workspace-context {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.workspace-context__badge {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--accent, #10b981);
+  border-radius: 999px;
+  background: #edf7f3;
+  color: var(--accent-strong, #0f9d76);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspace-context__exit {
+  flex: 0 0 auto;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 14px;
+}
+
+.workspace-context__exit:hover {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
 @media (max-width: 760px) {
   .topbar {
     min-height: 70px;

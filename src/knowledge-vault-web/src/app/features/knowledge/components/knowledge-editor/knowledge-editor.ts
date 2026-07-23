@@ -28,6 +28,7 @@ export class KnowledgeEditor implements OnChanges {
   @Input() workspaceScope: DocumentScope = 'Personal';
   @Input() defaultProjectId: string | null = null;
   @Input() defaultTopicId: string | null = null;
+  @Input() defaultFolderId: string | null = null;
 
   @Output() saveItem = new EventEmitter<SaveDocumentRequest>();
   @Output() deleteItem = new EventEmitter<void>();
@@ -129,6 +130,7 @@ export class KnowledgeEditor implements OnChanges {
       status: value.status,
       tagIds: value.tagIds,
       tagNames: [],
+      folderId: this.defaultFolderId ?? null,
       expectedRevisionNumber: this.item ? this.item.currentRevisionNumber : undefined,
     });
   }

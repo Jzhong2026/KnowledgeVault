@@ -8,6 +8,7 @@ import {
   Comment,
   DocumentActivityDay,
   DocumentOwner,
+  DocumentScope,
   KnowledgeItem,
   KnowledgeItemQuery,
   KnowledgeItemSummary,
@@ -21,6 +22,13 @@ import {
   SaveTagRequest,
   Tag,
 } from '../models/knowledge.models';
+import {
+  CreateFolderRequest,
+  FolderContent,
+  FolderSummary,
+  FolderTreeNode,
+  UpdateFolderRequest,
+} from '../models/folder.models';
 import {
   CreateProjectMemoryCandidateRequest,
   Project,
@@ -162,6 +170,63 @@ export class ApiClient {
 
   deleteKnowledgeItem(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/documents/${id}`);
+  }
+
+  // ----- Folders -----
+  listFolderContent(query: {
+    scope: DocumentScope;
+    projectId?: string | null;
+    parentFolderId?: string | null;
+    rootFolderId?: string | null;
+  }): Observable<FolderContent> {
+    let params = new HttpParams().set('scope', query.scope);
+    if (query.projectId) {
+      params = params.set('projectId', query.projectId);
+    }
+    if (query.parentFolderId) {
+      params = params.set('parentFolderId', query.parentFolderId);
+    }
+    if (query.rootFolderId) {
+      params = params.set('rootFolderId', query.rootFolderId);
+    }
+    return this.http.get<FolderContent>(`${this.baseUrl}/folders`, { params });
+  }
+
+  getFolderTree(query: {
+    scope: DocumentScope;
+    projectId?: string | null;
+    rootFolderId?: string | null;
+  }): Observable<FolderTreeNode> {
+    let params = new HttpParams().set('scope', query.scope);
+    if (query.projectId) {
+      params = params.set('projectId', query.projectId);
+    }
+    if (query.rootFolderId) {
+      params = params.set('rootFolderId', query.rootFolderId);
+    }
+    return this.http.get<FolderTreeNode>(`${this.baseUrl}/folders/tree`, { params });
+  }
+
+  getFolder(id: string): Observable<FolderSummary> {
+    return this.http.get<FolderSummary>(`${this.baseUrl}/folders/${id}`);
+  }
+
+  createFolder(request: CreateFolderRequest): Observable<FolderSummary> {
+    return this.http.post<FolderSummary>(`${this.baseUrl}/folders`, request);
+  }
+
+  updateFolder(id: string, request: UpdateFolderRequest): Observable<FolderSummary> {
+    return this.http.put<FolderSummary>(`${this.baseUrl}/folders/${id}`, request);
+  }
+
+  deleteFolder(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/folders/${id}`);
+  }
+
+  moveDocument(documentId: string, folderId: string | null): Observable<KnowledgeItem> {
+    return this.http.patch<KnowledgeItem>(`${this.baseUrl}/documents/${documentId}/folder`, {
+      folderId,
+    });
   }
 
   // ----- Revisions -----
