@@ -18,7 +18,13 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         </p>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
-        <button type="button" class="tile__action" title="Open as workspace" (click)="openWorkspace.emit(folder().id)">
+        <button
+          type="button"
+          class="tile__action"
+          title="Open Workspace"
+          aria-label="Open Workspace"
+          (click)="openWorkspace.emit(folder().id)"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" /></svg>
         </button>
         <button type="button" class="tile__action" title="Rename" (click)="rename.emit(folder().id)">

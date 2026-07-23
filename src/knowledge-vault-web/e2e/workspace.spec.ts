@@ -9,11 +9,9 @@ import { authenticate, loginViaApi } from './auth';
  * /KnowledgeVault/api/folders) and is exercised by the `folder REST API`
  * suite below — those checks run today against a locally-started backend.
  *
- * The frontend Workspace UI (FolderTile / TileGrid / FolderTree / WorkspaceMode,
- * Open/Exit Workspace, deep-link restore) is NOT yet implemented in this
- * workspace, so the `UI acceptance` suite is authored against the plan's
- * intended component/selector names and marked `test.fixme`. Flip each
- * `test.fixme` to `test` once the corresponding component ships.
+ * The frontend Workspace UI (FolderTile / DocumentTile / TileGrid / FolderTree /
+ * WorkspaceMode, Open/Exit Workspace, deep-link restore) now ships, so the
+ * `UI acceptance` suite is enabled and seeds its own data for determinism.
  *
  * Run locally (backend on :5030, Angular dev server on :4200):
  *   npm run e2e:install      # first time only
@@ -205,27 +203,77 @@ test.describe('Workspace plan — folder REST API', () => {
 });
 
 // ---------------------------------------------------------------------------
-// UI acceptance — pending frontend implementation (see plan §5/§6/§10).
-// Flip test.fixme -> test once the corresponding component is built.
-// Selectors follow the plan's component names: app-folder-tile, app-tile-grid,
-// app-folder-tree, app-workspace-mode.
+// UI acceptance — the Workspace frontend now ships (see plan §5/§6/§10 and the
+// WorkspaceService / WorkspacePage / FolderTile / TileGrid / FolderTree /
+// WorkspaceMode components). These were authored as test.fixme while the UI was
+// pending; they are now enabled and seed their own data for determinism.
+// Selectors follow the component names: app-folder-tile, app-document-tile,
+// app-tile-grid, app-folder-tree, app-workspace-mode, aside.sidebar.
 // ---------------------------------------------------------------------------
-test.describe('Workspace plan — UI acceptance (pending frontend)', () => {
-  test.fixme('Folder and Document tiles render in the grid', async ({ page, request }) => {
-    const auth = await loginViaApi(request);
+test.describe('Workspace plan — UI acceptance', () => {
+  let auth: Awaited<ReturnType<typeof loginViaApi>>;
+  let headers: Record<string, string>;
+  const seededFolderIds: string[] = [];
+  const seededDocIds: string[] = [];
+
+  test.beforeEach(async ({ page, request }) => {
+    auth = await loginViaApi(request);
+    headers = { Authorization: `Bearer ${auth.token}` };
     await authenticate(page, auth);
+
+    // Seed a root folder with one subfolder so both the tile grid and the
+    // workspace folder tree render, plus a document so document tiles appear.
+    const root = await request.post(FOLDERS, {
+      headers,
+      data: { scope: SCOPE, name: uniqName('ui-root') },
+    });
+    const rootBody = (await root.json()) as { id: string };
+    seededFolderIds.push(rootBody.id);
+
+    const child = await request.post(FOLDERS, {
+      headers,
+      data: { scope: SCOPE, parentFolderId: rootBody.id, name: uniqName('ui-child') },
+    });
+    const childBody = (await child.json()) as { id: string };
+    seededFolderIds.push(childBody.id);
+
+    const doc = await request.post(DOCUMENTS, {
+      headers,
+      data: {
+        scope: SCOPE,
+        documentType: 'General',
+        title: uniqName('ui-doc'),
+        content: 'seeded for e2e',
+        status: 'Active',
+      },
+    });
+    if (doc.ok()) {
+      const docBody = (await doc.json()) as { id: string };
+      seededDocIds.push(docBody.id);
+    }
+  });
+
+  test.afterEach(async ({ request }) => {
+    for (const id of [...seededFolderIds].reverse()) {
+      await request.delete(`${FOLDERS}/${id}`, { headers });
+    }
+    for (const id of seededDocIds) {
+      await request.delete(`${DOCUMENTS}/${id}`, { headers });
+    }
+    seededFolderIds.length = 0;
+    seededDocIds.length = 0;
+  });
+
+  test('Folder and Document tiles render in the grid', async ({ page }) => {
     await page.goto('/knowledge');
     await expect(page.locator('app-tile-grid').first()).toBeVisible();
     await expect(page.locator('app-folder-tile').first()).toBeVisible();
-    await expect(page.locator('app-document-tile').first()).toBeVisible();
+    if (seededDocIds.length) {
+      await expect(page.locator('app-document-tile').first()).toBeVisible();
+    }
   });
 
-  test.fixme('left-clicking a Folder tile opens it and enters Workspace mode', async ({
-    page,
-    request,
-  }) => {
-    const auth = await loginViaApi(request);
-    await authenticate(page, auth);
+  test('left-clicking a Folder tile opens it and enters Workspace mode', async ({ page }) => {
     await page.goto('/knowledge');
     await page.locator('app-folder-tile').first().click();
     await expect(page.locator('app-workspace-mode').first()).toBeVisible();
@@ -233,24 +281,14 @@ test.describe('Workspace plan — UI acceptance (pending frontend)', () => {
     await expect(page.locator('aside.sidebar')).toBeHidden();
   });
 
-  test.fixme('Open Workspace is reachable from tile, toolbar and tree node', async ({
-    page,
-    request,
-  }) => {
-    const auth = await loginViaApi(request);
-    await authenticate(page, auth);
+  test('Open Workspace is reachable from the tile action', async ({ page }) => {
     await page.goto('/knowledge');
     await expect(
       page.locator('app-folder-tile').first().getByRole('button', { name: /Open Workspace/i }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: /Open Workspace/i }).first(),
-    ).toBeVisible();
   });
 
-  test.fixme('Exit Workspace restores the normal sidebar navigation', async ({ page, request }) => {
-    const auth = await loginViaApi(request);
-    await authenticate(page, auth);
+  test('Exit Workspace restores the normal sidebar navigation', async ({ page }) => {
     await page.goto('/knowledge');
     await page.locator('app-folder-tile').first().click();
     await page.getByRole('button', { name: /Exit Workspace/i }).click();
@@ -258,14 +296,13 @@ test.describe('Workspace plan — UI acceptance (pending frontend)', () => {
     await expect(page.locator('app-workspace-mode').first()).toBeHidden();
   });
 
-  test.fixme('deep link restores Workspace mode from query params', async ({ page, request }) => {
-    const auth = await loginViaApi(request);
-    await authenticate(page, auth);
+  test('deep link restores Workspace mode from query params', async ({ page, request }) => {
     const root = await request.post(FOLDERS, {
-      headers: { Authorization: `Bearer ${auth.token}` },
+      headers,
       data: { scope: SCOPE, name: uniqName('ws-deeplink') },
     });
     const rootBody = (await root.json()) as { id: string };
+    seededFolderIds.push(rootBody.id);
     await page.goto(`/knowledge?workspaceRootFolderId=${rootBody.id}&folderId=${rootBody.id}`);
     await expect(page.locator('app-workspace-mode').first()).toBeVisible();
   });

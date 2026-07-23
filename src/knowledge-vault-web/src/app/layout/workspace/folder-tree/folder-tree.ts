@@ -18,7 +18,8 @@ import { FolderTreeNode } from '../../../core/models/folder.models';
             <button
               type="button"
               class="folder-tree__action"
-              title="Open as workspace"
+              title="Open Workspace"
+              aria-label="Open Workspace"
               (click)="$event.stopPropagation(); openWorkspace.emit(node.id)"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
