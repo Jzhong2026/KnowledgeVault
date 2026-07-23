@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Coverage gate for CI. Run with:
+    dotnet test KnowledgeVault.slnx -s coverage.runsettings
+  Excludes generated/persistence-shape code. The line threshold enforces the
+  refactor-safety bar (target: line >= 85%, branch >= 75% on Document/Folder/
+  Project providers). Until the permission/invariant matrices, controller, and
+  MCP contract tests are added, this gate is expected to FAIL — that is the
+  signal to keep expanding the test net before refactoring.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <ExcludeByFile>**/Migrations/**/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Entities/**/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Dtos/**/*.cs</ExcludeByFile>
+          <ExcludeByFile>**/Program.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute</ExcludeByAttribute>
+          <Threshold>85</Threshold>
+          <ThresholdType>line</ThresholdType>
+          <ThresholdStat>total</ThresholdStat>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

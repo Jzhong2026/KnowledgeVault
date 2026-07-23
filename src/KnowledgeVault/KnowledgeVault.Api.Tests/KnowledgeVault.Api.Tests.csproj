@@ -10,8 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.8" />
-    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -22,10 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KnowledgeVault.Contracts\KnowledgeVault.Contracts.csproj" />
-    <ProjectReference Include="..\KnowledgeVault.DataAccess\KnowledgeVault.DataAccess.csproj" />
     <ProjectReference Include="..\KnowledgeVault.Domain\KnowledgeVault.Domain.csproj" />
     <ProjectReference Include="..\KnowledgeVault.Infrastructure\KnowledgeVault.Infrastructure.csproj" />
-    <ProjectReference Include="..\KnowledgeVault.Providers\KnowledgeVault.Providers.csproj" />
+    <ProjectReference Include="..\KnowledgeVault\KnowledgeVault.csproj" />
   </ItemGroup>
 
 </Project>

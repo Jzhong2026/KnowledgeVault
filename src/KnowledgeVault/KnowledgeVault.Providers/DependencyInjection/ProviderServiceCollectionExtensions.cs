@@ -18,6 +18,13 @@ public static class ProviderServiceCollectionExtensions
         services.AddScoped<IDocumentAccessService, DocumentAccessService>();
         services.AddScoped<IFolderProvider, FolderProvider>();
         services.AddScoped<IDocumentProvider, DocumentProvider>();
+
+        // Collaborators extracted from the providers above. Registered explicitly
+        // (scoped) so a single ProjectAccessService instance is shared by
+        // DocumentProvider, DocumentAccessService and FolderProvider within a scope.
+        services.AddScoped<ProjectAccessService>();
+        services.AddScoped<DocumentTagService>();
+        services.AddScoped<DocumentLocationService>();
         services.AddScoped<IRevisionProvider, RevisionProvider>();
         services.AddScoped<ICommentProvider, CommentProvider>();
         services.AddScoped<IDocumentReviewProvider, DocumentReviewProvider>();

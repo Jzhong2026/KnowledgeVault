@@ -18,7 +18,7 @@ public sealed class CategoryProvider(
 {
     public async Task<IReadOnlyList<CategoryDto>> ListAsync(bool includeArchived, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var query = dbContext.Categories.AsNoTracking();
 
         if (!includeArchived)
@@ -35,7 +35,7 @@ public sealed class CategoryProvider(
 
     public async Task<CategoryDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var category = await dbContext.Categories.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
@@ -45,16 +45,16 @@ public sealed class CategoryProvider(
 
     public async Task<CategoryDto> CreateAsync(CreateCategoryRequest request, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
-        var name = RequireName(request.Name, 128);
+        currentUserContext.RequireUserId();
+        var name = RequestText.Require(request.Name, "Name", 128);
         await EnsureNameAvailableAsync(name, null, cancellationToken);
 
         var category = new Category
         {
             Name = name,
             NormalizedName = TextNormalizer.NormalizeName(name),
-            Description = CleanOptional(request.Description, 512),
-            Color = CleanOptional(request.Color, 32),
+            Description = RequestText.Optional(request.Description, "Value", 512),
+            Color = RequestText.Optional(request.Color, "Value", 32),
             SortOrder = request.SortOrder,
             CreatedAt = dateTimeProvider.UtcNow
         };
@@ -67,17 +67,17 @@ public sealed class CategoryProvider(
 
     public async Task<CategoryDto> UpdateAsync(Guid id, UpdateCategoryRequest request, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
         EnsureNotSystem(category);
-        var name = RequireName(request.Name, 128);
+        var name = RequestText.Require(request.Name, "Name", 128);
         await EnsureNameAvailableAsync(name, id, cancellationToken);
 
         category.Name = name;
         category.NormalizedName = TextNormalizer.NormalizeName(name);
-        category.Description = CleanOptional(request.Description, 512);
-        category.Color = CleanOptional(request.Color, 32);
+        category.Description = RequestText.Optional(request.Description, "Value", 512);
+        category.Color = RequestText.Optional(request.Color, "Value", 32);
         category.SortOrder = request.SortOrder;
         category.IsArchived = request.IsArchived;
         category.UpdatedAt = dateTimeProvider.UtcNow;
@@ -89,7 +89,7 @@ public sealed class CategoryProvider(
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
         EnsureNotSystem(category);
@@ -122,51 +122,11 @@ public sealed class CategoryProvider(
         }
     }
 
-    private void EnsureAuthenticated()
-    {
-        if (!currentUserContext.IsAuthenticated || currentUserContext.UserId == Guid.Empty)
-        {
-            throw new UnauthorizedAppException("Authentication is required.");
-        }
-    }
-
     private static void EnsureNotSystem(Category category)
     {
         if (category.IsSystem)
         {
             throw new ValidationException("System categories cannot be edited or deleted.");
         }
-    }
-
-    private static string RequireName(string value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ValidationException("Name is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"Name must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
-    }
-
-    private static string? CleanOptional(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"Value must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
     }
 }

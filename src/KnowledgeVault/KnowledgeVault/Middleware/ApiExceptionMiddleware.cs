@@ -1,5 +1,6 @@
 using System.Net;
 using KnowledgeVault.Infrastructure.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeVault.Api.Middleware;
 
@@ -26,6 +27,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             ForbiddenException => (HttpStatusCode.Forbidden, "Forbidden"),
             NotFoundException => (HttpStatusCode.NotFound, "Not found"),
             ConflictException => (HttpStatusCode.Conflict, "Conflict"),
+            DbUpdateConcurrencyException => (HttpStatusCode.Conflict, "Conflict"),
             _ => (HttpStatusCode.InternalServerError, "Unexpected error")
         };
 

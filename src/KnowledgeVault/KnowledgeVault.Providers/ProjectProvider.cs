@@ -24,9 +24,12 @@ public sealed class ProjectProvider(
         var page = Math.Max(query.Page, 1);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
+        // Projects are private: only list projects the caller is a member of.
+        // FollowingOnly is now implied, but is kept for API compatibility.
         var baseQuery = dbContext.Projects
             .AsNoTracking()
-            .Where(p => query.IncludeArchived || !p.IsArchived);
+            .Where(p => (query.IncludeArchived || !p.IsArchived) &&
+                        p.Members.Any(m => m.UserId == userId));
 
         if (query.FollowingOnly)
         {
@@ -78,6 +81,13 @@ public sealed class ProjectProvider(
             ?? throw new NotFoundException("Project was not found.");
 
         var role = project.Members.FirstOrDefault(m => m.UserId == userId)?.Role;
+        if (role is null)
+        {
+            // Projects are private: a non-member must not be able to read the
+            // project or its member list (which includes emails).
+            throw new NotFoundException("Project was not found.");
+        }
+
         return project.ToDto(role);
     }
 

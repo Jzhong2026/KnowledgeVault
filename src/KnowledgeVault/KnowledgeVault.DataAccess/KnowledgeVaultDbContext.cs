@@ -1,5 +1,6 @@
 using KnowledgeVault.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace KnowledgeVault.DataAccess;
@@ -147,6 +148,13 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.ToTable(tb => tb
                 .HasCheckConstraint("CK_KnowledgeItem_TopicScope",
                     "(\"Scope\" = 0 AND \"ProjectId\" IS NULL AND \"TopicId\" IS NULL) OR (\"Scope\" = 1 AND \"ProjectId\" IS NOT NULL)"));
+
+            // Optimistic-concurrency token. SQLite has no native rowversion type, so
+            // RowVersion is a byte[] concurrency token that RowVersionInterceptor
+            // bumps on every save. A write based on a stale snapshot then matches 0
+            // rows and EF raises DbUpdateConcurrencyException (mapped to 409) instead
+            // of silently overwriting the row or failing on a unique index.
+            builder.Property(x => x.RowVersion).IsConcurrencyToken();
         });
 
         modelBuilder.Entity<KnowledgeItemRevision>(builder =>
@@ -340,6 +348,15 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
         }
     }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // RowVersionInterceptor emulates a rowversion on SQLite by bumping the
+        // RowVersion token on every save. Registering it unconditionally is safe:
+        // the interceptor only touches KnowledgeItem rows and is a no-op for any
+        // entity/provider it does not apply to.
+        optionsBuilder.AddInterceptors(new RowVersionInterceptor());
+    }
+
     private static void ConfigureSqliteDateTimeOffsetStorage(ModelBuilder modelBuilder)
     {
         var dateTimeOffsetConverter = new ValueConverter<DateTimeOffset, long>(
@@ -362,6 +379,44 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 {
                     property.SetValueConverter(nullableDateTimeOffsetConverter);
                 }
+            }
+        }
+    }
+}
+
+// Bumps the RowVersion concurrency token for KnowledgeItem on every save. SQLite
+// has no native rowversion type, so we emulate it with a byte[] token. Runs in
+// SavingChanges so that after the first commit the stored RowVersion changes; a
+// second context still holding the original (stale) value then matches 0 rows and
+// EF raises DbUpdateConcurrencyException. The provider guard keeps it a safe no-op
+// if a non-SQLite provider is ever configured.
+internal sealed class RowVersionInterceptor : SaveChangesInterceptor
+{
+    public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+    {
+        BumpRowVersion(eventData.Context);
+        return result;
+    }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken)
+    {
+        BumpRowVersion(eventData.Context);
+        return new ValueTask<InterceptionResult<int>>(result);
+    }
+
+    private static void BumpRowVersion(DbContext? context)
+    {
+        if (context is null || context.Database.ProviderName != "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            return;
+        }
+
+        foreach (var entry in context.ChangeTracker.Entries<KnowledgeItem>())
+        {
+            if (entry.State is EntityState.Added or EntityState.Modified)
+            {
+                entry.Property(e => e.RowVersion).CurrentValue = Guid.NewGuid().ToByteArray();
             }
         }
     }

@@ -5,6 +5,7 @@ using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
 using KnowledgeVault.Domain.Entities;
 using KnowledgeVault.Infrastructure.Exceptions;
+using KnowledgeVault.Infrastructure.Text;
 using KnowledgeVault.Infrastructure.Time;
 using KnowledgeVault.Providers.Mapping;
 using Microsoft.EntityFrameworkCore;
@@ -40,8 +41,8 @@ public sealed class ApiKeyProvider(
 
     public async Task<ApiKeyCreatedDto> CreateAsync(CreateApiKeyRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
-        var name = RequireText(request.Name, "Name", 64);
+        var userId = currentUserContext.RequireUserId();
+        var name = RequestText.Require(request.Name, "Name", 64);
 
         var normalizedScopes = (request.Scopes ?? [])
             .Select(x => x.Trim().ToLowerInvariant())
@@ -88,7 +89,7 @@ public sealed class ApiKeyProvider(
 
     public async Task<IReadOnlyList<ApiKeyDto>> ListAsync(CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var keys = await dbContext.ApiKeys
             .AsNoTracking()
             .Where(x => x.UserId == userId)
@@ -100,7 +101,7 @@ public sealed class ApiKeyProvider(
 
     public async Task RevokeAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var apiKey = await dbContext.ApiKeys
             .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("API key was not found.");
@@ -123,30 +124,4 @@ public sealed class ApiKeyProvider(
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    private Guid RequireCurrentUser()
-    {
-        var userId = currentUserContext.UserId;
-        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
-        {
-            throw new UnauthorizedAppException("Authentication is required.");
-        }
-
-        return userId;
-    }
-
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ValidationException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"{fieldName} must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
-    }
 }

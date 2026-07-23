@@ -12,10 +12,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeVault.Providers;
 
+/// <summary>
+/// Folder use cases. Visibility rules are delegated to
+/// <see cref="ProjectAccessService"/> so folders and documents share one
+/// access policy implementation.
+/// </summary>
 public sealed class FolderProvider(
     KnowledgeVaultDbContext dbContext,
     ICurrentUserContext currentUserContext,
-    IDateTimeProvider dateTimeProvider) : IFolderProvider
+    IDateTimeProvider dateTimeProvider,
+    ProjectAccessService projectAccess) : IFolderProvider
 {
     public async Task<FolderContentDto> GetContentAsync(
         DocumentScope? scope,
@@ -24,7 +30,7 @@ public sealed class FolderProvider(
         Guid? rootFolderId,
         CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
 
         if (rootFolderId.HasValue)
         {
@@ -82,7 +88,7 @@ public sealed class FolderProvider(
         Guid? rootFolderId,
         CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         if (!rootFolderId.HasValue)
         {
             throw new ValidationException("rootFolderId is required to build the folder tree.");
@@ -128,7 +134,7 @@ public sealed class FolderProvider(
 
     public async Task<FolderSummaryDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
         var childCount = await dbContext.Folders.CountAsync(f => f.ParentFolderId == id, cancellationToken);
         var docCount = await dbContext.KnowledgeItems.CountAsync(
@@ -141,9 +147,9 @@ public sealed class FolderProvider(
 
     public async Task<FolderSummaryDto> CreateAsync(CreateFolderRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var now = dateTimeProvider.UtcNow;
-        var name = RequireText(request.Name, "Name", 128);
+        var name = RequestText.Require(request.Name, "Name", 128);
         var normalized = TextNormalizer.NormalizeName(name);
 
         Guid? ownerUserId = null;
@@ -163,11 +169,11 @@ public sealed class FolderProvider(
                 throw new ValidationException("Project is required for project folders.");
             }
 
-            var role = await GetProjectRoleAsync(request.ProjectId.Value, userId, cancellationToken);
-            if (role is not (ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor))
-            {
-                throw new ForbiddenException("You do not have permission to create folders in this project.");
-            }
+            await projectAccess.EnsureContentEditorAsync(
+                request.ProjectId.Value,
+                userId,
+                "You do not have permission to create folders in this project.",
+                cancellationToken);
         }
 
         if (request.ParentFolderId.HasValue)
@@ -196,7 +202,7 @@ public sealed class FolderProvider(
             ParentFolderId = request.ParentFolderId,
             Name = name,
             NormalizedName = normalized,
-            Description = CleanOptional(request.Description, 512),
+            Description = RequestText.Optional(request.Description, 512),
             SortOrder = request.SortOrder,
             CreatedAt = now
         };
@@ -211,7 +217,7 @@ public sealed class FolderProvider(
 
     public async Task<FolderSummaryDto> UpdateAsync(Guid id, UpdateFolderRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
         await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
 
@@ -219,7 +225,7 @@ public sealed class FolderProvider(
         string? normalized = null;
         if (!string.IsNullOrWhiteSpace(request.Name))
         {
-            newName = RequireText(request.Name, "Name", 128);
+            newName = RequestText.Require(request.Name, "Name", 128);
             normalized = TextNormalizer.NormalizeName(newName);
         }
 
@@ -236,7 +242,11 @@ public sealed class FolderProvider(
                 throw new ValidationException("The target parent folder does not belong to the same scope/project.");
             }
 
-            if (await IsWithinRootAsync(id, request.ParentFolderId.Value, cancellationToken))
+            // Detect a cycle: reject if the requested new parent is itself a
+            // descendant of the folder being moved (i.e. the folder is an ancestor
+            // of the new parent). IsWithinRootAsync(newParent, id) returns true when
+            // newParent lies within id's subtree.
+            if (await IsWithinRootAsync(request.ParentFolderId.Value, id, cancellationToken))
             {
                 throw new ValidationException("A folder cannot be moved into one of its own subfolders.");
             }
@@ -257,7 +267,7 @@ public sealed class FolderProvider(
 
         if (request.Description is not null)
         {
-            folder.Description = CleanOptional(request.Description, 512);
+            folder.Description = RequestText.Optional(request.Description, 512);
         }
 
         if (request.ParentFolderId.HasValue)
@@ -284,7 +294,7 @@ public sealed class FolderProvider(
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
         await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
 
@@ -304,58 +314,24 @@ public sealed class FolderProvider(
 
     private IQueryable<Folder> QueryAccessibleFolders(Guid userId, DocumentScope? scope, Guid? projectId)
     {
-        var q = dbContext.Folders.AsNoTracking();
-        if (scope == DocumentScope.Personal)
-        {
-            q = q.Where(f => f.Scope == DocumentScope.Personal && f.OwnerUserId == userId);
-        }
-        else if (scope == DocumentScope.Project)
-        {
-            if (projectId is null)
-            {
-                throw new ValidationException("Project is required for project folders.");
-            }
-
-            q = q.Where(f => f.Scope == DocumentScope.Project && f.ProjectId == projectId &&
-                dbContext.ProjectMembers.Any(m => m.ProjectId == projectId && m.UserId == userId));
-        }
-        else
-        {
-            q = q.Where(f =>
-                (f.Scope == DocumentScope.Personal && f.OwnerUserId == userId) ||
-                (f.Scope == DocumentScope.Project && f.ProjectId != null &&
-                 dbContext.ProjectMembers.Any(m => m.ProjectId == f.ProjectId && m.UserId == userId)));
-        }
-
-        return q;
+        EnsureProjectIdPresentForProjectScope(scope, projectId);
+        return projectAccess.FilterAccessibleFolders(
+            dbContext.Folders.AsNoTracking(), userId, scope, projectId);
     }
 
     private IQueryable<KnowledgeItem> QueryAccessibleDocuments(Guid userId, DocumentScope? scope, Guid? projectId)
     {
-        var q = dbContext.KnowledgeItems.AsNoTracking().Where(x => x.Status != KnowledgeItemStatus.Deleted);
-        if (scope == DocumentScope.Personal)
-        {
-            q = q.Where(x => x.Scope == DocumentScope.Personal && x.OwnerUserId == userId);
-        }
-        else if (scope == DocumentScope.Project)
-        {
-            if (projectId is null)
-            {
-                throw new ValidationException("Project is required for project documents.");
-            }
+        EnsureProjectIdPresentForProjectScope(scope, projectId);
+        return projectAccess.FilterAccessibleDocuments(
+            dbContext.KnowledgeItems.AsNoTracking(), userId, scope, projectId);
+    }
 
-            q = q.Where(x => x.Scope == DocumentScope.Project && x.ProjectId == projectId &&
-                dbContext.ProjectMembers.Any(m => m.ProjectId == projectId && m.UserId == userId));
-        }
-        else
+    private static void EnsureProjectIdPresentForProjectScope(DocumentScope? scope, Guid? projectId)
+    {
+        if (scope == DocumentScope.Project && projectId is null)
         {
-            q = q.Where(x =>
-                (x.Scope == DocumentScope.Personal && x.OwnerUserId == userId) ||
-                (x.Scope == DocumentScope.Project && x.ProjectId != null &&
-                 dbContext.ProjectMembers.Any(m => m.ProjectId == x.ProjectId && m.UserId == userId)));
+            throw new ValidationException("Project is required for project folders.");
         }
-
-        return q;
     }
 
     private async Task<Folder> EnsureFolderAccessibleAsync(Guid folderId, Guid userId, CancellationToken cancellationToken)
@@ -387,11 +363,11 @@ public sealed class FolderProvider(
             return;
         }
 
-        var role = await GetProjectRoleAsync(folder.ProjectId, userId, cancellationToken);
-        if (role is not (ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor))
-        {
-            throw new ForbiddenException("You do not have permission to modify this folder.");
-        }
+        await projectAccess.EnsureContentEditorAsync(
+            folder.ProjectId,
+            userId,
+            "You do not have permission to modify this folder.",
+            cancellationToken);
     }
 
     private async Task EnsureUniqueSiblingAsync(
@@ -452,55 +428,5 @@ public sealed class FolderProvider(
         }
 
         return false;
-    }
-
-    private async Task<ProjectRole?> GetProjectRoleAsync(Guid? projectId, Guid userId, CancellationToken cancellationToken)
-    {
-        if (projectId is null)
-        {
-            return null;
-        }
-
-        var member = await dbContext.ProjectMembers
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId, cancellationToken);
-
-        return member?.Role;
-    }
-
-    private Guid RequireCurrentUser()
-    {
-        var userId = currentUserContext.UserId;
-        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
-        {
-            throw new UnauthorizedAppException("Authentication is required.");
-        }
-
-        return userId;
-    }
-
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ValidationException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"{fieldName} must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
-    }
-
-    private static string? CleanOptional(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        return RequireText(value, "Value", maxLength);
     }
 }

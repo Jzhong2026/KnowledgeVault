@@ -7,9 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeVault.Providers;
 
+/// <summary>
+/// Per-document access checks (view / edit / comment). Membership and role
+/// rules are delegated to <see cref="ProjectAccessService"/> so there is a
+/// single implementation of the project access policy.
+/// </summary>
 public sealed class DocumentAccessService(
     KnowledgeVaultDbContext dbContext,
-    ICurrentUserContext currentUserContext) : IDocumentAccessService
+    ICurrentUserContext currentUserContext,
+    ProjectAccessService projectAccess) : IDocumentAccessService
 {
     public async Task<bool> CanViewAsync(Guid documentId, CancellationToken cancellationToken)
     {
@@ -20,12 +26,20 @@ public sealed class DocumentAccessService(
         }
 
         var doc = await LoadDocumentAsync(documentId, cancellationToken);
-        if (doc is null)
+        if (doc is null || doc.Status == KnowledgeItemStatus.Deleted)
         {
             return false;
         }
 
-        return doc.Status != KnowledgeItemStatus.Deleted;
+        // Personal documents are visible only to their owner.
+        if (doc.Scope == DocumentScope.Personal)
+        {
+            return doc.OwnerUserId == userId;
+        }
+
+        // Project documents are visible only to project members (any role,
+        // including Viewer).
+        return await projectAccess.IsMemberAsync(doc.ProjectId, userId, cancellationToken);
     }
 
     public async Task<bool> CanEditAsync(Guid documentId, CancellationToken cancellationToken)
@@ -47,8 +61,8 @@ public sealed class DocumentAccessService(
             return doc.OwnerUserId == userId;
         }
 
-        var role = await GetProjectRoleAsync(doc.ProjectId, userId, cancellationToken);
-        return role is ProjectRole.Owner or ProjectRole.Admin or ProjectRole.Editor;
+        var role = await projectAccess.GetRoleAsync(doc.ProjectId, userId, cancellationToken);
+        return ProjectAccessService.CanEditContent(role);
     }
 
     public async Task<bool> CanCommentAsync(Guid documentId, CancellationToken cancellationToken)
@@ -70,7 +84,7 @@ public sealed class DocumentAccessService(
             return doc.OwnerUserId == userId;
         }
 
-        return await IsProjectMemberAsync(doc.ProjectId, userId, cancellationToken);
+        return await projectAccess.IsMemberAsync(doc.ProjectId, userId, cancellationToken);
     }
 
     public async Task EnsureViewAsync(Guid documentId, CancellationToken cancellationToken)
@@ -107,23 +121,5 @@ public sealed class DocumentAccessService(
         return await dbContext.KnowledgeItems
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == documentId, cancellationToken);
-    }
-
-    private async Task<bool> IsProjectMemberAsync(Guid? projectId, Guid userId, CancellationToken cancellationToken)
-    {
-        return await GetProjectRoleAsync(projectId, userId, cancellationToken) is not null;
-    }
-
-    private async Task<ProjectRole?> GetProjectRoleAsync(Guid? projectId, Guid userId, CancellationToken cancellationToken)
-    {
-        if (projectId is null)
-        {
-            return null;
-        }
-
-        var member = await dbContext.ProjectMembers
-            .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == userId, cancellationToken);
-
-        return member?.Role;
     }
 }

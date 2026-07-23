@@ -104,8 +104,8 @@ public sealed class DocumentCollaborationProviderTests : IAsyncLifetime
 
     private ProviderSet CreateProviders()
     {
-        var access = new DocumentAccessService(_dbContext, _currentUser);
-        var documents = new DocumentProvider(_dbContext, _currentUser, _clock, access);
+        var access = TestProviders.DocAccess(_dbContext, _currentUser);
+        var documents = TestProviders.Documents(_dbContext, _currentUser, _clock);
         var revisions = new RevisionProvider(_dbContext, access);
         var comments = new CommentProvider(_dbContext, _currentUser, _clock, access);
         var reviews = new DocumentReviewProvider(

@@ -18,7 +18,7 @@ public sealed class TagProvider(
 {
     public async Task<IReadOnlyList<TagDto>> ListAsync(CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var tags = await dbContext.Tags
             .AsNoTracking()
             .Include(x => x.KnowledgeItemTags)
@@ -30,7 +30,7 @@ public sealed class TagProvider(
 
     public async Task<TagDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var tag = await dbContext.Tags
             .AsNoTracking()
             .Include(x => x.KnowledgeItemTags)
@@ -42,15 +42,15 @@ public sealed class TagProvider(
 
     public async Task<TagDto> CreateAsync(CreateTagRequest request, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
-        var name = RequireName(request.Name);
+        currentUserContext.RequireUserId();
+        var name = RequestText.Require(request.Name, "Name", 64);
         await EnsureNameAvailableAsync(name, null, cancellationToken);
 
         var tag = new Tag
         {
             Name = name,
             NormalizedName = TextNormalizer.NormalizeName(name),
-            Color = CleanOptional(request.Color, 32),
+            Color = RequestText.Optional(request.Color, "Value", 32),
             CreatedAt = dateTimeProvider.UtcNow
         };
 
@@ -62,17 +62,17 @@ public sealed class TagProvider(
 
     public async Task<TagDto> UpdateAsync(Guid id, UpdateTagRequest request, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var tag = await dbContext.Tags
             .Include(x => x.KnowledgeItemTags)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Tag was not found.");
-        var name = RequireName(request.Name);
+        var name = RequestText.Require(request.Name, "Name", 64);
         await EnsureNameAvailableAsync(name, id, cancellationToken);
 
         tag.Name = name;
         tag.NormalizedName = TextNormalizer.NormalizeName(name);
-        tag.Color = CleanOptional(request.Color, 32);
+        tag.Color = RequestText.Optional(request.Color, "Value", 32);
         tag.UpdatedAt = dateTimeProvider.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -82,7 +82,7 @@ public sealed class TagProvider(
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        EnsureAuthenticated();
+        currentUserContext.RequireUserId();
         var tag = await dbContext.Tags
             .Include(x => x.KnowledgeItemTags)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
@@ -104,45 +104,5 @@ public sealed class TagProvider(
         {
             throw new ConflictException("Tag name already exists.");
         }
-    }
-
-    private void EnsureAuthenticated()
-    {
-        if (!currentUserContext.IsAuthenticated || currentUserContext.UserId == Guid.Empty)
-        {
-            throw new UnauthorizedAppException("Authentication is required.");
-        }
-    }
-
-    private static string RequireName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ValidationException("Name is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > 64)
-        {
-            throw new ValidationException("Name must be 64 characters or fewer.");
-        }
-
-        return trimmed;
-    }
-
-    private static string? CleanOptional(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"Value must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
     }
 }

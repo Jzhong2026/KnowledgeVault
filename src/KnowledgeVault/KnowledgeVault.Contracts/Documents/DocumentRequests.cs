@@ -18,6 +18,17 @@ public sealed record DocumentQuery(
     int PageSize = 20,
     Guid? FolderId = null);
 
+// Shared shape of the optional revision content fields carried by both
+// create and update requests, so revision construction can be written once.
+public interface IDocumentContentRequest
+{
+    string? Summary { get; }
+    string? SourceUrl { get; }
+    string? LinkDisplayText { get; }
+    string? LinkUrl { get; }
+    string? ChangeNote { get; }
+}
+
 public sealed record CreateDocumentRequest(
     DocumentScope Scope,
     Guid? ProjectId,
@@ -34,7 +45,7 @@ public sealed record CreateDocumentRequest(
     KnowledgeItemStatus Status,
     IReadOnlyList<Guid>? TagIds,
     IReadOnlyList<string>? TagNames,
-    Guid? FolderId = null);
+    Guid? FolderId = null) : IDocumentContentRequest;
 
 public sealed record UpdateDocumentRequest(
     int ExpectedRevisionNumber,
@@ -51,7 +62,7 @@ public sealed record UpdateDocumentRequest(
     KnowledgeItemStatus Status,
     IReadOnlyList<Guid>? TagIds,
     IReadOnlyList<string>? TagNames,
-    Guid? FolderId = null);
+    Guid? FolderId = null) : IDocumentContentRequest;
 
 public sealed record UpdateDocumentMetadataRequest(
     Guid? ProjectId,

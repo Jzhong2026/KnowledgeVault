@@ -22,8 +22,8 @@ public sealed class AuthProvider(
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
-        var userName = RequireText(request.UserName, "User name", 64);
-        var email = RequireText(request.Email, "Email", 256);
+        var userName = RequestText.Require(request.UserName, "User name", 64);
+        var email = RequestText.Require(request.Email, "Email", 256);
         var password = RequirePassword(request.Password);
         var normalizedUserName = TextNormalizer.NormalizeName(userName);
         var normalizedEmail = TextNormalizer.NormalizeName(email);
@@ -58,10 +58,10 @@ public sealed class AuthProvider(
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        var userNameOrEmail = RequireText(request.UserNameOrEmail, "User name or email", 256);
+        var userNameOrEmail = RequestText.Require(request.UserNameOrEmail, "User name or email", 256);
         // Login accepts existing credentials independently of the current
         // registration policy so imported/local accounts remain usable.
-        var password = RequireText(request.Password, "Password", 512);
+        var password = RequestText.Require(request.Password, "Password", 512);
         var normalized = TextNormalizer.NormalizeName(userNameOrEmail);
 
         var user = await dbContext.Users.FirstOrDefaultAsync(
@@ -82,7 +82,7 @@ public sealed class AuthProvider(
 
     public async Task<UserProfileDto> GetCurrentUserAsync(CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken)
             ?? throw new NotFoundException("User was not found.");
 
@@ -91,7 +91,7 @@ public sealed class AuthProvider(
 
     public async Task<UserProfileDto> UpdateNicknameAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken)
             ?? throw new NotFoundException("User was not found.");
 
@@ -112,33 +112,6 @@ public sealed class AuthProvider(
     {
         var token = jwtTokenGenerator.GenerateToken(user.Id, user.UserName, user.Email);
         return new AuthResponse(token.AccessToken, token.ExpiresAt, user.ToProfileDto());
-    }
-
-    private Guid RequireCurrentUser()
-    {
-        var userId = currentUserContext.UserId;
-        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
-        {
-            throw new UnauthorizedAppException("Authentication is required.");
-        }
-
-        return userId;
-    }
-
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ValidationException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"{fieldName} must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
     }
 
     private static string RequirePassword(string value)

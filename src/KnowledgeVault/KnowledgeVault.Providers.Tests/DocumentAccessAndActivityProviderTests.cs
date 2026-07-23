@@ -44,16 +44,27 @@ public sealed class DocumentAccessAndActivityProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Authenticated_user_can_view_document_details_without_ownership_or_membership()
+    public async Task Authenticated_user_can_view_only_documents_they_own_or_are_a_member_of()
     {
-        var access = new DocumentAccessService(_dbContext, _currentUser);
-        var documents = new DocumentProvider(_dbContext, _currentUser, _clock, access);
+        var access = TestProviders.DocAccess(_dbContext, _currentUser);
+        var documents = TestProviders.Documents(_dbContext, _currentUser, _clock);
 
-        Assert.True(await access.CanViewAsync(_unfollowedProjectDocumentId, CancellationToken.None));
-        Assert.True(await access.CanViewAsync(_personalDocumentId, CancellationToken.None));
+        // _currentUser is a Viewer of the followed project, so its document is viewable.
+        Assert.True(await access.CanViewAsync(_projectDocumentId, CancellationToken.None));
         Assert.Equal(
-            _unfollowedProjectDocumentId,
-            (await documents.GetAsync(_unfollowedProjectDocumentId, CancellationToken.None)).Id);
+            _projectDocumentId,
+            (await documents.GetAsync(_projectDocumentId, CancellationToken.None)).Id);
+
+        // A project document the caller does not belong to is not viewable.
+        Assert.False(await access.CanViewAsync(_unfollowedProjectDocumentId, CancellationToken.None));
+        await Assert.ThrowsAsync<KnowledgeVault.Infrastructure.Exceptions.ForbiddenException>(() =>
+            documents.GetAsync(_unfollowedProjectDocumentId, CancellationToken.None));
+
+        // A personal document owned by someone else is not viewable.
+        Assert.False(await access.CanViewAsync(_personalDocumentId, CancellationToken.None));
+        await Assert.ThrowsAsync<KnowledgeVault.Infrastructure.Exceptions.ForbiddenException>(() =>
+            documents.GetAsync(_personalDocumentId, CancellationToken.None));
+
         Assert.False(await access.CanEditAsync(_unfollowedProjectDocumentId, CancellationToken.None));
         Assert.False(await access.CanEditAsync(_personalDocumentId, CancellationToken.None));
     }
@@ -74,8 +85,8 @@ public sealed class DocumentAccessAndActivityProviderTests : IAsyncLifetime
     [Fact]
     public async Task Activity_counts_revisions_only_from_followed_projects_in_the_users_local_day()
     {
-        var access = new DocumentAccessService(_dbContext, _currentUser);
-        var provider = new DocumentProvider(_dbContext, _currentUser, _clock, access);
+        var access = TestProviders.DocAccess(_dbContext, _currentUser);
+        var provider = TestProviders.Documents(_dbContext, _currentUser, _clock);
 
         var activity = await provider.ListProjectActivityAsync(
             new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
@@ -92,8 +103,8 @@ public sealed class DocumentAccessAndActivityProviderTests : IAsyncLifetime
     [Fact]
     public async Task Stats_count_only_documents_categories_and_tags_from_followed_projects()
     {
-        var access = new DocumentAccessService(_dbContext, _currentUser);
-        var provider = new DocumentProvider(_dbContext, _currentUser, _clock, access);
+        var access = TestProviders.DocAccess(_dbContext, _currentUser);
+        var provider = TestProviders.Documents(_dbContext, _currentUser, _clock);
 
         var stats = await provider.GetProjectDocumentStatsAsync(CancellationToken.None);
 

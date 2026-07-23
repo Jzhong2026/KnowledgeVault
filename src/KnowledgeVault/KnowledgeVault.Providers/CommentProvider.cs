@@ -5,6 +5,7 @@ using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
 using KnowledgeVault.Domain.Entities;
 using KnowledgeVault.Infrastructure.Exceptions;
+using KnowledgeVault.Infrastructure.Text;
 using KnowledgeVault.Infrastructure.Time;
 using KnowledgeVault.Providers.Mapping;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +51,7 @@ public sealed class CommentProvider(
     {
         await documentAccessService.EnsureCommentAsync(documentId, cancellationToken);
 
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var revision = await dbContext.KnowledgeItemRevisions
             .FirstOrDefaultAsync(x => x.KnowledgeItemId == documentId && x.RevisionNumber == revisionNumber, cancellationToken)
             ?? throw new NotFoundException("Revision was not found.");
@@ -80,7 +81,7 @@ public sealed class CommentProvider(
             KnowledgeItemRevisionId = revision.Id,
             AuthorUserId = userId,
             ParentCommentId = request.ParentCommentId,
-            Content = RequireText(request.Content, "Comment", 4000),
+            Content = RequestText.Require(request.Content, "Comment", 4000),
             CreatedAt = now
         };
 
@@ -92,7 +93,7 @@ public sealed class CommentProvider(
 
     public async Task<CommentDto> UpdateAsync(Guid commentId, UpdateCommentRequest request, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var comment = await dbContext.KnowledgeItemComments
             .Include(x => x.AuthorUser)
             .Include(x => x.ResolvedByUser)
@@ -109,7 +110,7 @@ public sealed class CommentProvider(
             throw new ForbiddenException("You can only edit your own comments.");
         }
 
-        comment.Content = RequireText(request.Content, "Comment", 4000);
+        comment.Content = RequestText.Require(request.Content, "Comment", 4000);
         comment.UpdatedAt = dateTimeProvider.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -121,7 +122,7 @@ public sealed class CommentProvider(
         ResolveCommentRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var comment = await dbContext.KnowledgeItemComments
             .Include(x => x.AuthorUser)
             .Include(x => x.ResolvedByUser)
@@ -153,7 +154,7 @@ public sealed class CommentProvider(
 
     public async Task DeleteAsync(Guid commentId, CancellationToken cancellationToken)
     {
-        var userId = RequireCurrentUser();
+        var userId = currentUserContext.RequireUserId();
         var comment = await dbContext.KnowledgeItemComments
             .FirstOrDefaultAsync(x => x.Id == commentId, cancellationToken)
             ?? throw new NotFoundException("Comment was not found.");
@@ -185,30 +186,4 @@ public sealed class CommentProvider(
         return comment.ToDto();
     }
 
-    private Guid RequireCurrentUser()
-    {
-        var userId = currentUserContext.UserId;
-        if (!currentUserContext.IsAuthenticated || userId == Guid.Empty)
-        {
-            throw new UnauthorizedAppException("Authentication is required.");
-        }
-
-        return userId;
-    }
-
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ValidationException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new ValidationException($"{fieldName} must be {maxLength} characters or fewer.");
-        }
-
-        return trimmed;
-    }
 }
