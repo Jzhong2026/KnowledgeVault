@@ -8,10 +8,10 @@ import { FolderTree } from '../folder-tree/folder-tree';
   imports: [FolderTree],
   template: `
     <aside class="workspace-mode">
-      <div class="workspace-mode__header">
+      <header class="workspace-mode__header">
         <span class="workspace-mode__title">Workspace</span>
         <button type="button" class="workspace-mode__exit" (click)="exit()">Exit</button>
-      </div>
+      </header>
       <div class="workspace-mode__tree">
         @if (tree(); as root) {
           @if (root.children.length) {
@@ -91,7 +91,14 @@ export class WorkspaceMode {
   }
 
   onNavigate(folderId: string): void {
-    this.workspace.setCurrentFolder(folderId);
+    // Switching the current folder inside the workspace must not change the
+    // workspace state shape or exit workspace mode. setCurrentFolder reuses
+    // the existing root + scope so the tree stays valid.
+    const state = this.workspace.current();
+    if (!state) {
+      return;
+    }
+    this.workspace.enterWorkspace({ ...state, currentFolderId: folderId });
   }
 
   onOpenWorkspace(folderId: string): void {

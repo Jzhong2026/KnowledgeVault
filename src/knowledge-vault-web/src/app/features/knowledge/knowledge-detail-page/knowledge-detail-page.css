@@ -20,6 +20,26 @@
   text-decoration: underline;
 }
 
+.detail-toolbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.edit-button {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
+.edit-button:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
 .copy-button {
   display: inline-flex;
   align-items: center;

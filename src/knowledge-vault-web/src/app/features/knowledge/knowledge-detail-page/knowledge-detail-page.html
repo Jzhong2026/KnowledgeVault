@@ -1,23 +1,39 @@
 <section class="detail-page">
   <div class="detail-toolbar">
     <a [routerLink]="documentListRoute">{{ documentListLabel }}</a>
-    @if (item()) {
-      <button
-        type="button"
-        class="copy-button copy-markdown-button"
-        [attr.aria-label]="
-          'Copy Markdown source for revision ' +
-          (viewingRevision()?.revisionNumber || item()?.currentRevisionNumber)
-        "
-        (click)="copyDocumentMarkdown()"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8 8h11v11H8z"></path>
-          <path d="M5 16H4V5h11v1"></path>
-        </svg>
-        {{ copiedTarget() === documentCopyTarget() ? 'Copied' : 'Copy Markdown' }}
-      </button>
-    }
+    <div class="detail-toolbar__actions">
+      @if (item()) {
+        @if (item()?.documentType !== 'ProjectMemory') {
+          <button
+            type="button"
+            class="copy-button edit-button"
+            aria-label="Edit this document"
+            (click)="openEditor()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 20h4l10-10-4-4L4 16v4z"></path>
+              <path d="M14 6l4 4"></path>
+            </svg>
+            Edit
+          </button>
+        }
+        <button
+          type="button"
+          class="copy-button copy-markdown-button"
+          [attr.aria-label]="
+            'Copy Markdown source for revision ' +
+            (viewingRevision()?.revisionNumber || item()?.currentRevisionNumber)
+          "
+          (click)="copyDocumentMarkdown()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 8h11v11H8z"></path>
+            <path d="M5 16H4V5h11v1"></path>
+          </svg>
+          {{ copiedTarget() === documentCopyTarget() ? 'Copied' : 'Copy Markdown' }}
+        </button>
+      }
+    </div>
   </div>
 
   @if (copyError()) {
@@ -216,3 +232,21 @@
     </section>
   }
 </section>
+
+@if (editorOpen()) {
+  <app-knowledge-editor
+    [item]="editorItem()"
+    [categories]="editorCategories()"
+    [tags]="editorTags()"
+    [projects]="editorProjects()"
+    [topics]="editorTopics()"
+    [saving]="editorSaving()"
+    [workspaceScope]="workspaceScope"
+    [defaultProjectId]="item()?.projectId ?? null"
+    [defaultTopicId]="item()?.topicId ?? null"
+    (projectSelected)="onEditorProjectSelected($event)"
+    (closeDialog)="closeEditor()"
+    (saveItem)="saveEdit($event)"
+    (deleteItem)="deleteFromEditor()"
+  />
+}

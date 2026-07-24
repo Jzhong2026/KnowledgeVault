@@ -3,11 +3,10 @@ import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { WorkspaceService } from '../../core/workspace/workspace.service';
-import { Breadcrumb } from '../workspace/breadcrumb/breadcrumb';
 
 @Component({
   selector: 'app-topbar',
-  imports: [RouterLink, Breadcrumb],
+  imports: [RouterLink],
   templateUrl: './topbar.html',
   styleUrl: './topbar.css',
 })

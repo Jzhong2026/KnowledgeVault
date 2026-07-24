@@ -1,23 +1,23 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 
 import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
-import { StatusPill } from '../../../../shared/components/status-pill/status-pill';
 
 @Component({
   selector: 'app-document-tile',
-  imports: [StatusPill],
   template: `
     <article class="tile tile--document" (click)="open.emit(document().id)">
-      <div class="tile__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v5h4" /></svg>
+      <div class="tile__icon tile__icon--document" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 2h9l5 5v15H6z" />
+          <path d="M15 2v6h5" />
+          <path d="M9 13h6M9 17h4" />
+        </svg>
       </div>
       <div class="tile__body">
         <h3 class="tile__title" [title]="document().title">{{ document().title }}</h3>
-        @if (document().summary) {
-          <p class="tile__summary">{{ document().summary }}</p>
-        }
-        <div class="tile__footer">
-          <app-status-pill [status]="document().status" />
+        <div class="tile__status" [title]="statusLabel()" aria-label="Status: {{ statusLabel() }}">
+          <span class="tile__status-dot" [class]="'tile__status-dot--' + statusKey()"></span>
+          <span class="tile__status-label">{{ statusLabel() }}</span>
         </div>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
@@ -40,17 +40,19 @@ import { StatusPill } from '../../../../shared/components/status-pill/status-pil
       }
       .tile__icon {
         display: grid;
-        width: 46px;
-        height: 46px;
+        width: 34px;
+        height: 34px;
         flex: 0 0 auto;
         place-items: center;
-        border-radius: 10px;
-        background: #eef2ff;
-        color: #4f46e5;
+        border-radius: 8px;
+      }
+      .tile__icon--document {
+        background: #dbeafe;
+        color: #1d4ed8;
       }
       .tile__icon svg {
-        width: 24px;
-        height: 24px;
+        width: 18px;
+        height: 18px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.7;
@@ -63,43 +65,65 @@ import { StatusPill } from '../../../../shared/components/status-pill/status-pil
       }
       .tile__title {
         margin: 0;
-        overflow: hidden;
         color: var(--text, #0f172a);
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+        overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .tile__summary {
-        margin: 4px 0 0;
-        overflow: hidden;
+      .tile__status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 4px;
+        min-height: 14px;
         color: var(--muted, #64748b);
-        font-size: 12px;
-        line-height: 1.45;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        font-size: 11px;
       }
-      .tile__footer {
-        margin-top: 10px;
+      .tile__status-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #94a3b8;
+      }
+      .tile__status-dot--active {
+        background: #10b981;
+      }
+      .tile__status-dot--draft {
+        background: #f59e0b;
+      }
+      .tile__status-dot--archived {
+        background: #94a3b8;
+      }
+      .tile__status-dot--review {
+        background: #6366f1;
       }
       .tile__actions {
         display: flex;
         gap: 4px;
+        flex: 0 0 auto;
+        max-width: 0;
+        overflow: hidden;
         opacity: 0;
-        transition: opacity 120ms ease;
+        transition:
+          max-width 140ms ease,
+          opacity 120ms ease;
       }
       .tile--document:hover .tile__actions,
       .tile--document:focus-within .tile__actions {
+        max-width: 80px;
         opacity: 1;
       }
       .tile__action {
         display: grid;
-        width: 32px;
-        height: 32px;
+        width: 24px;
+        height: 24px;
         place-items: center;
         border: 1px solid var(--border, #e2e8f0);
-        border-radius: 8px;
+        border-radius: 6px;
         background: #ffffff;
         color: var(--text, #0f172a);
         cursor: pointer;
@@ -114,8 +138,8 @@ import { StatusPill } from '../../../../shared/components/status-pill/status-pil
         color: #dc2626;
       }
       .tile__action svg {
-        width: 16px;
-        height: 16px;
+        width: 13px;
+        height: 13px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.8;
@@ -130,4 +154,11 @@ export class DocumentTile {
   readonly open = output<string>();
   readonly move = output<string>();
   readonly delete = output<string>();
+
+  readonly statusKey = computed(() => this.document().status?.toString().toLowerCase() ?? '');
+  readonly statusLabel = computed(() => {
+    const raw = this.document().status?.toString() ?? '';
+    if (!raw) return '';
+    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  });
 }

@@ -2,8 +2,6 @@
   @if (isWorkspaceMode()) {
     <div class="workspace-context">
       <span class="workspace-context__badge">Workspace</span>
-      <app-breadcrumb [path]="breadcrumbPath()" (navigate)="onBreadcrumbNavigate($event)" />
-      <button type="button" class="workspace-context__exit" (click)="exitWorkspace()">Exit workspace</button>
     </div>
   } @else {
     <div class="workspace-title">

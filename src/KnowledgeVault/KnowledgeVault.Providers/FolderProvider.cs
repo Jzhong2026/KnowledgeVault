@@ -112,8 +112,12 @@ public sealed class FolderProvider(
 
         foreach (var f in all.Where(f => within.Contains(f.Id)))
         {
+            // A folder within the root is linked to its parent's Children list.
+            // The parent is always present in `nodes` (the root itself, or another
+            // within-root folder), so direct children of the root are attached to the
+            // root node. The previous `f.ParentFolderId != rootFolderId` guard wrongly
+            // dropped every direct child of the workspace root.
             if (f.ParentFolderId is not null &&
-                f.ParentFolderId != rootFolderId &&
                 nodes.ContainsKey(f.ParentFolderId.Value))
             {
                 var children = (List<FolderTreeNodeDto>)nodes[f.ParentFolderId.Value].Children;

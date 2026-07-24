@@ -87,3 +87,10 @@ ef_install.txt
 ef_version.txt
 tmp_mighist/
 playwright-report/
+verify_workspace.ps1
+diag.ps1
+verify_result.txt
+run_e2e.ps1
+e2e_out.txt
+frontend_build.txt
+src/knowledge-vault-web/test-results/

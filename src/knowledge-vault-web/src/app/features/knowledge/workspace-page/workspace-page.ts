@@ -1,7 +1,8 @@
-import { Component, OnDestroy, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, forkJoin, of } from 'rxjs';
+import { Subscription, forkJoin, of, map, catchError } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
 import { getErrorMessage } from '../../../core/http/error-message';
@@ -18,6 +19,8 @@ import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.mode
 import { BreadcrumbNode, WorkspaceService, WorkspaceState } from '../../../core/workspace/workspace.service';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
+import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
 import { TileGrid } from '../components/tile-grid/tile-grid';
 
@@ -27,9 +30,30 @@ interface MoveTarget {
   depth: number;
 }
 
+interface ProjectGroup {
+  project: ProjectSummary;
+  folders: FolderSummary[];
+  documents: KnowledgeItemSummary[];
+  page: number;
+  pageSize: number;
+  loading: boolean;
+  error: string | null;
+}
+
+const GROUP_PAGE_SIZE = 8;
+
 @Component({
   selector: 'app-workspace-page',
-  imports: [FormsModule, LoadingIndicator, EmptyState, KnowledgeEditor, TileGrid],
+  imports: [
+    FormsModule,
+    LoadingIndicator,
+    EmptyState,
+    KnowledgeEditor,
+    TileGrid,
+    MarkdownContentPipe,
+    MermaidDiagramsDirective,
+    LowerCasePipe,
+  ],
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',
 })
@@ -52,7 +76,20 @@ export class WorkspacePage implements OnDestroy {
   readonly tags = signal<Tag[]>([]);
   readonly editorTopics = signal<ProjectTopic[]>([]);
 
+  readonly projectGroups = signal<ProjectGroup[]>([]);
+
   readonly projectId = signal<string | null>(null);
+
+  readonly hasFollowedProjects = computed(() => this.projects().length > 0);
+  readonly noFollowedProjects = computed(() => this.isProjectScope && this.projects().length === 0);
+  readonly canCreate = computed(() => !this.isProjectScope || this.hasFollowedProjects());
+  readonly showGroups = computed(
+    () =>
+      this.isProjectScope &&
+      !this.projectId() &&
+      !this.workspace.isWorkspaceMode() &&
+      this.projects().length > 0,
+  );
 
   readonly editorOpen = signal(false);
   readonly selectedItem = signal<KnowledgeItem | null>(null);
@@ -61,6 +98,7 @@ export class WorkspacePage implements OnDestroy {
   readonly createFolderOpen = signal(false);
   readonly createFolderName = signal('');
   readonly createFolderDescription = signal('');
+  readonly createFolderProjectId = signal<string>('');
 
   readonly renameFolderOpen = signal(false);
   readonly renameFolderId = signal<string | null>(null);
@@ -71,6 +109,10 @@ export class WorkspacePage implements OnDestroy {
   readonly moveDocOpen = signal(false);
   readonly moveDocId = signal<string | null>(null);
   readonly moveTargets = signal<MoveTarget[]>([]);
+
+  readonly activeDocument = signal<KnowledgeItem | null>(null);
+  readonly activeDocumentLoading = signal(false);
+  readonly activeDocumentError = signal<string | null>(null);
 
   private readonly sub = new Subscription();
 
@@ -86,7 +128,6 @@ export class WorkspacePage implements OnDestroy {
         }
 
         if (rootFolderId || folderId) {
-          // Deep link overrides any restored state for this session.
           const root = rootFolderId ?? folderId;
           this.workspace.enterWorkspace({
             scope: this.workspaceScope,
@@ -94,23 +135,44 @@ export class WorkspacePage implements OnDestroy {
             workspaceRootFolderId: root,
             currentFolderId: folderId ?? root,
           });
+        } else if (this.isProjectScope && !projectId) {
+          if (this.workspace.isWorkspaceMode()) {
+            this.workspace.exitWorkspace();
+          }
         } else {
-          // No deep link: restore the remembered workspace for this
-          // scope+project. Required for Personal scope where projectId
-          // stays null, so it must not be gated behind a projectId change.
           this.workspace.restore(this.workspaceScope, projectId ?? null);
         }
       }),
     );
 
-    // Loading is driven entirely by workspace state changes.
     effect(() => {
       const projectId = this.projectId();
       const state = this.workspace.current();
       const currentFolderId = this.workspace.currentFolderId();
       void projectId;
       void currentFolderId;
-      this.loadContent(state);
+      if (this.showGroups()) {
+        this.loadGroups();
+      } else {
+        this.loadContent(state);
+      }
+    });
+
+    // Whenever the active tab changes, fetch the corresponding document.
+    effect(() => {
+      const tab = this.workspace.activeTab();
+      if (!tab) {
+        this.activeDocument.set(null);
+        this.activeDocumentError.set(null);
+        return;
+      }
+      this.activeDocumentLoading.set(true);
+      this.activeDocumentError.set(null);
+      this.api.getKnowledgeItem(tab.documentId).subscribe({
+        next: (item) => this.activeDocument.set(item),
+        error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
+        complete: () => this.activeDocumentLoading.set(false),
+      });
     });
 
     this.loadReferenceData();
@@ -134,9 +196,6 @@ export class WorkspacePage implements OnDestroy {
         this.categories.set(categories);
         this.tags.set(tags);
         this.projects.set(projects.items);
-        if (this.isProjectScope && !this.projectId() && projects.items.length === 1) {
-          this.onProjectChange(projects.items[0].id);
-        }
       },
       error: () => {
         /* reference data is non-critical */
@@ -145,6 +204,15 @@ export class WorkspacePage implements OnDestroy {
   }
 
   private loadContent(state: WorkspaceState | null): void {
+    if (this.isProjectScope && !this.projectId() && !state) {
+      this.loading.set(false);
+      this.folders.set([]);
+      this.documents.set([]);
+      this.workspace.setTree(null);
+      this.workspace.setBreadcrumb([]);
+      return;
+    }
+
     this.loading.set(true);
     this.error.set(null);
 
@@ -178,7 +246,7 @@ export class WorkspacePage implements OnDestroy {
           this.workspace.setBreadcrumb([]);
         }
       },
-      error: (err) => this.error.set(getErrorMessage(err)),
+      error: (err: unknown) => this.error.set(getErrorMessage(err)),
       complete: () => this.loading.set(false),
     });
   }
@@ -200,6 +268,106 @@ export class WorkspacePage implements OnDestroy {
     };
     dfs(tree);
     return path;
+  }
+
+  // ----- Grouped (All followed projects) view -----
+  private loadGroups(): void {
+    const projects = this.projects();
+    this.loading.set(true);
+    this.error.set(null);
+    if (projects.length === 0) {
+      this.projectGroups.set([]);
+      this.loading.set(false);
+      return;
+    }
+
+    this.projectGroups.set(
+      projects.map((p) => ({
+        project: p,
+        folders: [],
+        documents: [],
+        page: 1,
+        pageSize: GROUP_PAGE_SIZE,
+        loading: true,
+        error: null,
+      })),
+    );
+
+    forkJoin(
+      projects.map((p) =>
+        this.api.listFolderContent({ scope: this.workspaceScope, projectId: p.id }).pipe(
+          map((content) => ({ id: p.id, content, error: null as string | null })),
+          catchError((err: unknown) => of({ id: p.id, content: null, error: getErrorMessage(err) })),
+        ),
+      ),
+    ).subscribe((results) => {
+      this.projectGroups.update((groups) =>
+        groups.map((g) => {
+          const r = results.find((x) => x.id === g.project.id);
+          if (!r || r.error || !r.content) {
+            return { ...g, loading: false, error: r?.error ?? 'Failed to load.' };
+          }
+          return {
+            ...g,
+            loading: false,
+            folders: r.content!.folders,
+            documents: r.content!.documents,
+          };
+        }),
+      );
+      this.loading.set(false);
+    });
+  }
+
+  private reload(): void {
+    if (this.showGroups()) {
+      this.loadGroups();
+    } else {
+      this.loadContent(this.workspace.current());
+    }
+  }
+
+  groupDocuments(group: ProjectGroup): KnowledgeItemSummary[] {
+    const start = (group.page - 1) * group.pageSize;
+    return group.documents.slice(start, start + group.pageSize);
+  }
+
+  groupTotalPages(group: ProjectGroup): number {
+    return Math.max(1, Math.ceil(group.documents.length / group.pageSize));
+  }
+
+  setGroupPage(projectId: string, page: number): void {
+    this.projectGroups.update((groups) =>
+      groups.map((g) => (g.project.id === projectId ? { ...g, page } : g)),
+    );
+  }
+
+  openGroupFolder(projectId: string, folderId: string): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { projectId, workspaceRootFolderId: folderId, folderId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  openGroupWorkspace(projectId: string, folderId: string): void {
+    this.openGroupFolder(projectId, folderId);
+  }
+
+  openGroupFirstWorkspace(group: ProjectGroup): void {
+    const firstFolder = group.folders[0];
+    if (!firstFolder) {
+      return;
+    }
+    this.openGroupWorkspace(group.project.id, firstFolder.id);
+  }
+
+  private findFolder(id: string): FolderSummary | undefined {
+    return (
+      this.folders().find((f) => f.id === id) ??
+      this.projectGroups().flatMap((g) => g.folders).find((f) => f.id === id)
+    );
   }
 
   // ----- Navigation -----
@@ -225,6 +393,23 @@ export class WorkspacePage implements OnDestroy {
     });
   }
 
+  onTreeNavigate(folderId: string): void {
+    // Clicking a folder in the workspace tree should NOT enter workspace
+    // mode — it only switches which folder is shown. If we are already in a
+    // workspace, update its currentFolderId in place and persist; otherwise
+    // this is a no-op for outside-workspace navigation.
+    const state = this.workspace.current();
+    if (!state) {
+      return;
+    }
+    this.workspace.enterWorkspace({ ...state, currentFolderId: folderId });
+  }
+
+  closeTab(event: MouseEvent, tabId: string): void {
+    event.stopPropagation();
+    this.workspace.closeTab(tabId);
+  }
+
   exitWorkspace(): void {
     this.workspace.exitWorkspace();
     void this.router.navigate([], { queryParams: {}, replaceUrl: true });
@@ -241,8 +426,17 @@ export class WorkspacePage implements OnDestroy {
 
   // ----- Folder CRUD -----
   openCreateFolder(): void {
+    if (!this.canCreate()) {
+      this.error.set(
+        this.noFollowedProjects()
+          ? 'Follow a project before creating folders.'
+          : 'Pick a project before creating a folder.',
+      );
+      return;
+    }
     this.createFolderName.set('');
     this.createFolderDescription.set('');
+    this.createFolderProjectId.set(this.projectId() ?? '');
     this.createFolderOpen.set(true);
   }
 
@@ -251,12 +445,19 @@ export class WorkspacePage implements OnDestroy {
     if (!name) {
       return;
     }
+    const projectId = this.isProjectScope
+      ? (this.createFolderProjectId().trim() || null)
+      : null;
+    if (this.isProjectScope && !projectId) {
+      this.error.set('Pick a project for this folder.');
+      return;
+    }
     this.saving.set(true);
     const state = this.workspace.current();
     this.api
       .createFolder({
         scope: this.workspaceScope,
-        projectId: this.projectId() ?? null,
+        projectId,
         parentFolderId: state ? state.currentFolderId : null,
         name,
         description: this.createFolderDescription().trim() || null,
@@ -265,9 +466,9 @@ export class WorkspacePage implements OnDestroy {
         next: () => {
           this.createFolderOpen.set(false);
           this.saving.set(false);
-          this.loadContent(this.workspace.current());
+          this.reload();
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.error.set(getErrorMessage(err));
           this.saving.set(false);
         },
@@ -275,7 +476,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   openRenameFolder(id: string): void {
-    const folder = this.folders().find((f) => f.id === id);
+    const folder = this.findFolder(id);
     this.renameFolderId.set(id);
     this.renameFolderName.set(folder?.name ?? '');
     this.renameFolderOpen.set(true);
@@ -292,9 +493,9 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.renameFolderOpen.set(false);
         this.saving.set(false);
-        this.loadContent(this.workspace.current());
+        this.reload();
       },
-      error: (err) => {
+      error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
         this.saving.set(false);
       },
@@ -319,9 +520,12 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.deleteFolderId.set(null);
         this.saving.set(false);
+        if (this.showGroups()) {
+          this.loadGroups();
+          return;
+        }
         const state = this.workspace.current();
         if (state && state.workspaceRootFolderId === id) {
-          // The workspace root was deleted: leave workspace mode entirely.
           this.exitWorkspace();
         } else if (state && state.currentFolderId === id) {
           this.workspace.setCurrentFolder(state.workspaceRootFolderId);
@@ -329,7 +533,7 @@ export class WorkspacePage implements OnDestroy {
           this.loadContent(state);
         }
       },
-      error: (err) => {
+      error: (err: unknown) => {
         const message = getErrorMessage(err);
         this.error.set(
           message.includes('409')
@@ -343,19 +547,26 @@ export class WorkspacePage implements OnDestroy {
   }
 
   // ----- Document actions -----
-  openDocument(id: string): void {
+  openDocument(idOrSummary: string | KnowledgeItemSummary, title?: string): void {
+    const id = typeof idOrSummary === 'string' ? idOrSummary : idOrSummary.id;
+    const resolvedTitle = typeof idOrSummary === 'string'
+      ? (title ?? '')
+      : idOrSummary.title;
+    if (this.workspace.isWorkspaceMode()) {
+      this.workspace.openDocumentTab(id, resolvedTitle);
+      return;
+    }
     const route = this.workspaceScope === 'Project' ? '/project-documents/detail' : '/knowledge/detail';
     void this.router.navigate([route, id], { replaceUrl: true });
   }
 
-  openMoveDocument(id: string): void {
+  openMoveDocument(id: string, projectId?: string): void {
     this.moveDocId.set(id);
-    this.api
-      .getFolderTree({ scope: this.workspaceScope, projectId: this.projectId() ?? null })
-      .subscribe({
-        next: (tree) => this.moveTargets.set(this.flattenTree(tree, 0)),
-        error: () => this.moveTargets.set([]),
-      });
+    const pid = projectId ?? this.projectId() ?? null;
+    this.api.getFolderTree({ scope: this.workspaceScope, projectId: pid }).subscribe({
+      next: (tree) => this.moveTargets.set(this.flattenTree(tree, 0)),
+      error: () => this.moveTargets.set([]),
+    });
     this.moveDocOpen.set(true);
   }
 
@@ -377,9 +588,9 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.moveDocOpen.set(false);
         this.saving.set(false);
-        this.loadContent(this.workspace.current());
+        this.reload();
       },
-      error: (err) => {
+      error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
         this.saving.set(false);
       },
@@ -394,9 +605,9 @@ export class WorkspacePage implements OnDestroy {
     this.api.deleteKnowledgeItem(id).subscribe({
       next: () => {
         this.saving.set(false);
-        this.loadContent(this.workspace.current());
+        this.reload();
       },
-      error: (err) => {
+      error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
         this.saving.set(false);
       },
@@ -405,8 +616,12 @@ export class WorkspacePage implements OnDestroy {
 
   // ----- Editor -----
   createNew(): void {
-    if (this.isProjectScope && this.projects().length === 0) {
-      this.error.set('Follow a project before creating project documents.');
+    if (!this.canCreate()) {
+      this.error.set(
+        this.noFollowedProjects()
+          ? 'Follow a project before creating project documents.'
+          : 'Pick a project before creating a document.',
+      );
       return;
     }
     this.selectedId.set(null);
@@ -426,9 +641,6 @@ export class WorkspacePage implements OnDestroy {
     this.saving.set(true);
     const state = this.workspace.current();
     const item = this.selectedItem();
-    // New documents are placed in the current workspace folder (or root when
-    // outside a workspace). Editing an existing document must preserve its
-    // current folder, so we omit folderId on updates.
     const folderId = item ? undefined : state ? state.currentFolderId : null;
     const payload: SaveDocumentRequest = { ...request, folderId };
     const operation = item
@@ -439,9 +651,9 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.editorOpen.set(false);
         this.saving.set(false);
-        this.loadContent(this.workspace.current());
+        this.reload();
       },
-      error: (err) => {
+      error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
         this.saving.set(false);
       },

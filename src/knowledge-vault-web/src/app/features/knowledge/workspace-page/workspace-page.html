@@ -1,13 +1,68 @@
 <section class="workspace-page">
+  @if (workspace.isWorkspaceMode()) {
+    <!-- Workspace mode: the folder tree lives in the AppShell's workspace-mode
+         panel (left); this pane only renders the tab bar + document view. -->
+    <div class="workspace-pane">
+      <div class="workspace-shell__tabs" role="tablist">
+        @for (tab of workspace.openTabs(); track tab.id) {
+          <button
+            type="button"
+            class="workspace-tab"
+            [class.is-active]="tab.id === workspace.activeTabIdSignal()"
+            role="tab"
+            [attr.aria-selected]="tab.id === workspace.activeTabIdSignal()"
+            (click)="workspace.activateTab(tab.id)"
+            [title]="tab.title"
+          >
+            <span class="workspace-tab__title">{{ tab.title }}</span>
+            <span
+              class="workspace-tab__close"
+              role="button"
+              aria-label="Close tab"
+              (click)="closeTab($event, tab.id)"
+            >×</span>
+          </button>
+        }
+      </div>
+
+      <div class="workspace-shell__pane">
+        @if (workspace.openTabs().length === 0) {
+          <div class="workspace-shell__placeholder">
+            <p>No document open.</p>
+            <small>Pick a document from the folder tree to open it in a tab.</small>
+          </div>
+        } @else if (activeDocumentLoading()) {
+          <app-loading-indicator label="Loading document" />
+        } @else if (activeDocumentError()) {
+          <p class="alert">{{ activeDocumentError() }}</p>
+        } @else if (activeDocument(); as doc) {
+          <article class="workspace-doc">
+            <header class="workspace-doc__head">
+              <h3 class="workspace-doc__title">{{ doc.title }}</h3>
+              <div class="workspace-doc__meta">
+                <span class="workspace-doc__dot" [class]="'workspace-doc__dot--' + (doc.status | lowercase)"></span>
+                <span>{{ doc.status }}</span>
+                @if (doc.summary) {
+                  <span class="workspace-doc__sep">·</span>
+                  <span>{{ doc.summary }}</span>
+                }
+              </div>
+            </header>
+            <div
+              class="workspace-doc__body markdown-body"
+              [innerHTML]="doc.content | markdownContent"
+              appMermaidDiagrams
+            ></div>
+          </article>
+        }
+      </div>
+    </div>
+  } @else {
   <div class="page-heading">
     <div class="page-heading__text">
       <p>{{ isProjectScope ? 'Team library' : 'Personal library' }}</p>
       <h2>{{ isProjectScope ? 'Project documents' : 'Personal documents' }}</h2>
-      @if (!workspace.isWorkspaceMode()) {
-        <small>Open a folder to browse it as a workspace, or open it as a dedicated workspace from the tile menu.</small>
-      } @else {
-        <small>Browsing a workspace. The sidebar shows the folder tree; use Exit workspace to return.</small>
-      }
+      <small>Open a folder to browse it as a workspace, or open it as a dedicated workspace from the tile menu.</small>
     </div>
 
     <div class="page-actions">
@@ -23,19 +78,25 @@
           }
         </select>
       }
-      <button type="button" class="ghost" [disabled]="saving()" (click)="openCreateFolder()">New folder</button>
-      <button type="button" class="primary" [disabled]="saving()" (click)="createNew()">New document</button>
-      @if (workspace.isWorkspaceMode()) {
-        <button
-          type="button"
-          class="ghost"
-          [disabled]="saving()"
-          (click)="openWorkspace(workspace.currentFolderId()!)"
-        >
-          Open Workspace
-        </button>
-        <button type="button" class="ghost" (click)="exitWorkspace()">Exit workspace</button>
-      }
+      <button
+        type="button"
+        class="ghost"
+        [disabled]="saving() || !canCreate()"
+        [title]="canCreate() ? '' : 'Follow a project first.'"
+        (click)="openCreateFolder()"
+      >
+        New folder
+      </button>
+      <button
+        type="button"
+        class="primary"
+        [disabled]="saving() || !canCreate()"
+        [title]="canCreate() ? '' : 'Follow a project first.'"
+        (click)="createNew()"
+      >
+        New document
+      </button>
+
     </div>
   </div>
 
@@ -47,6 +108,85 @@
     <div class="panel__loading">
       <app-loading-indicator label="Loading workspace" />
     </div>
+  } @else if (showGroups()) {
+    <div class="project-groups">
+      @for (group of projectGroups(); track group.project.id) {
+        <section class="project-group">
+          <header class="project-group__head">
+            <div class="project-group__title">
+              <h3>{{ group.project.name }}</h3>
+              @if (group.loading) {
+                <small class="muted">Loading…</small>
+              } @else if (group.error) {
+                <small class="alert">{{ group.error }}</small>
+              } @else {
+                <small class="muted">{{ group.folders.length }} folders · {{ group.documents.length }} documents</small>
+              }
+            </div>
+            <button
+              type="button"
+              class="ghost project-group__open"
+              [disabled]="!group.folders.length"
+              [title]="group.folders.length ? '' : 'This project has no folders to open yet.'"
+              (click)="openGroupFirstWorkspace(group)"
+            >
+              Open workspace
+            </button>
+          </header>
+
+          @if (!group.loading && !group.error && group.folders.length === 0 && groupDocuments(group).length === 0) {
+            <p class="project-group__empty">No folders or documents in this project yet.</p>
+          } @else if (!group.loading && !group.error) {
+            <app-tile-grid
+              [folders]="group.folders"
+              [documents]="groupDocuments(group)"
+              [currentFolderId]="null"
+              (openFolder)="openGroupFolder(group.project.id, $event)"
+              (openWorkspace)="openGroupWorkspace(group.project.id, $event)"
+              (renameFolder)="openRenameFolder($event)"
+              (deleteFolder)="confirmDeleteFolder($event)"
+              (openDocument)="openDocument($event)"
+              (moveDocument)="openMoveDocument($event, group.project.id)"
+              (deleteDocument)="deleteDocument($event)"
+            />
+            @if (groupTotalPages(group) > 1) {
+              <div class="pager">
+                <button
+                  type="button"
+                  class="ghost"
+                  [disabled]="group.page <= 1"
+                  (click)="setGroupPage(group.project.id, group.page - 1)"
+                >
+                  Previous
+                </button>
+                <span class="pager__info">Page {{ group.page }} of {{ groupTotalPages(group) }}</span>
+                <button
+                  type="button"
+                  class="ghost"
+                  [disabled]="group.page >= groupTotalPages(group)"
+                  (click)="setGroupPage(group.project.id, group.page + 1)"
+                >
+                  Next
+                </button>
+              </div>
+            }
+          }
+        </section>
+      }
+    </div>
+  } @else if (noFollowedProjects()) {
+    <app-empty-state
+      title="No followed projects yet"
+      message="Follow a project to browse its documents, or create a new one. Once you're following at least one project, you can pick it from the dropdown above to view its folders and documents."
+    />
+    <div class="empty-state__cta">
+      <a class="primary" href="/projects">Browse projects</a>
+    </div>
+  } @else if (isProjectScope && !projectId()) {
+    <app-empty-state
+      title="Pick a project to view its documents"
+      message="Use the project dropdown above to choose a project. Folders and documents in the project library will appear here."
+    />
   } @else if (folders().length === 0 && documents().length === 0) {
     <app-empty-state
       [title]="workspace.isWorkspaceMode() ? 'This folder is empty' : 'No documents yet'"
@@ -67,6 +207,7 @@
       (moveDocument)="openMoveDocument($event)"
       (deleteDocument)="deleteDocument($event)"
     />
+  }
   }
 
   @if (editorOpen()) {
@@ -90,6 +231,21 @@
     <div class="dialog-backdrop" (click)="createFolderOpen.set(false)">
       <div class="dialog" (click)="$event.stopPropagation()">
         <h3>New folder</h3>
+        @if (isProjectScope) {
+          <label class="field-row">
+            <span class="field-label">Project</span>
+            <select
+              aria-label="Folder project"
+              [ngModel]="createFolderProjectId()"
+              (ngModelChange)="createFolderProjectId.set($event)"
+            >
+              <option value="" disabled>Select a project…</option>
+              @for (project of projects(); track project.id) {
+                <option [value]="project.id">{{ project.name }}</option>
+              }
+            </select>
+          </label>
+        }
         <label class="field-row">
           <span class="field-label">Name</span>
           <input
@@ -111,7 +267,12 @@
         </label>
         <div class="dialog__actions">
           <button type="button" class="ghost" (click)="createFolderOpen.set(false)">Cancel</button>
-          <button type="button" class="primary" [disabled]="saving() || !createFolderName().trim()" (click)="submitCreateFolder()">
+          <button
+            type="button"
+            class="primary"
+            [disabled]="saving() || !createFolderName().trim() || (isProjectScope && !createFolderProjectId())"
+            (click)="submitCreateFolder()"
+          >
             Create folder
           </button>
         </div>

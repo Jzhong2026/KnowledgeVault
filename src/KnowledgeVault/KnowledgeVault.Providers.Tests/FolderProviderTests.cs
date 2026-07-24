@@ -112,4 +112,39 @@ public sealed class FolderProviderTests : IAsyncLifetime
         Assert.Single(content.Folders);
         Assert.Equal(myFolder, content.Folders[0].Id);
     }
+
+    [Fact]
+    public async Task Tree_rooted_at_root_includes_direct_child_in_children()
+    {
+        var rootId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        _db.Folders.Add(Seed.Folder(rootId, "Root", DocumentScope.Personal, _userId, null, null));
+        _db.Folders.Add(Seed.Folder(childId, "Child", DocumentScope.Personal, _userId, null, rootId));
+        await _db.SaveChangesAsync();
+
+        var tree = await Folders().GetTreeAsync(DocumentScope.Personal, null, rootId, CancellationToken.None);
+
+        Assert.Equal(rootId, tree.Id);
+        Assert.Contains(tree.Children, c => c.Id == childId);
+    }
+
+    [Fact]
+    public async Task Tree_builds_multi_level_hierarchy_under_root()
+    {
+        var rootId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var grandId = Guid.NewGuid();
+        _db.Folders.Add(Seed.Folder(rootId, "Root", DocumentScope.Personal, _userId, null, null));
+        _db.Folders.Add(Seed.Folder(childId, "Child", DocumentScope.Personal, _userId, null, rootId));
+        _db.Folders.Add(Seed.Folder(grandId, "Grand", DocumentScope.Personal, _userId, null, childId));
+        await _db.SaveChangesAsync();
+
+        var tree = await Folders().GetTreeAsync(DocumentScope.Personal, null, rootId, CancellationToken.None);
+
+        Assert.Equal(rootId, tree.Id);
+        var childNode = Assert.Single(tree.Children);
+        Assert.Equal(childId, childNode.Id);
+        var grandNode = Assert.Single(childNode.Children);
+        Assert.Equal(grandId, grandNode.Id);
+    }
 }

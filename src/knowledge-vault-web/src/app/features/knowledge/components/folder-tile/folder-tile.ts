@@ -6,16 +6,15 @@ import { FolderSummary } from '../../../../core/models/folder.models';
   selector: 'app-folder-tile',
   template: `
     <article class="tile tile--folder" [class.tile--current]="isCurrent()" (click)="open.emit(folder().id)">
-      <div class="tile__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3zM3 7V5h7l2 2" /></svg>
+      <div class="tile__icon tile__icon--folder" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <path d="M3 10h18" />
+        </svg>
       </div>
       <div class="tile__body">
         <h3 class="tile__title" [title]="folder().name">{{ folder().name }}</h3>
-        <p class="tile__meta">
-          {{ folder().childFolderCount }} {{ folder().childFolderCount === 1 ? 'subfolder' : 'subfolders' }}
-          &middot;
-          {{ folder().documentCount }} {{ folder().documentCount === 1 ? 'doc' : 'docs' }}
-        </p>
+        <div class="tile__status tile__status--placeholder" aria-hidden="true"></div>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
         <button
@@ -43,17 +42,19 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       }
       .tile__icon {
         display: grid;
-        width: 46px;
-        height: 46px;
+        width: 34px;
+        height: 34px;
         flex: 0 0 auto;
         place-items: center;
-        border-radius: 10px;
-        background: #edf7f3;
-        color: var(--accent-strong, #0f9d76);
+        border-radius: 8px;
+      }
+      .tile__icon--folder {
+        background: #fef3c7;
+        color: #b45309;
       }
       .tile__icon svg {
-        width: 24px;
-        height: 24px;
+        width: 18px;
+        height: 18px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.7;
@@ -66,35 +67,49 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       }
       .tile__title {
         margin: 0;
-        overflow: hidden;
         color: var(--text, #0f172a);
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+        overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .tile__meta {
-        margin: 4px 0 0;
+      .tile__status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 4px;
+        min-height: 14px;
         color: var(--muted, #64748b);
-        font-size: 12px;
+        font-size: 11px;
+      }
+      .tile__status--placeholder {
+        min-height: 14px;
       }
       .tile__actions {
         display: flex;
         gap: 4px;
+        flex: 0 0 auto;
+        max-width: 0;
+        overflow: hidden;
         opacity: 0;
-        transition: opacity 120ms ease;
+        transition:
+          max-width 140ms ease,
+          opacity 120ms ease;
       }
       .tile--folder:hover .tile__actions,
       .tile--folder:focus-within .tile__actions {
+        max-width: 120px;
         opacity: 1;
       }
       .tile__action {
         display: grid;
-        width: 32px;
-        height: 32px;
+        width: 24px;
+        height: 24px;
         place-items: center;
         border: 1px solid var(--border, #e2e8f0);
-        border-radius: 8px;
+        border-radius: 6px;
         background: #ffffff;
         color: var(--text, #0f172a);
         cursor: pointer;
@@ -109,8 +124,8 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         color: #dc2626;
       }
       .tile__action svg {
-        width: 16px;
-        height: 16px;
+        width: 13px;
+        height: 13px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.8;

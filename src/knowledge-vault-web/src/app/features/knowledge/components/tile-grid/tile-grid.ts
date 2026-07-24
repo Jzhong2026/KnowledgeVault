@@ -23,7 +23,7 @@ import { FolderTile } from '../folder-tile/folder-tile';
       @for (document of sortedDocuments(); track document.id) {
         <app-document-tile
           [document]="document"
-          (open)="openDocument.emit($event)"
+          (open)="openDocument.emit(document)"
           (move)="moveDocument.emit($event)"
           (delete)="deleteDocument.emit($event)"
         />
@@ -34,16 +34,16 @@ import { FolderTile } from '../folder-tile/folder-tile';
     `
       .tile-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 14px;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 10px;
       }
       :host ::ng-deep .tile {
         display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        padding: 14px;
+        gap: 10px;
+        align-items: stretch;
+        padding: 10px;
         border: 1px solid var(--border, #e2e8f0);
-        border-radius: 12px;
+        border-radius: 10px;
         background: #ffffff;
         transition:
           border-color 140ms ease,
@@ -70,7 +70,7 @@ export class TileGrid {
   readonly openWorkspace = output<string>();
   readonly renameFolder = output<string>();
   readonly deleteFolder = output<string>();
-  readonly openDocument = output<string>();
+  readonly openDocument = output<KnowledgeItemSummary>();
   readonly moveDocument = output<string>();
   readonly deleteDocument = output<string>();
 
