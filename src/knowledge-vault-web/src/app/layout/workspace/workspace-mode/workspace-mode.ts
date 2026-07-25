@@ -10,7 +10,7 @@ import { FolderTree } from '../folder-tree/folder-tree';
     <aside class="workspace-mode">
       <header class="workspace-mode__header">
         <span class="workspace-mode__title">Workspace</span>
-        <button type="button" class="workspace-mode__exit" (click)="exit()">Exit</button>
+        <button type="button" class="workspace-mode__exit" (click)="exit()">Exit Workspace</button>
       </header>
       <div class="workspace-mode__tree">
         @if (tree(); as root) {

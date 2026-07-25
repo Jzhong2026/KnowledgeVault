@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: ./src/KnowledgeVault
+      dockerfile: KnowledgeVault/Dockerfile
+    container_name: kv-backend
+    ports:
+      - "18503:5030"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5030
+      - ConnectionStrings__KnowledgeVaultDb=Data Source=/app/data/knowledge-vault.db
+      - Jwt__SigningKey=KnowledgeVault-Docker-Prod-Key-ChangeInRealDeploy!
+      - Database__AutoMigrate=true
+    volumes:
+      - kv-data:/app/data
+      - kv-logs:/app/logs
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./src/knowledge-vault-web
+      dockerfile: Dockerfile
+    container_name: kv-frontend
+    ports:
+      - "38080:4000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  kv-data:
+  kv-logs:

@@ -293,7 +293,7 @@ test.describe('Workspace plan — UI acceptance', () => {
   test('Exit Workspace restores the normal sidebar navigation', async ({ page }) => {
     await page.goto('/knowledge');
     await page.locator('app-folder-tile', { hasText: seededRootName }).first().click();
-    await page.getByRole('button', { name: /Exit Workspace/i }).click();
+    await page.locator('.workspace-mode__exit').click();
     await expect(page.locator('aside.sidebar')).toBeVisible();
     await expect(page.locator('app-workspace-mode').first()).toBeHidden();
   });

@@ -25,4 +25,4 @@ if (-not $registered) {
         $out += "LOGIN_FAIL: $_"
     }
 }
-$out | Out-File 'd:\AI\Projects\KnowledgeVault\register_result.txt' -Encoding utf8
+$out | Out-File 'E:\Projects\KnowledgeVault\register_result.txt' -Encoding utf8

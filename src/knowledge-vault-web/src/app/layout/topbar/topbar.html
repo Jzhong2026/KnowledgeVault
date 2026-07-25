@@ -2,6 +2,7 @@
   @if (isWorkspaceMode()) {
     <div class="workspace-context">
       <span class="workspace-context__badge">Workspace</span>
+      <button type="button" class="workspace-context__exit" (click)="exitWorkspace()">Exit Workspace</button>
     </div>
   } @else {
     <div class="workspace-title">
