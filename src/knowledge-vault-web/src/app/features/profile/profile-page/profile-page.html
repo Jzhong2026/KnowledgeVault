@@ -185,7 +185,7 @@
         }
 
         <label for="key-name">Key name</label>
-        <input id="key-name" type="text" formControlName="name" maxlength="64" placeholder="e.g. Project Planning MCP" autofocus />
+        <input #keyNameInput id="key-name" type="text" formControlName="name" maxlength="64" placeholder="e.g. Project Planning MCP" />
         @if (keyForm.controls.name.touched && keyForm.controls.name.invalid) {
           <span class="field-error">Enter a name for this key.</span>
         }

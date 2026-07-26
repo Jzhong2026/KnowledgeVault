@@ -1,4 +1,4 @@
-import { Component, HostListener, inject, signal } from '@angular/core';
+import { afterNextRender, Component, HostListener, inject, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -31,6 +31,7 @@ export class ProfilePage {
   readonly apiKeys = signal<ApiKey[]>([]);
   readonly createdKey = signal<ApiKeyCreated | null>(null);
   readonly createDialogOpen = signal(false);
+  readonly keyNameInput = viewChild.required<HTMLInputElement>('keyNameInput');
   readonly keyError = signal<string | null>(null);
   readonly creating = signal(false);
   readonly savingProfile = signal(false);
@@ -101,6 +102,7 @@ export class ProfilePage {
     this.keyError.set(null);
     this.keyForm.reset({ name: '', expiresInDays: 365, scopes: [] });
     this.createDialogOpen.set(true);
+    afterNextRender(() => this.keyNameInput().focus());
   }
 
   closeCreateDialog(): void {

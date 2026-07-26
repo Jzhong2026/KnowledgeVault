@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, HostListener, inject, signal } from '@angular/core';
+import { afterNextRender, Component, HostListener, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
@@ -24,6 +24,7 @@ export class ProjectsPage {
   readonly error = signal<string | null>(null);
   readonly projects = signal<ProjectSummary[]>([]);
   readonly showCreate = signal(false);
+  readonly projectNameInput = viewChild.required<HTMLInputElement>('projectNameInput');
   readonly search = signal('');
   readonly followingOnly = signal(false);
 
@@ -58,6 +59,7 @@ export class ProjectsPage {
   openCreate(): void {
     this.form.reset({ name: '', description: '' });
     this.showCreate.set(true);
+    afterNextRender(() => this.projectNameInput().focus());
   }
 
   closeCreate(): void {

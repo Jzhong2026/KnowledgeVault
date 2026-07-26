@@ -111,7 +111,7 @@
       </header>
       <form [formGroup]="form" (ngSubmit)="create()">
         <label for="project-name">Project name</label>
-        <input id="project-name" type="text" formControlName="name" maxlength="128" autofocus />
+        <input #projectNameInput id="project-name" type="text" formControlName="name" maxlength="128" />
         @if (form.controls.name.touched && form.controls.name.invalid) {
           <span class="field-error">Enter a project name.</span>
         }
