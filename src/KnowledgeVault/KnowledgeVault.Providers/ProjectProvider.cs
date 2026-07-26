@@ -6,6 +6,7 @@ using KnowledgeVault.DataAccess;
 using KnowledgeVault.Domain.Entities;
 using KnowledgeVault.Domain.Enums;
 using KnowledgeVault.Infrastructure.Exceptions;
+using KnowledgeVault.Infrastructure.Text;
 using KnowledgeVault.Infrastructure.Time;
 using KnowledgeVault.Providers.Mapping;
 using Microsoft.EntityFrameworkCore;
@@ -96,9 +97,14 @@ public sealed class ProjectProvider(
         var userId = RequireCurrentUser();
         var now = dateTimeProvider.UtcNow;
 
+        var name = RequireText(request.Name, "Name", 128);
+        var normalizedName = TextNormalizer.NormalizeName(name);
+
+        await EnsureProjectNameAvailableAsync(userId, normalizedName, excludeProjectId: null, cancellationToken);
+
         var project = new Project
         {
-            Name = RequireText(request.Name, "Name", 128),
+            Name = name,
             Description = CleanOptional(request.Description, 512),
             OwnerUserId = userId,
             IsArchived = false,
@@ -134,7 +140,14 @@ public sealed class ProjectProvider(
 
         RequireOwner(project, userId);
 
-        project.Name = RequireText(request.Name, "Name", 128);
+        var newName = RequireText(request.Name, "Name", 128);
+        var newNormalized = TextNormalizer.NormalizeName(newName);
+        if (!StringComparer.Ordinal.Equals(newNormalized, TextNormalizer.NormalizeName(project.Name)))
+        {
+            await EnsureProjectNameAvailableAsync(userId, newNormalized, excludeProjectId: projectId, cancellationToken);
+        }
+
+        project.Name = newName;
         project.Description = CleanOptional(request.Description, 512);
         if (request.IsArchived.HasValue)
         {
@@ -145,6 +158,36 @@ public sealed class ProjectProvider(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return project.ToDto(ProjectRole.Owner);
+    }
+
+    /// <summary>
+    /// Reject duplicate project names owned by the same user (case-insensitive, trimmed).
+    /// "Same project name" means the normalized-name lookup collides regardless of
+    /// archived state, so the owner cannot recreate a name they used previously.
+    /// Normalization is done in memory because SQLite cannot translate
+    /// TextNormalizer.NormalizeName to SQL.
+    /// </summary>
+    private async Task EnsureProjectNameAvailableAsync(
+        Guid ownerUserId,
+        string normalizedName,
+        Guid? excludeProjectId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await dbContext.Projects
+            .AsNoTracking()
+            .Where(p => p.OwnerUserId == ownerUserId)
+            .Where(p => excludeProjectId == null || p.Id != excludeProjectId.Value)
+            .Select(p => new { p.Id, p.Name })
+            .ToListAsync(cancellationToken);
+
+        if (candidates.Any(c =>
+            string.Equals(
+                TextNormalizer.NormalizeName(c.Name),
+                normalizedName,
+                StringComparison.Ordinal)))
+        {
+            throw new ConflictException("You already own a project with this name.");
+        }
     }
 
     public async Task DeleteAsync(Guid projectId, CancellationToken cancellationToken)

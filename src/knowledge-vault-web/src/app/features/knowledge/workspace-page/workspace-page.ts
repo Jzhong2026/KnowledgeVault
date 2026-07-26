@@ -79,6 +79,8 @@ export class WorkspacePage implements OnDestroy {
   readonly projectGroups = signal<ProjectGroup[]>([]);
 
   readonly projectId = signal<string | null>(null);
+  /** The folder being viewed in the regular, Explorer-like browser. */
+  readonly browseFolderId = signal<string | null>(null);
 
   readonly hasFollowedProjects = computed(() => this.projects().length > 0);
   readonly noFollowedProjects = computed(() => this.isProjectScope && this.projects().length === 0);
@@ -122,6 +124,7 @@ export class WorkspacePage implements OnDestroy {
         const projectId = params.get('projectId');
         const rootFolderId = params.get('workspaceRootFolderId');
         const folderId = params.get('folderId');
+        const browseFolderId = params.get('browseFolderId');
 
         if (projectId !== this.projectId()) {
           this.projectId.set(projectId);
@@ -135,12 +138,13 @@ export class WorkspacePage implements OnDestroy {
             workspaceRootFolderId: root,
             currentFolderId: folderId ?? root,
           });
-        } else if (this.isProjectScope && !projectId) {
+        } else {
+          // A project root (and every normal folder browse) must keep the
+          // standard application shell. Workspace mode is opt-in only.
           if (this.workspace.isWorkspaceMode()) {
             this.workspace.exitWorkspace();
           }
-        } else {
-          this.workspace.restore(this.workspaceScope, projectId ?? null);
+          this.browseFolderId.set(browseFolderId);
         }
       }),
     );
@@ -217,7 +221,7 @@ export class WorkspacePage implements OnDestroy {
     this.error.set(null);
 
     const inWorkspace = state !== null;
-    const parentFolderId = inWorkspace ? state!.currentFolderId : null;
+    const parentFolderId = inWorkspace ? state!.currentFolderId : this.browseFolderId();
     const rootFolderId = inWorkspace ? state!.workspaceRootFolderId : null;
 
     const content$ = this.api.listFolderContent({
@@ -345,14 +349,29 @@ export class WorkspacePage implements OnDestroy {
   openGroupFolder(projectId: string, folderId: string): void {
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { projectId, workspaceRootFolderId: folderId, folderId },
+      queryParams: {
+        projectId,
+        browseFolderId: folderId,
+        workspaceRootFolderId: null,
+        folderId: null,
+      },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
   }
 
   openGroupWorkspace(projectId: string, folderId: string): void {
-    this.openGroupFolder(projectId, folderId);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        projectId,
+        browseFolderId: null,
+        workspaceRootFolderId: folderId,
+        folderId,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   openGroupFirstWorkspace(group: ProjectGroup): void {
@@ -375,21 +394,25 @@ export class WorkspacePage implements OnDestroy {
     if (this.workspace.isWorkspaceMode()) {
       this.workspace.setCurrentFolder(folderId);
     } else {
-      this.workspace.enterWorkspace({
-        scope: this.workspaceScope,
-        projectId: this.projectId() ?? null,
-        workspaceRootFolderId: folderId,
-        currentFolderId: folderId,
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { browseFolderId: folderId },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
       });
     }
   }
 
   openWorkspace(folderId: string): void {
-    this.workspace.enterWorkspace({
-      scope: this.workspaceScope,
-      projectId: this.projectId() ?? null,
-      workspaceRootFolderId: folderId,
-      currentFolderId: folderId,
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        browseFolderId: null,
+        workspaceRootFolderId: folderId,
+        folderId,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
     });
   }
 
@@ -412,13 +435,32 @@ export class WorkspacePage implements OnDestroy {
 
   exitWorkspace(): void {
     this.workspace.exitWorkspace();
-    void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { workspaceRootFolderId: null, folderId: null, browseFolderId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  browseRoot(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { browseFolderId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   onProjectChange(projectId: string): void {
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { projectId: projectId || null, workspaceRootFolderId: null, folderId: null },
+      queryParams: {
+        projectId: projectId || null,
+        browseFolderId: null,
+        workspaceRootFolderId: null,
+        folderId: null,
+      },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
@@ -458,7 +500,7 @@ export class WorkspacePage implements OnDestroy {
       .createFolder({
         scope: this.workspaceScope,
         projectId,
-        parentFolderId: state ? state.currentFolderId : null,
+        parentFolderId: state ? state.currentFolderId : this.browseFolderId(),
         name,
         description: this.createFolderDescription().trim() || null,
       })
@@ -641,7 +683,7 @@ export class WorkspacePage implements OnDestroy {
     this.saving.set(true);
     const state = this.workspace.current();
     const item = this.selectedItem();
-    const folderId = item ? undefined : state ? state.currentFolderId : null;
+    const folderId = item ? undefined : state ? state.currentFolderId : this.browseFolderId();
     const payload: SaveDocumentRequest = { ...request, folderId };
     const operation = item
       ? this.api.updateKnowledgeItem(item.id, payload)

@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { WorkspaceService } from '../../../core/workspace/workspace.service';
 import { FolderTree } from '../folder-tree/folder-tree';
@@ -83,11 +84,17 @@ import { FolderTree } from '../folder-tree/folder-tree';
 })
 export class WorkspaceMode {
   private readonly workspace = inject(WorkspaceService);
+  private readonly router = inject(Router);
   readonly tree = this.workspace.folderTree;
   readonly currentFolderId = this.workspace.currentFolderId;
 
   exit(): void {
     this.workspace.exitWorkspace();
+    void this.router.navigate([], {
+      queryParams: { workspaceRootFolderId: null, folderId: null, browseFolderId: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   onNavigate(folderId: string): void {

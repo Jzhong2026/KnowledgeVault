@@ -320,6 +320,29 @@ button:disabled {
   background: #ffffff;
 }
 
+.workspace-pane__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background: #ffffff;
+  color: var(--text, #0f172a);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+.workspace-pane__toolbar > div {
+  display: flex;
+  gap: 8px;
+}
+
+.workspace-pane__toolbar button {
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
 .workspace-shell__tree {
   background: #f8fafc;
   border-right: 1px solid var(--border, #e2e8f0);

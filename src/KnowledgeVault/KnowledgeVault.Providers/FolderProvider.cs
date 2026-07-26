@@ -194,8 +194,13 @@ public sealed class FolderProvider(
             }
         }
 
-        await EnsureUniqueSiblingAsync(
-            request.Scope, request.ProjectId, ownerUserId, request.ParentFolderId, normalized, null, cancellationToken);
+        // Full-path uniqueness: the proposed folder's normalized path string
+        // (e.g. "/DOCS/PLANNING") must not collide with any existing folder at
+        // the same scope. Sibling-only checks miss cases where a parent chain
+        // is renamed above, so re-resolve the path against the live tree.
+        var newPath = await BuildFolderPathAsync(
+            request.Scope, request.ProjectId, ownerUserId, request.ParentFolderId, normalized, excludeId: null, cancellationToken);
+        await EnsurePathAvailableAsync(request.Scope, request.ProjectId, ownerUserId, newPath, excludeId: null, cancellationToken);
 
         var folder = new Folder
         {
@@ -233,6 +238,7 @@ public sealed class FolderProvider(
             normalized = TextNormalizer.NormalizeName(newName);
         }
 
+        Guid? newParentId = request.ParentFolderId;
         if (request.ParentFolderId.HasValue)
         {
             if (request.ParentFolderId.Value == id)
@@ -255,12 +261,19 @@ public sealed class FolderProvider(
                 throw new ValidationException("A folder cannot be moved into one of its own subfolders.");
             }
         }
-
-        if (normalized is not null && normalized != folder.NormalizedName)
+        else
         {
-            var siblingParent = request.ParentFolderId ?? folder.ParentFolderId;
-            await EnsureUniqueSiblingAsync(
-                folder.Scope, folder.ProjectId, folder.OwnerUserId, siblingParent, normalized, id, cancellationToken);
+            newParentId = folder.ParentFolderId;
+        }
+
+        // If either the leaf name or parent changed, recompute the full path and
+        // ensure it does not collide with any other folder in the same scope.
+        if (normalized is not null || request.ParentFolderId.HasValue)
+        {
+            var effectiveName = normalized ?? folder.NormalizedName;
+            var newPath = await BuildFolderPathAsync(
+                folder.Scope, folder.ProjectId, folder.OwnerUserId, newParentId, effectiveName, excludeId: id, cancellationToken);
+            await EnsurePathAvailableAsync(folder.Scope, folder.ProjectId, folder.OwnerUserId, newPath, excludeId: id, cancellationToken);
         }
 
         if (newName is not null)
@@ -374,36 +387,132 @@ public sealed class FolderProvider(
             cancellationToken);
     }
 
-    private async Task EnsureUniqueSiblingAsync(
+    /// <summary>
+    /// Walks the proposed parent chain and returns the normalized path string for
+    /// the new/renamed folder (e.g. "/DOCS/PLANNING"). Path segments are joined
+    /// with "/", each already normalized via TextNormalizer (trim + UPPER_INVARIANT).
+    /// </summary>
+    private async Task<string> BuildFolderPathAsync(
         DocumentScope scope,
         Guid? projectId,
         Guid? ownerUserId,
         Guid? parentFolderId,
-        string normalized,
+        string normalizedLeaf,
         Guid? excludeId,
         CancellationToken cancellationToken)
     {
-        var existing = dbContext.Folders.AsNoTracking()
-            .Where(f => f.Scope == scope && f.NormalizedName == normalized && f.ParentFolderId == parentFolderId);
+        var segments = new List<string> { normalizedLeaf };
+        var currentId = parentFolderId;
+        var safety = 0;
+        const int maxDepth = 64;
 
+        while (currentId.HasValue)
+        {
+            if (++safety > maxDepth)
+            {
+                // Defensive: a corrupted cycle should never reach a depth past the
+                // tree's own bounds. Bail out rather than spin forever.
+                throw new ValidationException("Folder hierarchy is too deep to resolve.");
+            }
+
+            var parent = await dbContext.Folders.AsNoTracking()
+                .FirstOrDefaultAsync(f => f.Id == currentId.Value, cancellationToken);
+
+            if (parent is null || parent.Scope != scope || parent.ProjectId != projectId)
+            {
+                throw new ValidationException("The parent folder does not belong to the same scope/project.");
+            }
+
+            if (scope == DocumentScope.Personal && parent.OwnerUserId != ownerUserId)
+            {
+                throw new ForbiddenException("You do not have permission to create folders here.");
+            }
+
+            segments.Add(parent.NormalizedName);
+            currentId = parent.ParentFolderId;
+        }
+
+        segments.Reverse();
+        return "/" + string.Join("/", segments);
+    }
+
+    /// <summary>
+    /// Full-path uniqueness check scoped to one project (or one personal owner).
+    /// Rejects collisions regardless of where the colliding folder lives in the
+    /// tree, since the comparison key is the slash-joined path string.
+    /// </summary>
+    private async Task EnsurePathAvailableAsync(
+        DocumentScope scope,
+        Guid? projectId,
+        Guid? ownerUserId,
+        string proposedPath,
+        Guid? excludeId,
+        CancellationToken cancellationToken)
+    {
+        var folders = dbContext.Folders.AsNoTracking().Where(f => f.Scope == scope);
         if (scope == DocumentScope.Personal)
         {
-            existing = existing.Where(f => f.OwnerUserId == ownerUserId);
+            folders = folders.Where(f => f.OwnerUserId == ownerUserId);
         }
         else
         {
-            existing = existing.Where(f => f.ProjectId == projectId);
+            folders = folders.Where(f => f.ProjectId == projectId);
         }
 
         if (excludeId.HasValue)
         {
-            existing = existing.Where(f => f.Id != excludeId.Value);
+            folders = folders.Where(f => f.Id != excludeId.Value);
         }
 
-        if (await existing.AnyAsync(cancellationToken))
+        // Fetch the small set of candidate folders and resolve their paths in
+        // memory. The total folder count per project is small enough that this
+        // is cheaper than recursive SQL.
+        var candidates = await folders.Select(f => new PathNode(f.Id, f.ParentFolderId, f.NormalizedName)).ToListAsync(cancellationToken);
+        var byId = candidates.ToDictionary(c => c.Id);
+        foreach (var f in candidates)
         {
-            throw new ValidationException("A folder with this name already exists at this level.");
+            if (TryResolvePath(f.Id, f.ParentFolderId, f.NormalizedName, byId, out var path) && string.Equals(path, proposedPath, StringComparison.Ordinal))
+            {
+                throw new ConflictException("A folder with this path already exists in this project.");
+            }
         }
+    }
+
+    private readonly record struct PathNode(Guid Id, Guid? ParentFolderId, string NormalizedName);
+
+    private bool TryResolvePath(
+        Guid id,
+        Guid? parentId,
+        string normalizedLeaf,
+        IReadOnlyDictionary<Guid, PathNode> folders,
+        out string path)
+    {
+        var segments = new List<string> { normalizedLeaf };
+        var currentId = parentId;
+        var safety = 0;
+        const int maxDepth = 64;
+
+        while (currentId.HasValue)
+        {
+            if (++safety > maxDepth)
+            {
+                path = string.Empty;
+                return false;
+            }
+
+            if (!folders.TryGetValue(currentId.Value, out var parent))
+            {
+                path = string.Empty;
+                return false;
+            }
+
+            segments.Add(parent.NormalizedName);
+            currentId = parent.ParentFolderId;
+        }
+
+        segments.Reverse();
+        path = "/" + string.Join("/", segments);
+        return true;
     }
 
     private async Task<bool> IsWithinRootAsync(Guid? folderId, Guid rootId, CancellationToken cancellationToken)

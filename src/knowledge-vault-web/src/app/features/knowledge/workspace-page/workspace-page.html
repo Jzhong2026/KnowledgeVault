@@ -3,6 +3,13 @@
     <!-- Workspace mode: the folder tree lives in the AppShell's workspace-mode
          panel (left); this pane only renders the tab bar + document view. -->
     <div class="workspace-pane">
+      <div class="workspace-pane__toolbar">
+        <span>Workspace</span>
+        <div>
+          <button type="button" class="ghost" [disabled]="saving() || !canCreate()" (click)="openCreateFolder()">New folder</button>
+          <button type="button" class="primary" [disabled]="saving() || !canCreate()" (click)="createNew()">New document</button>
+        </div>
+      </div>
       <div class="workspace-shell__tabs" role="tablist">
         @for (tab of workspace.openTabs(); track tab.id) {
           <button
@@ -62,7 +69,7 @@
     <div class="page-heading__text">
       <p>{{ isProjectScope ? 'Team library' : 'Personal library' }}</p>
       <h2>{{ isProjectScope ? 'Project documents' : 'Personal documents' }}</h2>
-      <small>Open a folder to browse it as a workspace, or open it as a dedicated workspace from the tile menu.</small>
+      <small>Click a folder to browse it like a file explorer. Use Open workspace for the VS Code-style folder tree and tabs.</small>
     </div>
 
     <div class="page-actions">
@@ -96,6 +103,10 @@
       >
         New document
       </button>
+
+      @if (browseFolderId()) {
+        <button type="button" class="ghost" (click)="browseRoot()">Back to root</button>
+      }
 
     </div>
   </div>
