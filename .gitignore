@@ -20,9 +20,24 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
-[Ll]og/
-[Ll]ogs/
-*.log
+
+# Centralized log directory (backend runtime + dev/scratch logs).
+# The directory structure is preserved in source via .keep placeholders.
+# All *.log, *.jsonl, *.txt (and *.tmp / *.scratch) inside any logs/ folder
+# are ignored — do not commit log contents. .keep and README.md inside any
+# logs/ tree are whitelisted so the layout survives in source.
+#
+# We intentionally do NOT add a directory-level rule like "logs/" here:
+# gitignore cannot re-include a file when its parent directory is excluded,
+# which would silently drop the .keep placeholders.
+**/logs/**/*.log
+**/logs/**/*.jsonl
+**/logs/**/*.txt
+**/logs/**/*.tmp
+**/logs/**/*.scratch
+!**/logs/**/*.keep
+!**/logs/**/README.md
+!**/logs/**/readme.md
 
 # .NET Core
 project.lock.json
@@ -37,6 +52,11 @@ artifacts/
 *.db
 *.db-shm
 *.db-wal
+
+# The checked-in server database is part of the IIS publish payload. Its WAL
+# sidecars remain local runtime files and must never be committed.
+!db/
+!db/knowledge-vault.db
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
@@ -69,6 +89,10 @@ categories_debug.png
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
+# Disposable local test databases, E2E output, screenshots, and debug captures.
+# Test source projects remain under src/ and are tracked normally.
+/test/
+
 # NUnit
 *.VisualState.xml
 TestResult.xml
@@ -87,10 +111,7 @@ ef_install.txt
 ef_version.txt
 tmp_mighist/
 playwright-report/
-verify_workspace.ps1
-diag.ps1
 verify_result.txt
-run_e2e.ps1
 e2e_out.txt
 frontend_build.txt
 src/knowledge-vault-web/test-results/
@@ -117,3 +138,9 @@ register_admin_result.txt
 backend_debug.bat
 frontend_debug.bat
 launch_kv.bat
+
+# Catch-all for any future stray debug/scratch logs and one-off outputs.
+# Anything ending in .log or that looks like a transient text dump is local-only.
+*.log
+*.tmp
+*.scratch

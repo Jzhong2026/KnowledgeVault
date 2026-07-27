@@ -29,4 +29,13 @@
     <ProjectReference Include="..\KnowledgeVault.Providers\KnowledgeVault.Providers.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Publish the checked-in server SQLite database beside the API. The
+         relative connection string resolves this file from the IIS app root. -->
+    <Content Include="..\..\..\db\knowledge-vault.db"
+             Link="knowledge-vault.db"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

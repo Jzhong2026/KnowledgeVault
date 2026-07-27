@@ -1,4 +1,7 @@
 $ErrorActionPreference = 'Stop'
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+$LogDirectory = Join-Path $RepoRoot 'logs\scratch'
+New-Item -ItemType Directory -Force $LogDirectory | Out-Null
 $user  = 'kvtest'
 $email = 'kvtest@local.dev'
 $pw    = 'KvTest123!'
@@ -25,4 +28,4 @@ if (-not $registered) {
         $out += "LOGIN_FAIL: $_"
     }
 }
-$out | Out-File 'E:\Projects\KnowledgeVault\register_result.txt' -Encoding utf8
+$out | Out-File (Join-Path $LogDirectory 'register-test-user.txt') -Encoding utf8

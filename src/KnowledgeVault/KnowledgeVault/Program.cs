@@ -28,7 +28,15 @@ Log.Logger = new LoggerConfiguration()
 try
 {
 var builder = WebApplication.CreateBuilder(args);
-var logDirectory = Path.Combine(builder.Environment.ContentRootPath, "logs");
+// All runtime and structured logs land under a single configurable directory.
+// Local dev defaults to <repo>/logs/backend/runtime; Docker override in
+// appsettings.Production.json points at /app/logs which is mounted as kv-logs.
+var logsSection = builder.Configuration.GetSection("Logs");
+var configuredLogDir = logsSection.GetValue<string>("Directory")
+    ?? Path.Combine(builder.Environment.ContentRootPath, "logs", "backend", "runtime");
+var logDirectory = Path.IsPathRooted(configuredLogDir)
+    ? configuredLogDir
+    : Path.Combine(builder.Environment.ContentRootPath, configuredLogDir);
 Directory.CreateDirectory(logDirectory);
 
 builder.Host.UseSerilog((context, services, loggerConfiguration) =>
