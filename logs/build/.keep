@@ -1,0 +1,2 @@
+﻿This directory keeps the empty `build/` folder in the repo. `dotnet publish`
+and `ng build` outputs land here when captured to a file.

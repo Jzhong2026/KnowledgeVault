@@ -1,0 +1,3 @@
+﻿This directory keeps the empty `backend/dev/` folder in the repo. Dev
+launchers (e.g. `.runlogs/run-api.bat`) and the `dotnet watch` task should
+redirect stdout/stderr here.

@@ -1,0 +1,2 @@
+﻿This directory keeps the empty `scratch/` folder in the repo. Throwaway
+debug dumps (e2e, register, npm errors) land here. Safe to wipe at any time.

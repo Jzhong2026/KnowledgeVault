@@ -1,0 +1,2 @@
+﻿This directory keeps the empty `migrations/` folder in the repo. `dotnet ef
+database update` and migration script dumps land here.

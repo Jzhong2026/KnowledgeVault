@@ -1,0 +1,2 @@
+﻿This directory keeps the empty `frontend/` folder in the repo. The Angular
+dev server / SSR scripts should redirect output here.

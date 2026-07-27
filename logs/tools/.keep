@@ -1,0 +1,2 @@
+﻿This directory keeps the empty `tools/` folder in the repo. Misc tooling
+output (EF install/version probes, MCP smoke runs) lands here.

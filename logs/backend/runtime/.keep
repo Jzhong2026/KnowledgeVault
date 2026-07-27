@@ -1,0 +1,2 @@
+﻿This directory keeps the empty `backend/runtime/` folder in the repo even
+when the API is not running. Do not delete; do not commit log contents here.
