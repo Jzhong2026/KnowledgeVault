@@ -22,6 +22,7 @@ public sealed class FoldersController(
         [FromQuery] Guid? projectId,
         [FromQuery] Guid? parentFolderId,
         [FromQuery] Guid? rootFolderId,
+        [FromQuery] bool includeArchived,
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
         CancellationToken cancellationToken)
@@ -33,11 +34,11 @@ public sealed class FoldersController(
         if (page.HasValue)
         {
             var paged = await folderProvider.GetContentPagedAsync(
-                scope, projectId, parentFolderId, rootFolderId,
+                scope, projectId, parentFolderId, rootFolderId, includeArchived,
                 page.Value, pageSize ?? 20, cancellationToken);
             return Ok(paged);
         }
-        var content = await folderProvider.GetContentAsync(scope, projectId, parentFolderId, rootFolderId, cancellationToken);
+        var content = await folderProvider.GetContentAsync(scope, projectId, parentFolderId, rootFolderId, includeArchived, cancellationToken);
         return Ok(content);
     }
 
@@ -79,6 +80,7 @@ public sealed class FoldersController(
                 root.ProjectId,
                 current.FolderId,
                 null,
+                true,
                 cancellationToken);
 
             foreach (var documentSummary in content.Documents)
@@ -141,10 +143,10 @@ public sealed class FoldersController(
     }
 
     [Authorize(Policy = "documents:write")]
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    [HttpPost("{id:guid}/archive")]
+    public async Task<IActionResult> Archive(Guid id, CancellationToken cancellationToken)
     {
-        await folderProvider.DeleteAsync(id, cancellationToken);
+        await folderProvider.ArchiveAsync(id, cancellationToken);
         return NoContent();
     }
 

@@ -91,11 +91,28 @@
 
           <label class="field-row">
             <span class="field-label">Content <span class="required-marker">*</span></span>
-            <textarea
-              formControlName="content"
-              rows="9"
-              placeholder="Write the document content"
-            ></textarea>
+            <div
+              class="content-dropzone"
+              [class.is-dragging]="contentDropActive"
+              (dragover)="onContentDragOver($event)"
+              (dragenter)="onContentDragEnter($event)"
+              (dragleave)="onContentDragLeave()"
+              (drop)="onContentDrop($event)"
+            >
+              <textarea
+                formControlName="content"
+                rows="9"
+                placeholder="Write the document content, or drop a text file here"
+              ></textarea>
+              <span class="content-dropzone__hint" [class.is-dragging]="contentDropActive">
+                {{ contentDropActive ? 'Release to import the file' : 'Drop a text file to fill content' }}
+              </span>
+            </div>
+            @if (contentImportMessage) {
+              <span class="content-import-message" [class.is-error]="!contentImportMessage.startsWith('Imported')">
+                {{ contentImportMessage }}
+              </span>
+            }
             @if (form.controls.content.touched && form.controls.content.invalid) {
               <span class="field-error">Content is required.</span>
             }

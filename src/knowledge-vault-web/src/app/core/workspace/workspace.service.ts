@@ -36,6 +36,7 @@ export class WorkspaceService {
   private readonly tree = signal<FolderTreeNode | null>(null);
   private readonly breadcrumbPath = signal<BreadcrumbNode[]>([]);
   private readonly currentFolderDocs = signal<KnowledgeItemSummary[]>([]);
+  private readonly folderDocuments = signal<ReadonlyMap<string, KnowledgeItemSummary[]>>(new Map());
   private readonly tabs = signal<OpenTab[]>([]);
   private readonly activeTabId = signal<string | null>(null);
   private readonly moveRequest = signal<DocumentMoveRequest | null>(null);
@@ -53,6 +54,7 @@ export class WorkspaceService {
   readonly folderTree = this.tree.asReadonly();
   readonly breadcrumb = this.breadcrumbPath.asReadonly();
   readonly currentFolderDocuments = this.currentFolderDocs.asReadonly();
+  readonly folderDocumentsById = this.folderDocuments.asReadonly();
   /** Display name of the current workspace root. Derived from the loaded tree. */
   readonly rootName = computed(() => this.tree()?.name ?? null);
   readonly openTabs = this.tabs.asReadonly();
@@ -89,6 +91,7 @@ export class WorkspaceService {
     this.tree.set(null);
     this.breadcrumbPath.set([]);
     this.currentFolderDocs.set([]);
+    this.folderDocuments.set(new Map());
     this.tabs.set([]);
     this.activeTabId.set(null);
     this.collapsedNodeIds.set(new Set());
@@ -181,8 +184,15 @@ export class WorkspaceService {
     this.breadcrumbPath.set(path);
   }
 
-  setCurrentFolderDocuments(docs: KnowledgeItemSummary[]): void {
+  setCurrentFolderDocuments(folderId: string | null, docs: KnowledgeItemSummary[]): void {
     this.currentFolderDocs.set(docs);
+    if (folderId) {
+      this.folderDocuments.update(existing => {
+        const next = new Map(existing);
+        next.set(folderId, docs);
+        return next;
+      });
+    }
   }
 
   private isWithinRoot(node: FolderTreeNode | null, targetId: string): boolean {

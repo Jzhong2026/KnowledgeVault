@@ -67,9 +67,9 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
               </svg>
             </button>
           </div>
-          @if (!isCollapsed(node.id) && isCurrent(node.id) && currentDocuments().length) {
+          @if (!isCollapsed(node.id) && documentsFor(node.id).length) {
             <ul class="folder-tree__documents" aria-label="Documents">
-              @for (doc of currentDocuments(); track doc.id) {
+              @for (doc of documentsFor(node.id); track doc.id) {
                 <li>
                   <button
                     type="button"
@@ -92,7 +92,7 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
             <app-folder-tree
               [nodes]="node.children"
               [currentFolderId]="currentFolderId()"
-              [currentDocuments]="currentDocuments()"
+              [folderDocuments]="folderDocuments()"
               (navigate)="navigate.emit($event)"
               (openWorkspace)="openWorkspace.emit($event)"
               (openDocument)="openDocument.emit($event)"
@@ -114,23 +114,23 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
            visually obvious when a folder is expanded. The line tracks
            the toggle column so every child visibly connects to the
            parent's caret. */
-        margin-left: 14px;
-        border-left: 1px dashed #cbd5e1;
-        padding-left: 6px;
+        margin-left: 12px;
+        border-left: 1px dashed #d8e2e8;
+        padding-left: 5px;
       }
       .folder-tree__row {
         position: relative;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 8px;
-        border-radius: 8px;
+        gap: 5px;
+        padding: 5px 7px;
+        border-radius: 6px;
         cursor: pointer;
         color: var(--text, #0f172a);
         font-size: 13px;
       }
       .folder-tree__row:hover {
-        background: #f1f5f9;
+        background: #f1f6f4;
       }
       /* Strong left accent bar for the active folder. Same as the parent
          shell convention. */
@@ -138,59 +138,42 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
         content: '';
         position: absolute;
         left: 0;
-        top: 6px;
-        bottom: 6px;
-        width: 3px;
-        border-radius: 0 3px 3px 0;
+        top: 7px;
+        bottom: 7px;
+        width: 2px;
+        border-radius: 0 2px 2px 0;
         background: var(--accent-strong, #0f9d76);
       }
       .folder-tree__row.is-current {
-        background: #e7f6ef;
+        background: #eaf7f1;
         color: var(--accent-strong, #0f9d76);
         font-weight: 800;
       }
-      /* Expanded non-current folders also get a softer accent bar + tint so
-         users can immediately tell which folders are open. The accent is
-         intentionally lighter than .is-current so the active selection
-         stays the most prominent visual cue. */
-      .folder-tree__row:not(.is-current):not(.is-collapsed)::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 8px;
-        bottom: 8px;
-        width: 3px;
-        border-radius: 0 3px 3px 0;
-        background: rgba(15, 157, 118, 0.45);
-      }
-      .folder-tree__row:not(.is-current):not(.is-collapsed) {
-        background: rgba(15, 157, 118, 0.06);
-      }
       .folder-tree__toggle {
         display: inline-grid;
-        width: 20px;
-        height: 20px;
-        flex: 0 0 20px;
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
         place-items: center;
         border: 0;
-        border-radius: 5px;
+        border-radius: 4px;
         background: transparent;
         /* Keep the collapsed-state affordance visible on unselected child and
            sibling rows. It must not rely on the selected-row tint or hover. */
-        color: #0b6b55;
+        color: #64748b;
         cursor: pointer;
         padding: 0;
       }
       .folder-tree__toggle:hover {
-        background: #d2f0e7;
-        color: #075a47;
+        background: #edf5f2;
+        color: #0f766e;
       }
       .folder-tree__toggle svg {
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
         fill: none;
         stroke: currentColor;
-        stroke-width: 2.75;
+        stroke-width: 2.2;
         stroke-linecap: round;
         stroke-linejoin: round;
         transition: transform 140ms ease, color 140ms ease, stroke-width 140ms ease;
@@ -201,29 +184,26 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
          obvious even at a glance. */
       .folder-tree__toggle.is-expanded {
         background: transparent;
-        color: var(--accent-strong, #0f9d76);
+        color: #0f766e;
       }
       .folder-tree__toggle.is-expanded svg {
         transform: rotate(90deg);
-        stroke-width: 2.6;
+        stroke-width: 2.35;
       }
       .folder-tree__row.is-drop-target {
         box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.35);
       }
       .folder-tree__icon {
         display: grid;
-        width: 18px;
-        height: 18px;
-        flex: 0 0 18px;
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
         place-items: center;
-        border-radius: 4px;
-        color: var(--accent-strong, #0f9d76);
-        background: rgba(15, 157, 118, 0.08);
-        transition: background-color 140ms ease;
+        color: #3c9b80;
       }
       .folder-tree__icon svg {
-        width: 13px;
-        height: 13px;
+        width: 14px;
+        height: 14px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.8;
@@ -231,13 +211,7 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
         stroke-linejoin: round;
       }
       .folder-tree__icon.is-current {
-        background: rgba(15, 157, 118, 0.18);
         color: var(--accent-strong, #0f9d76);
-      }
-      /* Open folders get a deeper background tint so the closed/open
-         distinction is obvious without reading the chevron. */
-      .folder-tree__icon.is-expanded {
-        background: rgba(15, 157, 118, 0.18);
       }
       .folder-tree__label {
         flex: 1;
@@ -330,7 +304,7 @@ export class FolderTree {
 
   readonly nodes = input.required<FolderTreeNode[]>();
   readonly currentFolderId = input<string | null>(null);
-  readonly currentDocuments = input<KnowledgeItemSummary[]>([]);
+  readonly folderDocuments = input<ReadonlyMap<string, KnowledgeItemSummary[]>>(new Map());
   readonly navigate = output<string>();
   readonly openWorkspace = output<string>();
   readonly openDocument = output<KnowledgeItemSummary>();
@@ -338,6 +312,10 @@ export class FolderTree {
 
   isCurrent(folderId: string): boolean {
     return this.currentFolderId() === folderId;
+  }
+
+  documentsFor(folderId: string): KnowledgeItemSummary[] {
+    return this.folderDocuments().get(folderId) ?? [];
   }
 
   isCollapsed(folderId: string): boolean {

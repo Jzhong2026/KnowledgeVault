@@ -184,6 +184,39 @@ textarea {
   line-height: 1.55;
 }
 
+.content-dropzone {
+  position: relative;
+}
+
+.content-dropzone.is-dragging textarea {
+  border-color: var(--accent);
+  background: #f0faf6;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+.content-dropzone__hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.content-dropzone__hint.is-dragging {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.content-import-message {
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.content-import-message.is-error {
+  color: #b42318;
+}
+
 .field-error {
   color: #b42318;
   font-size: 11px;

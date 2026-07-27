@@ -23,7 +23,11 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       </div>
       <div class="tile__body">
         <h3 class="tile__title" [title]="folder().name">{{ folder().name }}</h3>
-        <div class="tile__status tile__status--placeholder" aria-hidden="true"></div>
+        @if (folder().isArchived) {
+          <div class="tile__status">Archived</div>
+        } @else {
+          <div class="tile__status tile__status--placeholder" aria-hidden="true"></div>
+        }
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
         <button
@@ -51,8 +55,8 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         <button type="button" class="tile__action" title="Rename" (click)="rename.emit(folder().id)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg>
         </button>
-        <button type="button" class="tile__action tile__action--danger" title="Delete" (click)="delete.emit(folder().id)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" /></svg>
+        <button type="button" class="tile__action tile__action--danger" title="Archive" (click)="delete.emit(folder().id)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 5v-2h8v2M8 12h8" /></svg>
         </button>
       </div>
     </article>

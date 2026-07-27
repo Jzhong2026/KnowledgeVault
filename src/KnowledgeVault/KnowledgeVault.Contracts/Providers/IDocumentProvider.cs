@@ -30,6 +30,8 @@ public interface IDocumentProvider
     Task MoveDocumentAsync(Guid id, Guid? folderId, CancellationToken cancellationToken);
 
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
+
+    Task ArchiveAsync(Guid id, CancellationToken cancellationToken);
 }
 
 public interface IRevisionProvider

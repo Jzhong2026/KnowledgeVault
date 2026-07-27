@@ -153,6 +153,7 @@ export class WorkspacePage implements OnDestroy {
   readonly renameFolderName = signal('');
 
   readonly deleteFolderId = signal<string | null>(null);
+  readonly showArchived = signal(false);
 
   readonly breadcrumbDropTargetId = signal<string | null>(null);
   readonly explorerDropTargetId = signal<string | null>(null);
@@ -275,7 +276,7 @@ export class WorkspacePage implements OnDestroy {
       this.hasMoreContent.set(false);
       this.workspace.setTree(null);
       this.workspace.setBreadcrumb([]);
-      this.workspace.setCurrentFolderDocuments([]);
+      this.workspace.setCurrentFolderDocuments(null, []);
       this.browseBreadcrumb.set([]);
       return;
     }
@@ -298,6 +299,7 @@ export class WorkspacePage implements OnDestroy {
       rootFolderId,
       page,
       pageSize: FOLDER_CONTENT_PAGE_SIZE,
+      includeArchived: inWorkspace || this.showArchived(),
     });
 
     const tree$ = inWorkspace
@@ -326,7 +328,7 @@ export class WorkspacePage implements OnDestroy {
           this.documents.set(newDocuments);
         }
 
-        this.workspace.setCurrentFolderDocuments(inWorkspace ? newDocuments : []);
+        this.workspace.setCurrentFolderDocuments(inWorkspace ? state!.currentFolderId : null, inWorkspace ? newDocuments : []);
         this.workspace.setTree(tree);
         if (tree) {
           this.workspace.setBreadcrumb(this.buildPath(tree, state!.currentFolderId!));
@@ -366,6 +368,11 @@ export class WorkspacePage implements OnDestroy {
       return;
     }
     this.loadContent(this.workspace.current(), this.lastLoadedPage + 1, /*append*/ true);
+  }
+
+  toggleShowArchived(): void {
+    this.showArchived.update(value => !value);
+    this.loadContent(this.workspace.current(), 1, false);
   }
 
   /**
@@ -720,7 +727,7 @@ export class WorkspacePage implements OnDestroy {
       return;
     }
     this.saving.set(true);
-    this.api.deleteFolder(id).subscribe({
+    this.api.archiveFolder(id).subscribe({
       next: () => {
         this.deleteFolderId.set(null);
         this.saving.set(false);
@@ -737,7 +744,7 @@ export class WorkspacePage implements OnDestroy {
         const message = getErrorMessage(err);
         this.error.set(
           message.includes('409')
-            ? 'Cannot delete a folder that still contains items. Move or delete its contents first.'
+            ? 'The folder could not be archived.'
             : message,
         );
         this.deleteFolderId.set(null);
@@ -886,11 +893,11 @@ export class WorkspacePage implements OnDestroy {
   }
 
   deleteDocument(id: string): void {
-    if (!confirm('Delete this document? This cannot be undone.')) {
+    if (!confirm('Archive this document? You can show archived items in browse mode.')) {
       return;
     }
     this.saving.set(true);
-    this.api.deleteKnowledgeItem(id).subscribe({
+    this.api.archiveKnowledgeItem(id).subscribe({
       next: () => {
         this.saving.set(false);
         this.loadContent(this.workspace.current(), 1, /*append*/ false);

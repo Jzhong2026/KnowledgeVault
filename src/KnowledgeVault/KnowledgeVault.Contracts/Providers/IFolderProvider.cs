@@ -10,6 +10,7 @@ public interface IFolderProvider
         Guid? projectId,
         Guid? parentFolderId,
         Guid? rootFolderId,
+        bool includeArchived,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -24,6 +25,7 @@ public interface IFolderProvider
         Guid? projectId,
         Guid? parentFolderId,
         Guid? rootFolderId,
+        bool includeArchived,
         int page,
         int pageSize,
         CancellationToken cancellationToken);
@@ -40,5 +42,5 @@ public interface IFolderProvider
 
     Task<FolderSummaryDto> UpdateAsync(Guid id, UpdateFolderRequest request, CancellationToken cancellationToken);
 
-    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
+    Task ArchiveAsync(Guid id, CancellationToken cancellationToken);
 }

@@ -185,6 +185,7 @@ export class ApiClient {
     rootFolderId?: string | null;
     page?: number;
     pageSize?: number;
+    includeArchived?: boolean;
   }): Observable<FolderContent | FolderContentPage> {
     let params = new HttpParams().set('scope', query.scope);
     if (query.projectId) {
@@ -199,6 +200,9 @@ export class ApiClient {
     if (query.page !== undefined) {
       params = params.set('page', query.page);
       params = params.set('pageSize', query.pageSize ?? 20);
+    }
+    if (query.includeArchived) {
+      params = params.set('includeArchived', true);
     }
     return this.http.get<FolderContent | FolderContentPage>(`${this.baseUrl}/folders`, { params });
   }
@@ -232,6 +236,14 @@ export class ApiClient {
 
   deleteFolder(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/folders/${id}`);
+  }
+
+  archiveKnowledgeItem(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/documents/${id}/archive`, {});
+  }
+
+  archiveFolder(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/folders/${id}/archive`, {});
   }
 
   downloadFolder(id: string): Observable<Blob> {

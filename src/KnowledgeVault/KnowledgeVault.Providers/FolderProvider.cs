@@ -24,11 +24,19 @@ public sealed class FolderProvider(
     IDateTimeProvider dateTimeProvider,
     ProjectAccessService projectAccess) : IFolderProvider
 {
+    // Compatibility overload for existing direct provider callers. API callers
+    // use the explicit includeArchived switch.
+    public Task<FolderContentDto> GetContentAsync(
+        DocumentScope? scope, Guid? projectId, Guid? parentFolderId, Guid? rootFolderId,
+        CancellationToken cancellationToken) =>
+        GetContentAsync(scope, projectId, parentFolderId, rootFolderId, false, cancellationToken);
+
     public async Task<FolderContentDto> GetContentAsync(
         DocumentScope? scope,
         Guid? projectId,
         Guid? parentFolderId,
         Guid? rootFolderId,
+        bool includeArchived,
         CancellationToken cancellationToken)
     {
         var userId = currentUserContext.RequireUserId();
@@ -48,12 +56,14 @@ public sealed class FolderProvider(
         // documents are ordered separately because they live in different
         // tables and EF cannot mix them into a single ORDER BY.
         var folders = await QueryAccessibleFolders(userId, scope, projectId)
+            .Where(f => includeArchived || !f.IsArchived)
             .Where(f => f.ParentFolderId == parentFolderId)
             .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.Name)
             .ToListAsync(cancellationToken);
 
         var documents = await QueryAccessibleDocuments(userId, scope, projectId)
+            .Where(x => x.Status != KnowledgeItemStatus.Deleted && (includeArchived || x.Status != KnowledgeItemStatus.Archived))
             .Where(x => x.FolderId == parentFolderId)
             .Include(x => x.OwnerUser)
             .Include(x => x.Project)
@@ -83,7 +93,7 @@ public sealed class FolderProvider(
             childCounts.TryGetValue(f.Id, out var cc);
             docCounts.TryGetValue(f.Id, out var dc);
             return new FolderSummaryDto(
-                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc);
+                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc, f.IsArchived);
         }).ToArray();
 
         return new FolderContentDto(folderDtos, documents.Select(x => x.ToSummaryDto()).ToArray());
@@ -94,6 +104,7 @@ public sealed class FolderProvider(
         Guid? projectId,
         Guid? parentFolderId,
         Guid? rootFolderId,
+        bool includeArchived,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -113,6 +124,7 @@ public sealed class FolderProvider(
 
         // Folders page: ordered by CreatedAt DESC, name as tie-breaker.
         var foldersQuery = QueryAccessibleFolders(userId, scope, projectId)
+            .Where(f => includeArchived || !f.IsArchived)
             .Where(f => f.ParentFolderId == parentFolderId)
             .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.Name);
@@ -125,6 +137,7 @@ public sealed class FolderProvider(
 
         // Documents page: ordered by CreatedAt DESC, title as tie-breaker.
         var documentsQuery = QueryAccessibleDocuments(userId, scope, projectId)
+            .Where(x => x.Status != KnowledgeItemStatus.Deleted && (includeArchived || x.Status != KnowledgeItemStatus.Archived))
             .Where(x => x.FolderId == parentFolderId);
 
         var totalDocumentCount = await documentsQuery.CountAsync(cancellationToken);
@@ -160,7 +173,7 @@ public sealed class FolderProvider(
             childCounts.TryGetValue(f.Id, out var cc);
             docCounts.TryGetValue(f.Id, out var dc);
             return new FolderSummaryDto(
-                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc);
+                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc, f.IsArchived);
         }).ToArray();
 
         return new FolderContentPagedDto(
@@ -198,7 +211,7 @@ public sealed class FolderProvider(
 
         var nodes = all
             .Where(f => within.Contains(f.Id))
-            .ToDictionary(f => f.Id, f => new FolderTreeNodeDto(f.Id, f.Name, f.ParentFolderId, f.SortOrder, new List<FolderTreeNodeDto>()));
+            .ToDictionary(f => f.Id, f => new FolderTreeNodeDto(f.Id, f.Name, f.ParentFolderId, f.SortOrder, new List<FolderTreeNodeDto>(), f.IsArchived));
 
         foreach (var f in all.Where(f => within.Contains(f.Id)))
         {
@@ -236,7 +249,7 @@ public sealed class FolderProvider(
 
         return new FolderSummaryDto(
             folder.Id, folder.Name, folder.Description, folder.SortOrder,
-            folder.ParentFolderId, folder.ProjectId, folder.Scope, childCount, docCount);
+            folder.ParentFolderId, folder.ProjectId, folder.Scope, childCount, docCount, folder.IsArchived);
     }
 
     public async Task<FolderSummaryDto> CreateAsync(CreateFolderRequest request, CancellationToken cancellationToken)
@@ -311,7 +324,7 @@ public sealed class FolderProvider(
 
         return new FolderSummaryDto(
             folder.Id, folder.Name, folder.Description, folder.SortOrder,
-            folder.ParentFolderId, folder.ProjectId, folder.Scope, 0, 0);
+            folder.ParentFolderId, folder.ProjectId, folder.Scope, 0, 0, folder.IsArchived);
     }
 
     public async Task<FolderSummaryDto> UpdateAsync(Guid id, UpdateFolderRequest request, CancellationToken cancellationToken)
@@ -402,28 +415,23 @@ public sealed class FolderProvider(
 
         return new FolderSummaryDto(
             tracked.Id, tracked.Name, tracked.Description, tracked.SortOrder,
-            tracked.ParentFolderId, tracked.ProjectId, tracked.Scope, childCount, docCount);
+            tracked.ParentFolderId, tracked.ProjectId, tracked.Scope, childCount, docCount, tracked.IsArchived);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task ArchiveAsync(Guid id, CancellationToken cancellationToken)
     {
         var userId = currentUserContext.RequireUserId();
         var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
         await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
 
-        var hasChildren = await dbContext.Folders.AnyAsync(f => f.ParentFolderId == id, cancellationToken);
-        var hasDocs = await dbContext.KnowledgeItems.AnyAsync(
-            x => x.FolderId == id && x.Status != KnowledgeItemStatus.Deleted, cancellationToken);
-
-        if (hasChildren || hasDocs)
-        {
-            throw new ConflictException(
-                "Cannot delete a folder that is not empty. Move or delete its contents first.");
-        }
-
-        dbContext.Folders.Remove(folder);
+        var tracked = await dbContext.Folders.FirstAsync(f => f.Id == id, cancellationToken);
+        tracked.IsArchived = true;
+        tracked.ArchivedAt ??= dateTimeProvider.UtcNow;
+        tracked.UpdatedAt = dateTimeProvider.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public Task DeleteAsync(Guid id, CancellationToken cancellationToken) => ArchiveAsync(id, cancellationToken);
 
     private IQueryable<Folder> QueryAccessibleFolders(Guid userId, DocumentScope? scope, Guid? projectId)
     {

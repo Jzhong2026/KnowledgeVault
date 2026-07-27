@@ -321,6 +321,20 @@ public sealed class DocumentProvider(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task ArchiveAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await documentAccessService.EnsureEditAsync(id, cancellationToken);
+        var item = await dbContext.KnowledgeItems.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+        if (item.IsProjectMemory)
+        {
+            throw new ValidationException("A project's shared MEMORY.md cannot be archived.");
+        }
+        item.ChangeStatus(KnowledgeItemStatus.Archived, dateTimeProvider.UtcNow);
+        item.UpdatedAt = dateTimeProvider.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task MoveDocumentAsync(Guid id, Guid? folderId, CancellationToken cancellationToken)
     {
         await documentAccessService.EnsureEditAsync(id, cancellationToken);

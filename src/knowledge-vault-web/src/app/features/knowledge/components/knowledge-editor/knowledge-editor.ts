@@ -19,6 +19,10 @@ import { ProjectSummary, ProjectTopic } from '../../../../core/models/projects.m
   styleUrl: './knowledge-editor.css',
 })
 export class KnowledgeEditor implements OnChanges {
+  private static readonly maxContentImportBytes = 5 * 1024 * 1024;
+  private static readonly textFileExtensions = new Set([
+    'csv', 'html', 'htm', 'json', 'log', 'md', 'markdown', 'txt', 'xml', 'yaml', 'yml',
+  ]);
   @Input() item: KnowledgeItem | null = null;
   @Input() categories: Category[] = [];
   @Input() tags: Tag[] = [];
@@ -40,6 +44,8 @@ export class KnowledgeEditor implements OnChanges {
   @Output() projectSelected = new EventEmitter<string>();
 
   readonly statuses: KnowledgeItemStatus[] = ['Draft', 'Active', 'Archived'];
+  contentDropActive = false;
+  contentImportMessage: string | null = null;
 
   readonly form = new FormBuilder().nonNullable.group({
     projectId: [''],
@@ -139,6 +145,63 @@ export class KnowledgeEditor implements OnChanges {
     });
   }
 
+  onContentDragOver(event: DragEvent): void {
+    if (this.isProjectMemory() || !event.dataTransfer?.files.length) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }
+
+  onContentDragEnter(event: DragEvent): void {
+    if (this.isProjectMemory() || !event.dataTransfer?.files.length) {
+      return;
+    }
+    event.preventDefault();
+    this.contentDropActive = true;
+    this.contentImportMessage = null;
+  }
+
+  onContentDragLeave(): void {
+    this.contentDropActive = false;
+  }
+
+  async onContentDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    this.contentDropActive = false;
+    if (this.isProjectMemory()) {
+      return;
+    }
+
+    const file = event.dataTransfer?.files.item(0);
+    if (!file) {
+      return;
+    }
+    if (!this.isTextFile(file)) {
+      this.contentImportMessage = 'Drop a text file such as .md, .txt, .json, or .csv.';
+      return;
+    }
+    if (file.size > KnowledgeEditor.maxContentImportBytes) {
+      this.contentImportMessage = 'The file must be 5 MB or smaller.';
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      this.form.controls.content.setValue(content);
+      this.form.controls.content.markAsDirty();
+      this.form.controls.content.markAsTouched();
+      this.form.controls.content.updateValueAndValidity();
+      if (!this.form.controls.title.value.trim()) {
+        this.form.controls.title.setValue(file.name);
+        this.form.controls.title.markAsDirty();
+      }
+      this.contentImportMessage = `Imported ${file.name}.`;
+    } catch {
+      this.contentImportMessage = `Couldn't read ${file.name}.`;
+    }
+  }
+
   private configureProjectValidation(): void {
     const projectControl = this.form.controls.projectId;
     if (this.workspaceScope === 'Project') {
@@ -169,6 +232,14 @@ export class KnowledgeEditor implements OnChanges {
 
   isProjectMemory(): boolean {
     return this.item?.documentType === 'ProjectMemory';
+  }
+
+  private isTextFile(file: File): boolean {
+    if (file.type.startsWith('text/') || file.type === 'application/json') {
+      return true;
+    }
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    return extension !== undefined && KnowledgeEditor.textFileExtensions.has(extension);
   }
 
   private configureSystemDocumentControls(): void {

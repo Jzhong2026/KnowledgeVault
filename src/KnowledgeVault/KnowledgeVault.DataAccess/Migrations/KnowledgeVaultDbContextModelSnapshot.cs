@@ -26,6 +26,9 @@ namespace KnowledgeVault.DataAccess.Migrations
                     b.Property<long>("CreatedAt")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("ArchivedAt")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long?>("ExpiresAt")
                         .HasColumnType("INTEGER");
 
@@ -102,6 +105,9 @@ namespace KnowledgeVault.DataAccess.Migrations
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");

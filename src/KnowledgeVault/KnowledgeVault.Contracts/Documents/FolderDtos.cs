@@ -11,14 +11,16 @@ public sealed record FolderSummaryDto(
     Guid? ProjectId,
     DocumentScope Scope,
     int ChildFolderCount,
-    int DocumentCount);
+    int DocumentCount,
+    bool IsArchived);
 
 public sealed record FolderTreeNodeDto(
     Guid Id,
     string Name,
     Guid? ParentFolderId,
     int SortOrder,
-    IReadOnlyList<FolderTreeNodeDto> Children);
+    IReadOnlyList<FolderTreeNodeDto> Children,
+    bool IsArchived);
 
 public sealed record FolderContentDto(
     IReadOnlyList<FolderSummaryDto> Folders,

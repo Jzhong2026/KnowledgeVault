@@ -19,6 +19,12 @@ const root = {
 };
 
 test('every workspace folder, including unselected nested and sibling folders, shows an expand icon', async ({ page }) => {
+  const pageErrors: string[] = [];
+  const routedUrls: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('console', message => {
+    if (message.type() === 'error') pageErrors.push(message.text());
+  });
   await page.addInitScript(() => {
     localStorage.setItem('knowledge-vault.auth', JSON.stringify({
       token: 'playwright-token',
@@ -29,6 +35,7 @@ test('every workspace folder, including unselected nested and sibling folders, s
 
   await page.route('**/KnowledgeVault/api/**', async (route) => {
     const url = route.request().url();
+    routedUrls.push(url);
     if (url.includes('/folders/tree')) {
       await route.fulfill({ json: root });
       return;
@@ -48,12 +55,18 @@ test('every workspace folder, including unselected nested and sibling folders, s
 
   await page.goto('/knowledge?workspaceRootFolderId=root&folderId=root');
 
+  await page.waitForTimeout(500);
+
+  await expect.poll(() => pageErrors).toEqual([]);
+  await expect.poll(() => routedUrls.length).toBeGreaterThan(0);
+  expect(routedUrls).toHaveLength(4);
+
   const rows = page.locator('app-folder-tree .folder-tree__row');
   await expect(rows).toHaveCount(4);
   for (let index = 0; index < 4; index += 1) {
     const icon = rows.nth(index).locator('.folder-tree__toggle svg');
     await expect(icon).toBeVisible();
-    await expect(icon).toHaveJSProperty('clientWidth', 14);
-    await expect(icon).toHaveJSProperty('clientHeight', 14);
+    await expect(icon).toHaveJSProperty('clientWidth', 12);
+    await expect(icon).toHaveJSProperty('clientHeight', 12);
   }
 });

@@ -10,6 +10,7 @@ export interface FolderSummary {
   scope: DocumentScope;
   childFolderCount: number;
   documentCount: number;
+  isArchived: boolean;
 }
 
 export interface FolderTreeNode {
@@ -24,6 +25,7 @@ export interface FolderTreeNode {
   documentCount?: number;
   /** Direct child folder count, populated alongside documentCount. */
   childFolderCount?: number;
+  isArchived?: boolean;
 }
 
 export interface FolderContent {

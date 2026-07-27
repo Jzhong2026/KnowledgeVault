@@ -29,7 +29,7 @@ import { FolderTree } from '../folder-tree/folder-tree';
           <app-folder-tree
             [nodes]="[root]"
             [currentFolderId]="currentFolderId()"
-            [currentDocuments]="currentFolderDocuments()"
+            [folderDocuments]="folderDocumentsById()"
             (navigate)="onNavigate($event)"
             (openWorkspace)="onOpenWorkspace($event)"
             (openDocument)="onOpenDocument($event)"
@@ -117,7 +117,7 @@ export class WorkspaceMode {
   private readonly router = inject(Router);
   readonly tree = this.workspace.folderTree;
   readonly currentFolderId = this.workspace.currentFolderId;
-  readonly currentFolderDocuments = this.workspace.currentFolderDocuments;
+  readonly folderDocumentsById = this.workspace.folderDocumentsById;
   readonly rootName = this.workspace.rootName;
   readonly rootFolderId = this.workspace.workspaceRootFolderId;
   readonly isRootDropTarget = signal(false);

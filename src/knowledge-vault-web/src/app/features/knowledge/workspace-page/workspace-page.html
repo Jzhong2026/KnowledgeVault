@@ -208,7 +208,11 @@
       title="Pick a project to view its documents"
       message="Use the project dropdown above to choose a project. Folders and documents in the project library will appear here."
     />
-  } @else if (folders().length === 0 && documents().length === 0 && !hasMoreContent()) {
+  } @else {
+    @if (!workspace.isWorkspaceMode()) {
+      <label class="show-archived"><input type="checkbox" [checked]="showArchived()" (change)="toggleShowArchived()" /> Show archived</label>
+    }
+    @if (folders().length === 0 && documents().length === 0 && !hasMoreContent()) {
     <section class="browse-content browse-content--empty">
       <app-empty-state
         [title]="workspace.isWorkspaceMode() ? 'This folder is empty' : 'No documents yet'"
@@ -217,7 +221,7 @@
           : 'Create a folder to organise your documents, or add a document directly.'"
       />
     </section>
-  } @else {
+    } @else {
     <section class="browse-content">
       <app-tile-grid
         [folders]="folders()"
@@ -247,6 +251,7 @@
         </div>
       }
     </section>
+    }
   }
   }
 
@@ -353,11 +358,11 @@
   @if (deleteFolderId()) {
     <div class="dialog-backdrop" (click)="cancelDeleteFolder()">
       <div class="dialog" (click)="$event.stopPropagation()">
-        <h3>Delete folder</h3>
-        <p class="dialog__message">This permanently removes the folder. Empty folders can be deleted; folders with contents cannot.</p>
+        <h3>Archive folder</h3>
+        <p class="dialog__message">This archives the folder. Archived items are hidden in browse mode unless Show archived is selected.</p>
         <div class="dialog__actions">
           <button type="button" class="ghost" (click)="cancelDeleteFolder()">Cancel</button>
-          <button type="button" class="danger" [disabled]="saving()" (click)="executeDeleteFolder()">Delete folder</button>
+          <button type="button" class="danger" [disabled]="saving()" (click)="executeDeleteFolder()">Archive folder</button>
         </div>
       </div>
     </div>

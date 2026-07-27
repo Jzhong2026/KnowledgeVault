@@ -125,6 +125,14 @@ public sealed class DocumentsController(
         return NoContent();
     }
 
+    [Authorize(Policy = "documents:write")]
+    [HttpPost("{documentId:guid}/archive")]
+    public async Task<IActionResult> Archive(Guid documentId, CancellationToken cancellationToken)
+    {
+        await documentProvider.ArchiveAsync(documentId, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{documentId:guid}/revisions")]
     public async Task<ActionResult<PagedResult<RevisionSummaryDto>>> ListRevisions(
         Guid documentId,

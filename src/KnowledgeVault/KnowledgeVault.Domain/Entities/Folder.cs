@@ -21,6 +21,10 @@ public sealed class Folder : AuditableEntity
 
     public int SortOrder { get; set; }
 
+    public bool IsArchived { get; set; }
+
+    public DateTimeOffset? ArchivedAt { get; set; }
+
     public Project? Project { get; set; }
 
     public Folder? ParentFolder { get; set; }

@@ -34,8 +34,8 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
             <path d="M5 18h14" />
           </svg>
         </button>
-        <button type="button" class="tile__action tile__action--danger" title="Delete" (click)="delete.emit(document().id)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" /></svg>
+        <button type="button" class="tile__action tile__action--danger" title="Archive" (click)="delete.emit(document().id)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 5v-2h8v2M8 12h8" /></svg>
         </button>
       </div>
     </article>

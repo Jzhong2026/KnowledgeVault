@@ -77,6 +77,80 @@ describe('KnowledgeEditor', () => {
     });
   });
 
+  it('fills Content from a dropped text file', async () => {
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeEditor],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeEditor);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const file = {
+      name: 'notes.md',
+      size: 24,
+      type: 'text/markdown',
+      text: vi.fn().mockResolvedValue('# Imported notes'),
+    } as unknown as File;
+    const preventDefault = vi.fn();
+
+    await component.onContentDrop({
+      preventDefault,
+      dataTransfer: { files: { item: vi.fn().mockReturnValue(file) } },
+    } as unknown as DragEvent);
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(component.form.controls.content.value).toBe('# Imported notes');
+    expect(component.form.controls.title.value).toBe('notes.md');
+    expect(component.contentImportMessage).toBe('Imported notes.md.');
+  });
+
+  it('does not replace a title the user already entered when importing a file', async () => {
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeEditor],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeEditor);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.form.controls.title.setValue('Meeting notes');
+    const file = {
+      name: 'notes.md', size: 24, type: 'text/markdown', text: vi.fn().mockResolvedValue('# Notes'),
+    } as unknown as File;
+
+    await component.onContentDrop({
+      preventDefault: vi.fn(),
+      dataTransfer: { files: { item: vi.fn().mockReturnValue(file) } },
+    } as unknown as DragEvent);
+
+    expect(component.form.controls.title.value).toBe('Meeting notes');
+  });
+
+  it('rejects a dropped binary file without changing Content', async () => {
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeEditor],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeEditor);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.form.controls.content.setValue('Keep this');
+    const file = {
+      name: 'image.png',
+      size: 24,
+      type: 'image/png',
+      text: vi.fn(),
+    } as unknown as File;
+
+    await component.onContentDrop({
+      preventDefault: vi.fn(),
+      dataTransfer: { files: { item: vi.fn().mockReturnValue(file) } },
+    } as unknown as DragEvent);
+
+    expect(file.text).not.toHaveBeenCalled();
+    expect(component.form.controls.content.value).toBe('Keep this');
+    expect(component.contentImportMessage).toContain('Drop a text file');
+  });
+
   it('keeps project MEMORY.md fully read-only and does not submit direct edits', async () => {
     await TestBed.configureTestingModule({
       imports: [KnowledgeEditor],
