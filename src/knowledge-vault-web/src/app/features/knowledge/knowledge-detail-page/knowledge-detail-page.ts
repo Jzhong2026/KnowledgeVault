@@ -141,7 +141,7 @@ export class KnowledgeDetailPage {
     this.viewingRevision.set(null);
   }
 
-  async copyDocumentMarkdown(): Promise<void> {
+  async copyDocumentContent(): Promise<void> {
     const item = this.item();
     if (!item) {
       return;
@@ -150,7 +150,7 @@ export class KnowledgeDetailPage {
     const revision = this.viewingRevision();
     const content = revision?.content ?? item.content;
     const revisionNumber = revision?.revisionNumber ?? item.currentRevisionNumber;
-    await this.copyValue(content, `revision:${revisionNumber}`);
+    await this.copyValue(this.formatContentForCopy(content), `revision:${revisionNumber}`);
   }
 
   downloadDocument(): void {
@@ -159,7 +159,7 @@ export class KnowledgeDetailPage {
       return;
     }
     this.api.downloadDocument(current.id).subscribe({
-      next: (blob) => this.triggerBrowserDownload(blob, `${this.sanitizeFileName(current.title)}.md`),
+      next: (blob) => this.triggerBrowserDownload(blob, this.documentFileName(current.title)),
       error: (err: unknown) => this.error.set(getErrorMessage(err)),
     });
   }
@@ -345,6 +345,19 @@ export class KnowledgeDetailPage {
   private sanitizeFileName(name: string): string {
     const sanitized = name.replace(/[\\/:*?"<>|]/g, '_').trim();
     return sanitized || 'document';
+  }
+
+  private documentFileName(title: string): string {
+    const fileName = this.sanitizeFileName(title);
+    return /\.[^./\\\s]+$/.test(fileName) ? fileName : `${fileName}.md`;
+  }
+
+  private formatContentForCopy(content: string): string {
+    try {
+      return JSON.stringify(JSON.parse(content), null, 2);
+    } catch {
+      return content;
+    }
   }
 
   private triggerBrowserDownload(blob: Blob, fileName: string): void {

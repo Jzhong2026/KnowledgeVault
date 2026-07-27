@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, forkJoin, of } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { getErrorMessage } from '../../../core/http/error-message';
 import {
   Category,
@@ -28,6 +29,13 @@ import { TileGrid } from '../components/tile-grid/tile-grid';
  *  this many more folders AND this many more documents. Backend clamps the
  *  final value to the range [1, 100]. */
 const FOLDER_CONTENT_PAGE_SIZE = 20;
+const PROJECT_DOCUMENTS_PREFERENCE_PREFIX = 'knowledge-vault.project-documents.';
+
+interface ProjectDocumentsPreference {
+  defaultProjectId: string | null;
+  lastProjectId: string | null;
+  lastBrowseFolderId: string | null;
+}
 
 @Component({
   selector: 'app-workspace-page',
@@ -48,6 +56,7 @@ export class WorkspacePage implements OnDestroy {
   private readonly api = inject(ApiClient);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
   readonly workspace = inject(WorkspaceService);
 
   readonly workspaceScope = (this.route.snapshot.data['scope'] as DocumentScope | undefined) ?? 'Personal';
@@ -164,6 +173,7 @@ export class WorkspacePage implements OnDestroy {
 
   private readonly sub = new Subscription();
   private lastProcessedMoveRequestId = 0;
+  private preferenceResolved = false;
 
   constructor() {
     this.sub.add(
@@ -175,6 +185,13 @@ export class WorkspacePage implements OnDestroy {
 
         if (projectId !== this.projectId()) {
           this.projectId.set(projectId);
+        }
+
+        if (this.isProjectScope && projectId) {
+          this.saveProjectDocumentsPreference({
+            lastProjectId: projectId,
+            lastBrowseFolderId: browseFolderId,
+          });
         }
 
         if (rootFolderId || folderId) {
@@ -258,6 +275,7 @@ export class WorkspacePage implements OnDestroy {
         this.categories.set(categories);
         this.tags.set(tags);
         this.projects.set(projects.items);
+        this.restoreProjectPreference(projects.items);
       },
       error: () => {
         /* reference data is non-critical */
@@ -368,6 +386,63 @@ export class WorkspacePage implements OnDestroy {
       return;
     }
     this.loadContent(this.workspace.current(), this.lastLoadedPage + 1, /*append*/ true);
+  }
+
+  private restoreProjectPreference(projects: ProjectSummary[]): void {
+    if (!this.isProjectScope || this.projectId() || this.preferenceResolved) {
+      return;
+    }
+
+    this.preferenceResolved = true;
+    const preference = this.readProjectDocumentsPreference();
+    const availableIds = new Set(projects.map((project) => project.id));
+    const projectId = [preference.lastProjectId, preference.defaultProjectId]
+      .find((id): id is string => !!id && availableIds.has(id));
+
+    if (!projectId) {
+      return;
+    }
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        projectId,
+        browseFolderId: projectId === preference.lastProjectId ? preference.lastBrowseFolderId : null,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  private readProjectDocumentsPreference(): ProjectDocumentsPreference {
+    const fallback: ProjectDocumentsPreference = {
+      defaultProjectId: null,
+      lastProjectId: null,
+      lastBrowseFolderId: null,
+    };
+    if (typeof localStorage === 'undefined') {
+      return fallback;
+    }
+
+    try {
+      const value = localStorage.getItem(this.projectDocumentsPreferenceKey());
+      return value ? { ...fallback, ...(JSON.parse(value) as Partial<ProjectDocumentsPreference>) } : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private saveProjectDocumentsPreference(change: Partial<ProjectDocumentsPreference>): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    const preference = { ...this.readProjectDocumentsPreference(), ...change };
+    localStorage.setItem(this.projectDocumentsPreferenceKey(), JSON.stringify(preference));
+  }
+
+  private projectDocumentsPreferenceKey(): string {
+    return `${PROJECT_DOCUMENTS_PREFERENCE_PREFIX}${this.auth.currentUser()?.id ?? 'anonymous'}`;
   }
 
   toggleShowArchived(): void {
@@ -621,6 +696,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   onProjectChange(projectId: string): void {
+    this.preferenceResolved = true;
     this.resetBrowseBreadcrumb();
     void this.router.navigate([], {
       relativeTo: this.route,
@@ -798,7 +874,7 @@ export class WorkspacePage implements OnDestroy {
   downloadDocument(documentId: string): void {
     const title = this.findDocumentTitle(documentId) ?? 'document';
     this.api.downloadDocument(documentId).subscribe({
-      next: (blob) => this.triggerBrowserDownload(blob, `${this.sanitizeFileName(title)}.md`),
+      next: (blob) => this.triggerBrowserDownload(blob, this.documentFileName(title)),
       error: (err: unknown) => this.error.set(getErrorMessage(err)),
     });
   }
@@ -881,6 +957,11 @@ export class WorkspacePage implements OnDestroy {
   private sanitizeFileName(name: string): string {
     const sanitized = name.replace(/[\\/:*?"<>|]/g, '_').trim();
     return sanitized || 'download';
+  }
+
+  private documentFileName(title: string): string {
+    const fileName = this.sanitizeFileName(title);
+    return /\.[^./\\\s]+$/.test(fileName) ? fileName : `${fileName}.md`;
   }
 
   private triggerBrowserDownload(blob: Blob, fileName: string): void {

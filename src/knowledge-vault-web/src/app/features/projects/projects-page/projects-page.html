@@ -74,6 +74,16 @@
               <a class="open-project" [routerLink]="['/projects', project.id]">Open project</a>
               @if (project.isFollowing) {
                 <a class="project-documents" routerLink="/project-documents" [queryParams]="{ projectId: project.id }">Documents</a>
+                <button
+                  type="button"
+                  class="default-project-link"
+                  [class.is-default]="isDefaultProject(project)"
+                  [disabled]="isDefaultProject(project)"
+                  [title]="isDefaultProject(project) ? 'This is your default project.' : 'Open this project by default when returning to Documents.'"
+                  (click)="setDefaultProject(project)"
+                >
+                  {{ isDefaultProject(project) ? 'Default' : 'Set default' }}
+                </button>
               }
             </div>
             <button

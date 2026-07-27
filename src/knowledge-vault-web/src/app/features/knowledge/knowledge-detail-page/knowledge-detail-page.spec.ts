@@ -130,7 +130,7 @@ describe('KnowledgeDetailPage', () => {
     );
   });
 
-  it('copies the selected revision Markdown and individual comment content', async () => {
+  it('copies selected content as formatted JSON when applicable and preserves comment content', async () => {
     const item: KnowledgeItem = {
       id: 'document-id',
       scope: 'Personal',
@@ -148,7 +148,7 @@ describe('KnowledgeDetailPage', () => {
       id: 'revision-1',
       revisionNumber: 1,
       title: 'First revision',
-      content: '# Original Markdown',
+      content: '{"project":"KnowledgeVault","tags":["json"]}',
       createdByUserId: 'owner-id',
       createdByUserName: 'Owner',
       createdAt: '2026-07-17T00:00:00Z',
@@ -200,8 +200,8 @@ describe('KnowledgeDetailPage', () => {
     const component = fixture.componentInstance;
 
     component.viewRevision(1);
-    await component.copyDocumentMarkdown();
-    expect(writeText).toHaveBeenLastCalledWith('# Original Markdown');
+    await component.copyDocumentContent();
+    expect(writeText).toHaveBeenLastCalledWith('{\n  "project": "KnowledgeVault",\n  "tags": [\n    "json"\n  ]\n}');
     expect(component.copiedTarget()).toBe('revision:1');
 
     await component.copyComment(comment);
@@ -209,7 +209,7 @@ describe('KnowledgeDetailPage', () => {
     expect(component.copiedTarget()).toBe('comment:comment-id');
 
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.copy-markdown-button')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.copy-content-button')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.comment-copy-button')).not.toBeNull();
   });
 });

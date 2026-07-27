@@ -32,18 +32,18 @@
         </button>
         <button
           type="button"
-          class="copy-button copy-markdown-button"
+          class="copy-button copy-content-button"
           [attr.aria-label]="
-            'Copy Markdown source for revision ' +
+            'Copy content for revision ' +
             (viewingRevision()?.revisionNumber || item()?.currentRevisionNumber)
           "
-          (click)="copyDocumentMarkdown()"
+          (click)="copyDocumentContent()"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M8 8h11v11H8z"></path>
             <path d="M5 16H4V5h11v1"></path>
           </svg>
-          {{ copiedTarget() === documentCopyTarget() ? 'Copied' : 'Copy Markdown' }}
+          {{ copiedTarget() === documentCopyTarget() ? 'Copied' : 'Copy content' }}
         </button>
       }
     </div>

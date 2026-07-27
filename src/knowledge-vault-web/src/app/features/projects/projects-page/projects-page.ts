@@ -4,9 +4,18 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { RouterLink } from '@angular/router';
 
 import { ApiClient } from '../../../core/api/api-client.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { getErrorMessage } from '../../../core/http/error-message';
 import { ProjectSummary } from '../../../core/models/projects.models';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
+
+const PROJECT_DOCUMENTS_PREFERENCE_PREFIX = 'knowledge-vault.project-documents.';
+
+interface ProjectDocumentsPreference {
+  defaultProjectId: string | null;
+  lastProjectId: string | null;
+  lastBrowseFolderId: string | null;
+}
 
 @Component({
   selector: 'app-projects-page',
@@ -16,6 +25,7 @@ import { LoadingIndicator } from '../../../shared/components/loading-indicator/l
 })
 export class ProjectsPage {
   private readonly api = inject(ApiClient);
+  private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
   readonly loading = signal(true);
@@ -27,6 +37,7 @@ export class ProjectsPage {
   readonly projectNameInput = viewChild.required<HTMLInputElement>('projectNameInput');
   readonly search = signal('');
   readonly followingOnly = signal(false);
+  readonly defaultProjectId = signal<string | null>(this.readProjectDocumentsPreference().defaultProjectId);
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(128)]],
@@ -122,5 +133,50 @@ export class ProjectsPage {
       },
       complete: () => this.followBusyId.set(null),
     });
+  }
+
+  isDefaultProject(project: ProjectSummary): boolean {
+    return project.id === this.defaultProjectId();
+  }
+
+  setDefaultProject(project: ProjectSummary): void {
+    if (!project.isFollowing) {
+      return;
+    }
+
+    this.defaultProjectId.set(project.id);
+    this.saveProjectDocumentsPreference({ defaultProjectId: project.id });
+  }
+
+  private readProjectDocumentsPreference(): ProjectDocumentsPreference {
+    const fallback: ProjectDocumentsPreference = {
+      defaultProjectId: null,
+      lastProjectId: null,
+      lastBrowseFolderId: null,
+    };
+    if (typeof localStorage === 'undefined') {
+      return fallback;
+    }
+
+    try {
+      const value = localStorage.getItem(this.projectDocumentsPreferenceKey());
+      return value ? { ...fallback, ...(JSON.parse(value) as Partial<ProjectDocumentsPreference>) } : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private saveProjectDocumentsPreference(change: Partial<ProjectDocumentsPreference>): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.setItem(
+      this.projectDocumentsPreferenceKey(),
+      JSON.stringify({ ...this.readProjectDocumentsPreference(), ...change }),
+    );
+  }
+
+  private projectDocumentsPreferenceKey(): string {
+    return `${PROJECT_DOCUMENTS_PREFERENCE_PREFIX}${this.auth.currentUser()?.id ?? 'anonymous'}`;
   }
 }

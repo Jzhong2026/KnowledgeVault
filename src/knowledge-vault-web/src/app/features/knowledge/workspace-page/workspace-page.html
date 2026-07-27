@@ -85,11 +85,10 @@
           [ngModel]="projectId() ?? ''"
           (ngModelChange)="onProjectChange($event)"
         >
-          <option value="">All followed projects</option>
-          @for (project of projects(); track project.id) {
-            <option [value]="project.id">{{ project.name }}</option>
-          }
-        </select>
+        @for (project of projects(); track project.id) {
+          <option [value]="project.id">{{ project.name }}</option>
+        }
+      </select>
       }
       <button
         type="button"
