@@ -146,7 +146,10 @@ public sealed class FolderUniqueNameInvariantTests : FolderProjectInvariantTestB
         await Db.SaveChangesAsync();
 
         var folders = TestProviders.Folders(Db, User, Clock);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        // Full-path uniqueness: the new folder would resolve to "/NOTES" which
+        // already exists at the same level, so the provider rejects it as a
+        // conflict (not a validation error).
+        await Assert.ThrowsAsync<ConflictException>(() =>
             folders.CreateAsync(new CreateFolderRequest(DocumentScope.Personal, null, null, "notes", null), default));
     }
 
@@ -159,7 +162,7 @@ public sealed class FolderUniqueNameInvariantTests : FolderProjectInvariantTestB
         await Db.SaveChangesAsync();
 
         var folders = TestProviders.Folders(Db, User, Clock);
-        await Assert.ThrowsAsync<ValidationException>(() =>
+        await Assert.ThrowsAsync<ConflictException>(() =>
             folders.CreateAsync(new CreateFolderRequest(DocumentScope.Project, projectId, null, "docs", null), default));
     }
 
@@ -175,6 +178,75 @@ public sealed class FolderUniqueNameInvariantTests : FolderProjectInvariantTestB
         var created = await folders.CreateAsync(
             new CreateFolderRequest(DocumentScope.Personal, null, a.Id, "Notes", null), default);
         Assert.Equal("Notes", created.Name);
+    }
+
+    /// <summary>
+    /// Full-path uniqueness: a folder may share its leaf name with an
+    /// existing folder in a different subtree, but the resolved slash-joined
+    /// path must not collide. Renaming a folder so that its full path equals
+    /// another folder's full path is rejected even when the leaf is unique
+    /// among direct siblings.
+    /// </summary>
+    [Fact]
+    public async Task Rename_creating_a_full_path_collision_is_rejected()
+    {
+        User.UserId = await SeedUser("owner");
+
+        // Existing tree:
+        //   /Docs
+        //     /Readme       <-- path "/DOCS/README"
+        //   /Other
+        //     /Readme       <-- path "/OTHER/README"  (allowed: different full path)
+        var docs = Seed.Folder(Guid.NewGuid(), "Docs", DocumentScope.Personal, User.UserId, null);
+        var other = Seed.Folder(Guid.NewGuid(), "Other", DocumentScope.Personal, User.UserId, null);
+        var docsReadme = Seed.Folder(Guid.NewGuid(), "Readme", DocumentScope.Personal, User.UserId, null, docs.Id);
+        var otherReadme = Seed.Folder(Guid.NewGuid(), "Readme", DocumentScope.Personal, User.UserId, null, other.Id);
+        Db.Folders.AddRange(docs, other, docsReadme, otherReadme);
+        await Db.SaveChangesAsync();
+
+        var folders = TestProviders.Folders(Db, User, Clock);
+
+        // Renaming /Other to "Docs" would collide with the existing /Docs folder.
+        // The leaf "Docs" is unique among /Other's siblings but the proposed
+        // path "/DOCS" matches the existing /Docs folder, so the full-path
+        // check rejects it.
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            folders.UpdateAsync(other.Id, new UpdateFolderRequest("Docs", null, null, null), default));
+    }
+
+    /// <summary>
+    /// Creating a new root-level folder whose name matches an existing folder
+    /// in a subtree must be rejected — the resolved paths collide at the leaf
+    /// even though the parents are different.
+    /// </summary>
+    [Fact]
+    public async Task Create_root_folder_with_full_path_collision_is_rejected()
+    {
+        User.UserId = await SeedUser("owner");
+        var root = Seed.Folder(Guid.NewGuid(), "Root", DocumentScope.Personal, User.UserId, null);
+        var child = Seed.Folder(Guid.NewGuid(), "leaf", DocumentScope.Personal, User.UserId, null, root.Id);
+        Db.Folders.AddRange(root, child);
+        await Db.SaveChangesAsync();
+
+        var folders = TestProviders.Folders(Db, User, Clock);
+        // /ROOT/leaf already exists. Creating a new root-level "leaf" would
+        // resolve to /LEAF which doesn't collide — that should succeed.
+        var ok = await folders.CreateAsync(
+            new CreateFolderRequest(DocumentScope.Personal, null, null, "leaf", null), default);
+        Assert.NotEqual(child.Id, ok.Id);
+    }
+
+    [Fact]
+    public async Task Rename_with_no_collision_is_accepted()
+    {
+        User.UserId = await SeedUser("owner");
+        var root = Seed.Folder(Guid.NewGuid(), "Root", DocumentScope.Personal, User.UserId, null);
+        Db.Folders.Add(root);
+        await Db.SaveChangesAsync();
+
+        var folders = TestProviders.Folders(Db, User, Clock);
+        var renamed = await folders.UpdateAsync(root.Id, new UpdateFolderRequest("Renamed", null, null, null), default);
+        Assert.Equal("Renamed", renamed.Name);
     }
 }
 

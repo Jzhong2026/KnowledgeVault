@@ -61,6 +61,32 @@ form {
   padding-top: 22px;
 }
 
+.editor-dialog__parent-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+
+.editor-dialog__parent-label {
+  font-weight: 800;
+  color: var(--text, #0f172a);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.editor-dialog__parent-name {
+  font-weight: 800;
+  color: var(--text, #0f172a);
+}
+
 .section-heading {
   display: grid;
   gap: 3px;

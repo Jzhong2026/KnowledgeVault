@@ -102,6 +102,50 @@ export class WorkspacePage implements OnDestroy {
   readonly createFolderDescription = signal('');
   readonly createFolderProjectId = signal<string>('');
 
+  /** Folder metadata cache keyed by id. Used by the browse-mode breadcrumb
+   *  to resolve ancestor names. Id-based so it stays accurate after renames
+   *  (we always re-fetch when a stale name is detected). */
+  private readonly folderMetaById = signal<Map<string, FolderSummary>>(new Map());
+
+  /** Breadcrumb trail from the workspace root down to the currently browsed
+   *  folder in normal (non-workspace) mode. Empty when at the root or when
+   *  no folder is being browsed. */
+  readonly browseBreadcrumb = signal<Array<{ id: string; name: string }>>([]);
+
+  /**
+   * Display name of the folder a new sub-folder will be created in.
+   * Resolved from the workspace tree by id so it stays correct even if the
+   * folder is renamed elsewhere. Null when there is no resolvable parent
+   * (e.g. before the tree has loaded).
+   */
+  readonly createFolderParentName = computed(() => {
+    const state = this.workspace.current();
+    const parentId = state ? state.currentFolderId : this.browseFolderId();
+    return this.findFolderName(parentId);
+  });
+
+  /** Display name of the folder a new document will be saved into. Same id-driven
+   *  resolution as the folder parent hint so it stays accurate after renames. */
+  readonly createDocumentParentName = computed(() => {
+    const state = this.workspace.current();
+    const parentId = state ? state.currentFolderId : this.browseFolderId();
+    return this.findFolderName(parentId);
+  });
+
+  /** Display name of the folder currently being explored in workspace mode.
+   *  Drives the explorer header so the user always sees which folder's
+   *  documents are listed. Null means the workspace root is being shown. */
+  readonly currentFolderDisplayName = computed(() => {
+    const state = this.workspace.current();
+    if (!state) {
+      return null;
+    }
+    if (state.currentFolderId === state.workspaceRootFolderId) {
+      return this.findFolderName(state.workspaceRootFolderId);
+    }
+    return this.findFolderName(state.currentFolderId);
+  });
+
   readonly renameFolderOpen = signal(false);
   readonly renameFolderId = signal<string | null>(null);
   readonly renameFolderName = signal('');
@@ -214,6 +258,7 @@ export class WorkspacePage implements OnDestroy {
       this.documents.set([]);
       this.workspace.setTree(null);
       this.workspace.setBreadcrumb([]);
+      this.browseBreadcrumb.set([]);
       return;
     }
 
@@ -249,10 +294,75 @@ export class WorkspacePage implements OnDestroy {
         } else {
           this.workspace.setBreadcrumb([]);
         }
+        // Normal (non-workspace) browse mode needs its own breadcrumb built
+        // from the folder ancestors since there is no full tree available.
+        if (!inWorkspace && parentFolderId) {
+          this.loadBrowseBreadcrumb(parentFolderId);
+        } else {
+          this.browseBreadcrumb.set([]);
+        }
       },
       error: (err: unknown) => this.error.set(getErrorMessage(err)),
       complete: () => this.loading.set(false),
     });
+  }
+
+  /**
+   * Resolve the ancestor chain for the currently browsed folder (normal
+   * browse mode). Each step uses `getFolder(id)` which returns the folder's
+   * `parentFolderId` so we can walk up to the root. We stop as soon as we
+   * reach a folder with no parent (root) or after a defensive max-depth
+   * safety cap. The resulting trail is root → leaf order, ready for the
+   * breadcrumb UI to render.
+   */
+  private loadBrowseBreadcrumb(folderId: string): void {
+    const maxDepth = 32;
+    const chain: FolderSummary[] = [];
+    let nextId: string | null = folderId;
+
+    const finish = (): void => {
+      chain.reverse();
+      this.browseBreadcrumb.set(chain.map((f) => ({ id: f.id, name: f.name })));
+    };
+
+    const visit = (depth: number): void => {
+      if (!nextId || depth > maxDepth) {
+        finish();
+        return;
+      }
+      const cached = this.folderMetaById().get(nextId);
+      if (cached) {
+        chain.push(cached);
+        nextId = cached.parentFolderId ?? null;
+        visit(depth + 1);
+        return;
+      }
+      this.api.getFolder(nextId).subscribe({
+        next: (folder) => {
+          this.folderMetaById.update((map) => {
+            const next = new Map(map);
+            next.set(folder.id, folder);
+            return next;
+          });
+          chain.push(folder);
+          nextId = folder.parentFolderId ?? null;
+          visit(depth + 1);
+        },
+        error: () => finish(),
+      });
+    };
+
+    visit(0);
+  }
+
+  /**
+   * Clear the breadcrumb trail and folder metadata cache when navigating to
+   * a different folder/scope so stale names from a previous project don't
+   * bleed into the new view.
+   */
+  private resetBrowseBreadcrumb(): void {
+    this.browseBreadcrumb.set([]);
+    this.folderMetaById.set(new Map());
   }
 
   private buildPath(tree: FolderTreeNode, folderId: string): BreadcrumbNode[] {
@@ -382,11 +492,88 @@ export class WorkspacePage implements OnDestroy {
     this.openGroupWorkspace(group.project.id, firstFolder.id);
   }
 
+  /**
+   * Click handler for a breadcrumb segment in the normal browse mode. The
+   * breadcrumb carries the segment id, so navigating by id means we stay
+   * correct even if the folder was renamed elsewhere.
+   */
+  navigateBreadcrumb(folderId: string | null): void {
+    if (folderId === null) {
+      this.browseRoot();
+      return;
+    }
+    if (this.workspace.isWorkspaceMode()) {
+      // Shouldn't happen because the breadcrumb only renders outside
+      // workspace mode, but be defensive: in workspace mode the breadcrumb
+      // click must update currentFolderId, not just the URL.
+      const state = this.workspace.current();
+      if (state) {
+        this.workspace.enterWorkspace({ ...state, currentFolderId: folderId });
+      }
+      return;
+    }
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { browseFolderId: folderId },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
   private findFolder(id: string): FolderSummary | undefined {
     return (
       this.folders().find((f) => f.id === id) ??
       this.projectGroups().flatMap((g) => g.folders).find((f) => f.id === id)
     );
+  }
+
+  /**
+   * Resolve a folder's display name by id, looking through the current page's
+   * folders, the workspace tree, and the breadcrumb path. Returns null when
+   * the id cannot be resolved yet. Id-based so it stays accurate across
+   * renames.
+   */
+  private findFolderName(id: string | null): string | null {
+    if (!id) {
+      return null;
+    }
+    const flat = this.findFolder(id);
+    if (flat) {
+      return flat.name;
+    }
+    const tree = this.workspace.folderTree();
+    if (tree) {
+      const fromTree = this.findInTree(tree, id);
+      if (fromTree) {
+        return fromTree;
+      }
+    }
+    const crumb = this.workspace.breadcrumb().find((n) => n.id === id);
+    if (crumb) {
+      return crumb.name;
+    }
+    // Browse-mode metadata cache (populated by the breadcrumb walk). Lets the
+    // "New folder / New document" dialog show the currently browsed folder
+    // even when it is not visible in the current page's folder list (its
+    // own children are shown instead, not itself).
+    const cached = this.folderMetaById().get(id);
+    if (cached) {
+      return cached.name;
+    }
+    return null;
+  }
+
+  private findInTree(node: FolderTreeNode, id: string): string | null {
+    if (node.id === id) {
+      return node.name;
+    }
+    for (const child of node.children) {
+      const hit = this.findInTree(child, id);
+      if (hit !== null) {
+        return hit;
+      }
+    }
+    return null;
   }
 
   // ----- Navigation -----
@@ -444,6 +631,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   browseRoot(): void {
+    this.resetBrowseBreadcrumb();
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { browseFolderId: null },
@@ -453,6 +641,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   onProjectChange(projectId: string): void {
+    this.resetBrowseBreadcrumb();
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
@@ -600,6 +789,20 @@ export class WorkspacePage implements OnDestroy {
     }
     const route = this.workspaceScope === 'Project' ? '/project-documents/detail' : '/knowledge/detail';
     void this.router.navigate([route, id], { replaceUrl: true });
+  }
+
+  /** Open a folder from the explorer list (workspace mode) — equivalent to
+   *  clicking the folder in the sidebar tree. */
+  openFolderFromExplorer(folderId: string): void {
+    if (this.workspace.isWorkspaceMode()) {
+      this.workspace.setCurrentFolder(folderId);
+    }
+  }
+
+  /** Open a document from the explorer list (workspace mode) — opens the
+   *  document in a new tab (or activates its existing tab). */
+  openDocumentFromExplorer(doc: KnowledgeItemSummary): void {
+    this.openDocument(doc, doc.title);
   }
 
   openMoveDocument(id: string, projectId?: string): void {

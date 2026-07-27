@@ -230,6 +230,12 @@ public sealed class FolderProvider(
         var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
         await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
 
+        // EnsureFolderAccessibleAsync returns a no-tracking snapshot, so
+        // mutating it and calling SaveChanges would silently discard the
+        // changes. Re-fetch the folder with tracking enabled so the
+        // property assignments below are persisted on save.
+        var tracked = await dbContext.Folders.FirstAsync(f => f.Id == id, cancellationToken);
+
         string? newName = null;
         string? normalized = null;
         if (!string.IsNullOrWhiteSpace(request.Name))
@@ -278,26 +284,26 @@ public sealed class FolderProvider(
 
         if (newName is not null)
         {
-            folder.Name = newName;
-            folder.NormalizedName = normalized!;
+            tracked.Name = newName;
+            tracked.NormalizedName = normalized!;
         }
 
         if (request.Description is not null)
         {
-            folder.Description = RequestText.Optional(request.Description, 512);
+            tracked.Description = RequestText.Optional(request.Description, 512);
         }
 
         if (request.ParentFolderId.HasValue)
         {
-            folder.ParentFolderId = request.ParentFolderId;
+            tracked.ParentFolderId = request.ParentFolderId;
         }
 
         if (request.SortOrder.HasValue)
         {
-            folder.SortOrder = request.SortOrder.Value;
+            tracked.SortOrder = request.SortOrder.Value;
         }
 
-        folder.UpdatedAt = dateTimeProvider.UtcNow;
+        tracked.UpdatedAt = dateTimeProvider.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var childCount = await dbContext.Folders.CountAsync(f => f.ParentFolderId == id, cancellationToken);
@@ -305,8 +311,8 @@ public sealed class FolderProvider(
             x => x.FolderId == id && x.Status != KnowledgeItemStatus.Deleted, cancellationToken);
 
         return new FolderSummaryDto(
-            folder.Id, folder.Name, folder.Description, folder.SortOrder,
-            folder.ParentFolderId, folder.ProjectId, folder.Scope, childCount, docCount);
+            tracked.Id, tracked.Name, tracked.Description, tracked.SortOrder,
+            tracked.ParentFolderId, tracked.ProjectId, tracked.Scope, childCount, docCount);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)

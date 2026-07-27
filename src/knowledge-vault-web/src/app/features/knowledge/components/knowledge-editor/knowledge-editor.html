@@ -57,6 +57,17 @@
           </section>
         }
 
+        <!-- Read-only parent folder hint. Resolved by id on the caller side so
+             it stays accurate after a rename. Always shown when a new doc is
+             being created in a known folder, so the user sees exactly where it
+             will live. -->
+        @if (!item) {
+          <p class="editor-dialog__parent-hint" data-testid="editor-parent-hint">
+            <span class="editor-dialog__parent-label">Parent</span>
+            <span class="editor-dialog__parent-name">{{ parentFolderName ?? 'Workspace root' }}</span>
+          </p>
+        }
+
         <section class="form-section" aria-labelledby="document-content-heading">
           <div class="section-heading">
             <h4 id="document-content-heading">Document</h4>

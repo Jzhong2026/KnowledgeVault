@@ -29,6 +29,10 @@ export class KnowledgeEditor implements OnChanges {
   @Input() defaultProjectId: string | null = null;
   @Input() defaultTopicId: string | null = null;
   @Input() defaultFolderId: string | null = null;
+  /** Display name of the parent folder a new document will be created in.
+   *  Resolved by id on the caller side so it stays accurate after renames.
+   *  Null when there is no parent (root level). */
+  @Input() parentFolderName: string | null = null;
 
   @Output() saveItem = new EventEmitter<SaveDocumentRequest>();
   @Output() deleteItem = new EventEmitter<void>();

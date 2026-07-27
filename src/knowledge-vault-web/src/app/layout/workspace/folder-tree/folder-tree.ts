@@ -14,6 +14,15 @@ import { FolderTreeNode } from '../../../core/models/folder.models';
             [class.is-current]="node.id === currentFolderId()"
             (click)="navigate.emit(node.id)"
           >
+            <span
+              class="folder-tree__icon"
+              [class.is-current]="node.id === currentFolderId()"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              </svg>
+            </span>
             <span class="folder-tree__label" [title]="node.name">{{ node.name }}</span>
             <button
               type="button"
@@ -68,6 +77,29 @@ import { FolderTreeNode } from '../../../core/models/folder.models';
         background: #e7f6ef;
         color: var(--accent-strong, #0f9d76);
         font-weight: 800;
+      }
+      .folder-tree__icon {
+        display: grid;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 18px;
+        place-items: center;
+        border-radius: 4px;
+        color: var(--accent-strong, #0f9d76);
+        background: rgba(15, 157, 118, 0.08);
+      }
+      .folder-tree__icon svg {
+        width: 12px;
+        height: 12px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .folder-tree__icon.is-current {
+        background: rgba(15, 157, 118, 0.18);
+        color: var(--accent-strong, #0f9d76);
       }
       .folder-tree__label {
         flex: 1;

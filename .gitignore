@@ -94,3 +94,26 @@ run_e2e.ps1
 e2e_out.txt
 frontend_build.txt
 src/knowledge-vault-web/test-results/
+
+# Transient test/debug output captured via Tee-Object. These are scratch
+# files generated while iterating locally and are safe to delete at any
+# time — they have no relationship to the committed source.
+backend_stdout.log
+e2e_crumb.txt
+e2e_crumb2.txt
+e2e_crumb3.txt
+e2e_exit.txt
+e2e_full.txt
+e2e_full2.txt
+e2e_full3.txt
+e2e_parent.txt
+e2e_test2.txt
+e2e_test3.txt
+e2e_usability.txt
+frontend_test.txt
+proxy_check.txt
+proxy_check2.txt
+register_admin_result.txt
+backend_debug.bat
+frontend_debug.bat
+launch_kv.bat

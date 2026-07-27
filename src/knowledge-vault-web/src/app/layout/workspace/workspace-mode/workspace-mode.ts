@@ -10,7 +10,10 @@ import { FolderTree } from '../folder-tree/folder-tree';
   template: `
     <aside class="workspace-mode">
       <header class="workspace-mode__header">
-        <span class="workspace-mode__title">Workspace</span>
+        <div class="workspace-mode__title-block">
+          <span class="workspace-mode__eyebrow">Workspace</span>
+          <span class="workspace-mode__title" [title]="rootName() ?? ''">{{ rootName() ?? '…' }}</span>
+        </div>
         <button type="button" class="workspace-mode__exit" (click)="exit()">Exit Workspace</button>
       </header>
       <div class="workspace-mode__tree">
@@ -47,13 +50,28 @@ import { FolderTree } from '../folder-tree/folder-tree';
         justify-content: space-between;
         padding: 14px 16px;
         border-bottom: 1px solid var(--border, #e2e8f0);
+        gap: 8px;
       }
-      .workspace-mode__title {
-        font-size: 12px;
+      .workspace-mode__title-block {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .workspace-mode__eyebrow {
+        font-size: 10px;
         font-weight: 800;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--muted, #64748b);
+      }
+      .workspace-mode__title {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--text, #0f172a);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
       }
       .workspace-mode__exit {
         border: 1px solid var(--border, #e2e8f0);
@@ -87,6 +105,7 @@ export class WorkspaceMode {
   private readonly router = inject(Router);
   readonly tree = this.workspace.folderTree;
   readonly currentFolderId = this.workspace.currentFolderId;
+  readonly rootName = this.workspace.rootName;
 
   exit(): void {
     this.workspace.exitWorkspace();

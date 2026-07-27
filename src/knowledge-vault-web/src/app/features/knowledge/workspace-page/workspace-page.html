@@ -1,7 +1,8 @@
 <section class="workspace-page">
   @if (workspace.isWorkspaceMode()) {
     <!-- Workspace mode: the folder tree lives in the AppShell's workspace-mode
-         panel (left); this pane only renders the tab bar + document view. -->
+         panel (left); this pane renders the document list of the selected
+         folder plus the tab bar / document view for opened tabs. -->
     <div class="workspace-pane">
       <div class="workspace-pane__toolbar">
         <span>Workspace</span>
@@ -33,34 +34,103 @@
       </div>
 
       <div class="workspace-shell__pane">
-        @if (workspace.openTabs().length === 0) {
-          <div class="workspace-shell__placeholder">
-            <p>No document open.</p>
-            <small>Pick a document from the folder tree to open it in a tab.</small>
-          </div>
-        } @else if (activeDocumentLoading()) {
-          <app-loading-indicator label="Loading document" />
-        } @else if (activeDocumentError()) {
-          <p class="alert">{{ activeDocumentError() }}</p>
-        } @else if (activeDocument(); as doc) {
-          <article class="workspace-doc">
-            <header class="workspace-doc__head">
-              <h3 class="workspace-doc__title">{{ doc.title }}</h3>
-              <div class="workspace-doc__meta">
-                <span class="workspace-doc__dot" [class]="'workspace-doc__dot--' + (doc.status | lowercase)"></span>
-                <span>{{ doc.status }}</span>
-                @if (doc.summary) {
-                  <span class="workspace-doc__sep">·</span>
-                  <span>{{ doc.summary }}</span>
+        @if (workspace.activeTab(); as tab) {
+          @if (activeDocumentLoading()) {
+            <app-loading-indicator label="Loading document" />
+          } @else if (activeDocumentError()) {
+            <p class="alert">{{ activeDocumentError() }}</p>
+          } @else if (activeDocument(); as doc) {
+            <article class="workspace-doc">
+              <header class="workspace-doc__head">
+                <h3 class="workspace-doc__title">{{ doc.title }}</h3>
+                <div class="workspace-doc__meta">
+                  <span class="workspace-doc__dot" [class]="'workspace-doc__dot--' + (doc.status | lowercase)"></span>
+                  <span>{{ doc.status }}</span>
+                  @if (doc.summary) {
+                    <span class="workspace-doc__sep">·</span>
+                    <span>{{ doc.summary }}</span>
+                  }
+                </div>
+              </header>
+              <div
+                class="workspace-doc__body markdown-body"
+                [innerHTML]="doc.content | markdownContent"
+                appMermaidDiagrams
+              ></div>
+            </article>
+          }
+        } @else {
+          <!-- No tab open: show the folder's document list so the user can
+               see existing items and open any of them in a new tab. -->
+          <div class="workspace-explorer" data-testid="workspace-explorer">
+            <header class="workspace-explorer__header">
+              <h3>{{ currentFolderDisplayName() ?? 'Documents' }}</h3>
+              <small class="muted">
+                {{ documents().length }} document{{ documents().length === 1 ? '' : 's' }}
+                @if (folders().length) {
+                  · {{ folders().length }} folder{{ folders().length === 1 ? '' : 's' }}
                 }
-              </div>
+              </small>
             </header>
-            <div
-              class="workspace-doc__body markdown-body"
-              [innerHTML]="doc.content | markdownContent"
-              appMermaidDiagrams
-            ></div>
-          </article>
+
+            @if (loading()) {
+              <app-loading-indicator label="Loading folder contents" />
+            } @else if (documents().length === 0 && folders().length === 0) {
+              <div class="workspace-explorer__empty">
+                <p>This folder is empty.</p>
+                <small>Create a subfolder or a document to get started.</small>
+              </div>
+            } @else {
+              @if (folders().length) {
+                <ul class="workspace-explorer__folders" aria-label="Subfolders">
+                  @for (folder of folders(); track folder.id) {
+                    <li>
+                      <button
+                        type="button"
+                        class="workspace-explorer__folder"
+                        (click)="openFolderFromExplorer(folder.id)"
+                        [title]="folder.name"
+                      >
+                        <span class="workspace-explorer__icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          </svg>
+                        </span>
+                        <span class="workspace-explorer__name">{{ folder.name }}</span>
+                        @if (folder.documentCount > 0) {
+                          <span class="workspace-explorer__count" [title]="folder.documentCount + ' document(s)'">{{ folder.documentCount }}</span>
+                        }
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              @if (documents().length) {
+                <ul class="workspace-explorer__documents" aria-label="Documents" data-testid="workspace-explorer-documents">
+                  @for (doc of documents(); track doc.id) {
+                    <li>
+                      <button
+                        type="button"
+                        class="workspace-explorer__document"
+                        (click)="openDocumentFromExplorer(doc)"
+                        [title]="doc.title"
+                        data-testid="workspace-explorer-document"
+                      >
+                        <span class="workspace-explorer__icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M6 3h9l4 4v14H6zM15 3v5h4M9 13h7M9 17h7" />
+                          </svg>
+                        </span>
+                        <span class="workspace-explorer__name">{{ doc.title }}</span>
+                        <span class="workspace-explorer__status" [class]="'workspace-explorer__status--' + (doc.status | lowercase)">{{ doc.status }}</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            }
+          </div>
         }
       </div>
     </div>
@@ -110,6 +180,39 @@
 
     </div>
   </div>
+
+  <!-- Browse-mode breadcrumb. Shown whenever the user has drilled into a
+       folder. Each segment is keyed by id so a rename elsewhere cannot
+       desync the trail. The "Documents" root segment is virtual and points
+       at browseRoot (clears browseFolderId). -->
+  @if (browseBreadcrumb().length) {
+    <nav class="browse-breadcrumb" aria-label="Folder path" data-testid="browse-breadcrumb">
+      <button
+        type="button"
+        class="browse-breadcrumb__home"
+        (click)="navigateBreadcrumb(null)"
+        title="Back to documents root"
+      >
+        Documents
+      </button>
+      @for (segment of browseBreadcrumb(); track segment.id; let last = $last) {
+        <span class="browse-breadcrumb__sep" aria-hidden="true">/</span>
+        @if (last) {
+          <span class="browse-breadcrumb__current" [title]="segment.name">{{ segment.name }}</span>
+        } @else {
+          <button
+            type="button"
+            class="browse-breadcrumb__segment"
+            (click)="navigateBreadcrumb(segment.id)"
+            [title]="segment.name"
+            [attr.data-testid]="'browse-breadcrumb-segment'"
+          >
+            {{ segment.name }}
+          </button>
+        }
+      }
+    </nav>
+  }
 
   @if (error()) {
     <p class="alert">{{ error() }}</p>
@@ -232,6 +335,7 @@
       [workspaceScope]="workspaceScope"
       [defaultProjectId]="projectId()"
       [defaultFolderId]="workspace.currentFolderId()"
+      [parentFolderName]="createDocumentParentName()"
       (projectSelected)="onEditorProjectSelected($event)"
       (closeDialog)="closeEditor()"
       (saveItem)="saveDocument($event)"
@@ -242,6 +346,10 @@
     <div class="dialog-backdrop" (click)="createFolderOpen.set(false)">
       <div class="dialog" (click)="$event.stopPropagation()">
         <h3>New folder</h3>
+        <p class="dialog__parent-hint" data-testid="create-folder-parent">
+          <span class="dialog__parent-label">Parent:</span>
+          <span class="dialog__parent-name">{{ createFolderParentName() ?? 'Workspace root' }}</span>
+        </p>
         @if (isProjectScope) {
           <label class="field-row">
             <span class="field-label">Project</span>
@@ -262,6 +370,7 @@
           <input
             type="text"
             placeholder="Folder name"
+            data-testid="create-folder-name"
             [ngModel]="createFolderName()"
             (ngModelChange)="createFolderName.set($event)"
             (keyup.enter)="submitCreateFolder()"
@@ -281,6 +390,7 @@
           <button
             type="button"
             class="primary"
+            data-testid="create-folder-submit"
             [disabled]="saving() || !createFolderName().trim() || (isProjectScope && !createFolderProjectId())"
             (click)="submitCreateFolder()"
           >

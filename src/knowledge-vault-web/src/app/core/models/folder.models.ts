@@ -18,6 +18,12 @@ export interface FolderTreeNode {
   parentFolderId?: string | null;
   sortOrder: number;
   children: FolderTreeNode[];
+  /** Direct document count, populated by the workspace-page when the folder
+   *  content is loaded. Optional because the raw backend tree does not carry
+   *  this data. */
+  documentCount?: number;
+  /** Direct child folder count, populated alongside documentCount. */
+  childFolderCount?: number;
 }
 
 export interface FolderContent {

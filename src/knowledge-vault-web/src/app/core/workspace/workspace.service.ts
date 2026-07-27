@@ -39,6 +39,8 @@ export class WorkspaceService {
   readonly projectId = computed(() => this.state()?.projectId ?? null);
   readonly folderTree = this.tree.asReadonly();
   readonly breadcrumb = this.breadcrumbPath.asReadonly();
+  /** Display name of the current workspace root. Derived from the loaded tree. */
+  readonly rootName = computed(() => this.tree()?.name ?? null);
   readonly openTabs = this.tabs.asReadonly();
   readonly activeTabIdSignal = this.activeTabId.asReadonly();
   readonly activeTab = computed(() => {
