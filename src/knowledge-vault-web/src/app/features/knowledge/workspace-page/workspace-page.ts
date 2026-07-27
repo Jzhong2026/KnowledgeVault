@@ -2,7 +2,7 @@ import { Component, OnDestroy, computed, effect, inject, signal } from '@angular
 import { LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, forkJoin, of, map, catchError } from 'rxjs';
+import { Subscription, forkJoin, of } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
 import { getErrorMessage } from '../../../core/http/error-message';
@@ -24,23 +24,10 @@ import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
 import { TileGrid } from '../components/tile-grid/tile-grid';
 
-interface MoveTarget {
-  id: string | null;
-  name: string;
-  depth: number;
-}
-
-interface ProjectGroup {
-  project: ProjectSummary;
-  folders: FolderSummary[];
-  documents: KnowledgeItemSummary[];
-  page: number;
-  pageSize: number;
-  loading: boolean;
-  error: string | null;
-}
-
-const GROUP_PAGE_SIZE = 8;
+/** Page size used for the workspace "Load more" UI. Each click reveals
+ *  this many more folders AND this many more documents. Backend clamps the
+ *  final value to the range [1, 100]. */
+const FOLDER_CONTENT_PAGE_SIZE = 20;
 
 @Component({
   selector: 'app-workspace-page',
@@ -76,7 +63,16 @@ export class WorkspacePage implements OnDestroy {
   readonly tags = signal<Tag[]>([]);
   readonly editorTopics = signal<ProjectTopic[]>([]);
 
-  readonly projectGroups = signal<ProjectGroup[]>([]);
+  /** True while a "Load more" page is being fetched. Distinct from
+   *  <see cref="loading"/> which only tracks the first page of a fresh
+   *  browse so we can keep existing tiles visible while loading the next
+   *  page (instead of clearing the canvas on every Load more). */
+  readonly loadingMore = signal(false);
+
+  /** True when the backend has at least one more folder page or one more
+   *  document page to deliver. Drives the visibility of the "Load more"
+   *  button. */
+  readonly hasMoreContent = signal(false);
 
   readonly projectId = signal<string | null>(null);
   /** The folder being viewed in the regular, Explorer-like browser. */
@@ -85,13 +81,19 @@ export class WorkspacePage implements OnDestroy {
   readonly hasFollowedProjects = computed(() => this.projects().length > 0);
   readonly noFollowedProjects = computed(() => this.isProjectScope && this.projects().length === 0);
   readonly canCreate = computed(() => !this.isProjectScope || this.hasFollowedProjects());
-  readonly showGroups = computed(
-    () =>
-      this.isProjectScope &&
-      !this.projectId() &&
-      !this.workspace.isWorkspaceMode() &&
-      this.projects().length > 0,
-  );
+
+  /** Display name of the currently selected project. Resolved id-based so a
+   *  project rename elsewhere stays consistent. Null when no project is
+   *  selected or the project list has not loaded yet. Used by the browse
+   *  breadcrumb to render the project segment between "Documents" and the
+   *  folder trail. */
+  readonly currentProjectName = computed(() => {
+    const id = this.projectId();
+    if (!id) {
+      return null;
+    }
+    return this.projects().find((p) => p.id === id)?.name ?? null;
+  });
 
   readonly editorOpen = signal(false);
   readonly selectedItem = signal<KnowledgeItem | null>(null);
@@ -152,15 +154,15 @@ export class WorkspacePage implements OnDestroy {
 
   readonly deleteFolderId = signal<string | null>(null);
 
-  readonly moveDocOpen = signal(false);
-  readonly moveDocId = signal<string | null>(null);
-  readonly moveTargets = signal<MoveTarget[]>([]);
+  readonly breadcrumbDropTargetId = signal<string | null>(null);
+  readonly explorerDropTargetId = signal<string | null>(null);
 
   readonly activeDocument = signal<KnowledgeItem | null>(null);
   readonly activeDocumentLoading = signal(false);
   readonly activeDocumentError = signal<string | null>(null);
 
   private readonly sub = new Subscription();
+  private lastProcessedMoveRequestId = 0;
 
   constructor() {
     this.sub.add(
@@ -199,11 +201,12 @@ export class WorkspacePage implements OnDestroy {
       const currentFolderId = this.workspace.currentFolderId();
       void projectId;
       void currentFolderId;
-      if (this.showGroups()) {
-        this.loadGroups();
-      } else {
-        this.loadContent(state);
-      }
+      // Always load the first page of content for the current view. The
+      // grouped "All followed projects" view was removed; the project scope
+      // root now displays the same single-folder tile grid scoped to the
+      // selected project, with a "Pick a project" empty state when no
+      // project is chosen.
+      this.loadContent(state, 1, /*append*/ false);
     });
 
     // Whenever the active tab changes, fetch the corresponding document.
@@ -221,6 +224,16 @@ export class WorkspacePage implements OnDestroy {
         error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
         complete: () => this.activeDocumentLoading.set(false),
       });
+    });
+
+    effect(() => {
+      const moveRequest = this.workspace.documentMoveRequest();
+      if (!moveRequest || moveRequest.requestId <= this.lastProcessedMoveRequestId) {
+        return;
+      }
+      this.lastProcessedMoveRequestId = moveRequest.requestId;
+      this.moveDocumentToFolder(moveRequest.documentId, moveRequest.folderId);
+      this.workspace.clearDocumentMoveRequest();
     });
 
     this.loadReferenceData();
@@ -251,18 +264,27 @@ export class WorkspacePage implements OnDestroy {
     });
   }
 
-  private loadContent(state: WorkspaceState | null): void {
+  private loadContent(state: WorkspaceState | null, page: number, append: boolean): void {
     if (this.isProjectScope && !this.projectId() && !state) {
+      // Project scope with no project selected: clear everything and bail
+      // so the empty state ("Pick a project") can render.
       this.loading.set(false);
+      this.loadingMore.set(false);
       this.folders.set([]);
       this.documents.set([]);
+      this.hasMoreContent.set(false);
       this.workspace.setTree(null);
       this.workspace.setBreadcrumb([]);
+      this.workspace.setCurrentFolderDocuments([]);
       this.browseBreadcrumb.set([]);
       return;
     }
 
-    this.loading.set(true);
+    if (append) {
+      this.loadingMore.set(true);
+    } else {
+      this.loading.set(true);
+    }
     this.error.set(null);
 
     const inWorkspace = state !== null;
@@ -274,6 +296,8 @@ export class WorkspacePage implements OnDestroy {
       projectId: this.projectId() ?? null,
       parentFolderId,
       rootFolderId,
+      page,
+      pageSize: FOLDER_CONTENT_PAGE_SIZE,
     });
 
     const tree$ = inWorkspace
@@ -286,8 +310,23 @@ export class WorkspacePage implements OnDestroy {
 
     forkJoin({ content: content$, tree: tree$ }).subscribe({
       next: ({ content, tree }) => {
-        this.folders.set(content.folders);
-        this.documents.set(content.documents);
+        // Backend returns either a FolderContent (unpaged) or a
+        // FolderContentPage (when page is supplied). We always supply a
+        // page here, so narrow to the paged shape.
+        const pageResult = content as import('../../../core/models/folder.models').FolderContentPage;
+        const newFolders = pageResult.folders ?? [];
+        const newDocuments = pageResult.documents ?? [];
+
+        if (append) {
+          // Append mode: dedupe by id (defensive) and concatenate.
+          this.folders.update((existing) => dedupeAppend(existing, newFolders));
+          this.documents.update((existing) => dedupeAppend(existing, newDocuments));
+        } else {
+          this.folders.set(newFolders);
+          this.documents.set(newDocuments);
+        }
+
+        this.workspace.setCurrentFolderDocuments(inWorkspace ? newDocuments : []);
         this.workspace.setTree(tree);
         if (tree) {
           this.workspace.setBreadcrumb(this.buildPath(tree, state!.currentFolderId!));
@@ -301,10 +340,32 @@ export class WorkspacePage implements OnDestroy {
         } else {
           this.browseBreadcrumb.set([]);
         }
+
+        this.hasMoreContent.set(Boolean(pageResult.hasMore));
+        this.lastLoadedPage = pageResult.page;
       },
       error: (err: unknown) => this.error.set(getErrorMessage(err)),
-      complete: () => this.loading.set(false),
+      complete: () => {
+        this.loading.set(false);
+        this.loadingMore.set(false);
+      },
     });
+  }
+
+  /** Track the last page that was successfully merged into the visible
+   *  folder/document lists so "Load more" can request the next one. */
+  private lastLoadedPage = 0;
+
+  /**
+   * Fetch the next page of folders/documents and append it to the visible
+   * lists. Disabled while a page is already in flight or when the backend
+   * has reported no more data.
+   */
+  loadMore(): void {
+    if (this.loadingMore() || !this.hasMoreContent() || this.loading()) {
+      return;
+    }
+    this.loadContent(this.workspace.current(), this.lastLoadedPage + 1, /*append*/ true);
   }
 
   /**
@@ -384,114 +445,6 @@ export class WorkspacePage implements OnDestroy {
     return path;
   }
 
-  // ----- Grouped (All followed projects) view -----
-  private loadGroups(): void {
-    const projects = this.projects();
-    this.loading.set(true);
-    this.error.set(null);
-    if (projects.length === 0) {
-      this.projectGroups.set([]);
-      this.loading.set(false);
-      return;
-    }
-
-    this.projectGroups.set(
-      projects.map((p) => ({
-        project: p,
-        folders: [],
-        documents: [],
-        page: 1,
-        pageSize: GROUP_PAGE_SIZE,
-        loading: true,
-        error: null,
-      })),
-    );
-
-    forkJoin(
-      projects.map((p) =>
-        this.api.listFolderContent({ scope: this.workspaceScope, projectId: p.id }).pipe(
-          map((content) => ({ id: p.id, content, error: null as string | null })),
-          catchError((err: unknown) => of({ id: p.id, content: null, error: getErrorMessage(err) })),
-        ),
-      ),
-    ).subscribe((results) => {
-      this.projectGroups.update((groups) =>
-        groups.map((g) => {
-          const r = results.find((x) => x.id === g.project.id);
-          if (!r || r.error || !r.content) {
-            return { ...g, loading: false, error: r?.error ?? 'Failed to load.' };
-          }
-          return {
-            ...g,
-            loading: false,
-            folders: r.content!.folders,
-            documents: r.content!.documents,
-          };
-        }),
-      );
-      this.loading.set(false);
-    });
-  }
-
-  private reload(): void {
-    if (this.showGroups()) {
-      this.loadGroups();
-    } else {
-      this.loadContent(this.workspace.current());
-    }
-  }
-
-  groupDocuments(group: ProjectGroup): KnowledgeItemSummary[] {
-    const start = (group.page - 1) * group.pageSize;
-    return group.documents.slice(start, start + group.pageSize);
-  }
-
-  groupTotalPages(group: ProjectGroup): number {
-    return Math.max(1, Math.ceil(group.documents.length / group.pageSize));
-  }
-
-  setGroupPage(projectId: string, page: number): void {
-    this.projectGroups.update((groups) =>
-      groups.map((g) => (g.project.id === projectId ? { ...g, page } : g)),
-    );
-  }
-
-  openGroupFolder(projectId: string, folderId: string): void {
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        projectId,
-        browseFolderId: folderId,
-        workspaceRootFolderId: null,
-        folderId: null,
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
-  }
-
-  openGroupWorkspace(projectId: string, folderId: string): void {
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        projectId,
-        browseFolderId: null,
-        workspaceRootFolderId: folderId,
-        folderId,
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
-  }
-
-  openGroupFirstWorkspace(group: ProjectGroup): void {
-    const firstFolder = group.folders[0];
-    if (!firstFolder) {
-      return;
-    }
-    this.openGroupWorkspace(group.project.id, firstFolder.id);
-  }
-
   /**
    * Click handler for a breadcrumb segment in the normal browse mode. The
    * breadcrumb carries the segment id, so navigating by id means we stay
@@ -521,10 +474,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   private findFolder(id: string): FolderSummary | undefined {
-    return (
-      this.folders().find((f) => f.id === id) ??
-      this.projectGroups().flatMap((g) => g.folders).find((f) => f.id === id)
-    );
+    return this.folders().find((f) => f.id === id);
   }
 
   /**
@@ -640,6 +590,29 @@ export class WorkspacePage implements OnDestroy {
     });
   }
 
+  /**
+   * Return to the project library root with the current project preselected
+   * in the project dropdown. Triggered by clicking the project segment in
+   * the browse-mode breadcrumb. Clears the browse folder so the grouped
+   * project view (or the single-project list) renders again instead of the
+   * drilled-in folder contents.
+   */
+  goToProject(): void {
+    const projectId = this.projectId();
+    this.resetBrowseBreadcrumb();
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        projectId,
+        browseFolderId: null,
+        workspaceRootFolderId: null,
+        folderId: null,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
   onProjectChange(projectId: string): void {
     this.resetBrowseBreadcrumb();
     void this.router.navigate([], {
@@ -697,7 +670,7 @@ export class WorkspacePage implements OnDestroy {
         next: () => {
           this.createFolderOpen.set(false);
           this.saving.set(false);
-          this.reload();
+          this.loadContent(this.workspace.current(), 1, /*append*/ false);
         },
         error: (err: unknown) => {
           this.error.set(getErrorMessage(err));
@@ -724,7 +697,7 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.renameFolderOpen.set(false);
         this.saving.set(false);
-        this.reload();
+        this.loadContent(this.workspace.current(), 1, /*append*/ false);
       },
       error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
@@ -751,17 +724,13 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.deleteFolderId.set(null);
         this.saving.set(false);
-        if (this.showGroups()) {
-          this.loadGroups();
-          return;
-        }
         const state = this.workspace.current();
         if (state && state.workspaceRootFolderId === id) {
           this.exitWorkspace();
         } else if (state && state.currentFolderId === id) {
           this.workspace.setCurrentFolder(state.workspaceRootFolderId);
         } else {
-          this.loadContent(state);
+          this.loadContent(state, 1, /*append*/ false);
         }
       },
       error: (err: unknown) => {
@@ -805,41 +774,115 @@ export class WorkspacePage implements OnDestroy {
     this.openDocument(doc, doc.title);
   }
 
-  openMoveDocument(id: string, projectId?: string): void {
-    this.moveDocId.set(id);
-    const pid = projectId ?? this.projectId() ?? null;
-    this.api.getFolderTree({ scope: this.workspaceScope, projectId: pid }).subscribe({
-      next: (tree) => this.moveTargets.set(this.flattenTree(tree, 0)),
-      error: () => this.moveTargets.set([]),
-    });
-    this.moveDocOpen.set(true);
-  }
-
-  private flattenTree(node: FolderTreeNode, depth: number): MoveTarget[] {
-    const out: MoveTarget[] = [{ id: node.id, name: node.name, depth }];
-    for (const child of node.children) {
-      out.push(...this.flattenTree(child, depth + 1));
-    }
-    return out;
-  }
-
-  submitMoveDocument(folderId: string | null): void {
-    const id = this.moveDocId();
-    if (!id) {
-      return;
-    }
+  moveDocumentToFolder(documentId: string, folderId: string | null): void {
     this.saving.set(true);
-    this.api.moveDocument(id, folderId).subscribe({
+    this.api.moveDocument(documentId, folderId).subscribe({
       next: () => {
-        this.moveDocOpen.set(false);
         this.saving.set(false);
-        this.reload();
+        this.loadContent(this.workspace.current(), 1, /*append*/ false);
       },
       error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
         this.saving.set(false);
       },
     });
+  }
+
+  downloadDocument(documentId: string): void {
+    const title = this.findDocumentTitle(documentId) ?? 'document';
+    this.api.downloadDocument(documentId).subscribe({
+      next: (blob) => this.triggerBrowserDownload(blob, `${this.sanitizeFileName(title)}.md`),
+      error: (err: unknown) => this.error.set(getErrorMessage(err)),
+    });
+  }
+
+  downloadFolder(folderId: string): void {
+    const name = this.findFolderName(folderId) ?? 'folder';
+    this.api.downloadFolder(folderId).subscribe({
+      next: (blob) => this.triggerBrowserDownload(blob, `${this.sanitizeFileName(name)}.zip`),
+      error: (err: unknown) => this.error.set(getErrorMessage(err)),
+    });
+  }
+
+  onBreadcrumbDragOver(event: DragEvent): void {
+    if (!event.dataTransfer) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  onBreadcrumbDragEnter(event: DragEvent, folderId: string | null): void {
+    event.preventDefault();
+    this.breadcrumbDropTargetId.set(folderId ?? 'root');
+  }
+
+  onBreadcrumbDragLeave(_event: DragEvent, folderId: string | null): void {
+    const key = folderId ?? 'root';
+    if (this.breadcrumbDropTargetId() === key) {
+      this.breadcrumbDropTargetId.set(null);
+    }
+  }
+
+  onBreadcrumbDrop(event: DragEvent, folderId: string | null): void {
+    event.preventDefault();
+    this.breadcrumbDropTargetId.set(null);
+    const documentId = event.dataTransfer?.getData('application/x-kv-document-id')
+      ?? event.dataTransfer?.getData('text/plain')
+      ?? '';
+    if (!documentId) {
+      return;
+    }
+    this.moveDocumentToFolder(documentId, folderId);
+  }
+
+  onExplorerFolderDragOver(event: DragEvent): void {
+    if (!event.dataTransfer) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  onExplorerFolderDragEnter(event: DragEvent, folderId: string): void {
+    event.preventDefault();
+    this.explorerDropTargetId.set(folderId);
+  }
+
+  onExplorerFolderDragLeave(_event: DragEvent, folderId: string): void {
+    if (this.explorerDropTargetId() === folderId) {
+      this.explorerDropTargetId.set(null);
+    }
+  }
+
+  onExplorerFolderDrop(event: DragEvent, folderId: string): void {
+    event.preventDefault();
+    this.explorerDropTargetId.set(null);
+    const documentId = event.dataTransfer?.getData('application/x-kv-document-id')
+      ?? event.dataTransfer?.getData('text/plain')
+      ?? '';
+    if (!documentId) {
+      return;
+    }
+    this.moveDocumentToFolder(documentId, folderId);
+  }
+
+  private findDocumentTitle(id: string): string | null {
+    return this.documents().find((doc) => doc.id === id)?.title ?? null;
+  }
+
+  private sanitizeFileName(name: string): string {
+    const sanitized = name.replace(/[\\/:*?"<>|]/g, '_').trim();
+    return sanitized || 'download';
+  }
+
+  private triggerBrowserDownload(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   deleteDocument(id: string): void {
@@ -850,7 +893,7 @@ export class WorkspacePage implements OnDestroy {
     this.api.deleteKnowledgeItem(id).subscribe({
       next: () => {
         this.saving.set(false);
-        this.reload();
+        this.loadContent(this.workspace.current(), 1, /*append*/ false);
       },
       error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
@@ -896,7 +939,7 @@ export class WorkspacePage implements OnDestroy {
       next: () => {
         this.editorOpen.set(false);
         this.saving.set(false);
-        this.reload();
+        this.loadContent(this.workspace.current(), 1, /*append*/ false);
       },
       error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
@@ -908,4 +951,28 @@ export class WorkspacePage implements OnDestroy {
   closeEditor(): void {
     this.editorOpen.set(false);
   }
+}
+
+/**
+ * Concatenate <paramref name="incoming"/> onto <paramref name="existing"/>
+ * while removing duplicates by id. Backend ordering is authoritative, so
+ * appended items follow whatever order the server returned. The id-based
+ * dedupe is defensive: in normal flow the same id cannot appear on two
+ * pages, but if a rename or background mutation causes overlap, the
+ * newest occurrence wins (i.e. later in <paramref name="incoming"/>).
+ */
+function dedupeAppend<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  if (incoming.length === 0) {
+    return existing;
+  }
+  const seen = new Set(existing.map((item) => item.id));
+  const merged = [...existing];
+  for (const item of incoming) {
+    if (seen.has(item.id)) {
+      continue;
+    }
+    seen.add(item.id);
+    merged.push(item);
+  }
+  return merged;
 }

@@ -1,4 +1,11 @@
-<div class="shell" [class.shell--sidebar-collapsed]="sidebarCollapsed()" [class.shell--workspace]="isWorkspaceMode()">
+<div
+  class="shell"
+  [class.shell--sidebar-collapsed]="sidebarCollapsed()"
+  [class.shell--workspace]="isWorkspaceMode()"
+  [class.shell--resizing]="resizing()"
+  [style.grid-template-columns]="gridColumns()"
+  [style.--sidebar-width.px]="sidebarCollapsed() ? 82 : sidebarWidth()"
+>
   @if (isWorkspaceMode()) {
     <app-workspace-mode />
   } @else {
@@ -7,6 +14,17 @@
       (collapsedChange)="sidebarCollapsed.set($event)"
     />
   }
+  <!-- Drag handle for the left panel. Lives in the shell (not inside the
+       sidebar) so it survives the sidebar ↔ workspace-mode swap. -->
+  <div
+    class="shell__resizer"
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Resize navigation panel"
+    title="Drag to resize · Double-click to reset"
+    (mousedown)="startResize($event)"
+    (dblclick)="resetWidth($event)"
+  ></div>
   <div class="shell__body">
     <app-topbar />
     <main class="shell__content">

@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
 import { FolderSummary } from '../../../../core/models/folder.models';
 import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
@@ -10,21 +10,23 @@ import { FolderTile } from '../folder-tile/folder-tile';
   imports: [FolderTile, DocumentTile],
   template: `
     <div class="tile-grid">
-      @for (folder of sortedFolders(); track folder.id) {
+      @for (folder of folders(); track folder.id) {
         <app-folder-tile
           [folder]="folder"
           [isCurrent]="folder.id === currentFolderId()"
           (open)="openFolder.emit($event)"
+          (download)="downloadFolder.emit($event)"
           (openWorkspace)="openWorkspace.emit($event)"
           (rename)="renameFolder.emit($event)"
           (delete)="deleteFolder.emit($event)"
+          (moveDocumentToFolder)="moveDocumentToFolder.emit($event)"
         />
       }
-      @for (document of sortedDocuments(); track document.id) {
+      @for (document of documents(); track document.id) {
         <app-document-tile
           [document]="document"
           (open)="openDocument.emit(document)"
-          (move)="moveDocument.emit($event)"
+          (download)="downloadDocument.emit($event)"
           (delete)="deleteDocument.emit($event)"
         />
       }
@@ -36,6 +38,7 @@ import { FolderTile } from '../folder-tile/folder-tile';
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
         gap: 10px;
+        align-content: start;
       }
       :host ::ng-deep .tile {
         display: flex;
@@ -71,12 +74,8 @@ export class TileGrid {
   readonly renameFolder = output<string>();
   readonly deleteFolder = output<string>();
   readonly openDocument = output<KnowledgeItemSummary>();
-  readonly moveDocument = output<string>();
+  readonly downloadDocument = output<string>();
+  readonly downloadFolder = output<string>();
+  readonly moveDocumentToFolder = output<{ documentId: string; folderId: string }>();
   readonly deleteDocument = output<string>();
-
-  readonly sortedFolders = computed(() =>
-    [...this.folders()].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
-  );
-
-  readonly sortedDocuments = computed(() => [...this.documents()].sort((a, b) => a.title.localeCompare(b.title)));
 }

@@ -5,7 +5,13 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
 @Component({
   selector: 'app-document-tile',
   template: `
-    <article class="tile tile--document" (click)="open.emit(document().id)">
+    <article
+      class="tile tile--document"
+      draggable="true"
+      (click)="open.emit(document().id)"
+      (dragstart)="onDragStart($event)"
+      (dragend)="dragEnd.emit()"
+    >
       <div class="tile__icon tile__icon--document" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M6 2h9l5 5v15H6z" />
@@ -21,10 +27,11 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
         </div>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
-        <button type="button" class="tile__action" title="Move to folder" (click)="move.emit(document().id)">
+        <button type="button" class="tile__action" title="Download" (click)="download.emit(document().id)">
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 7h7l2 2h9v10H3z" />
-            <path d="M9 13l3 3 3-3M12 16V9" />
+            <path d="M12 4v10" />
+            <path d="M8 10l4 4 4-4" />
+            <path d="M5 18h14" />
           </svg>
         </button>
         <button type="button" class="tile__action tile__action--danger" title="Delete" (click)="delete.emit(document().id)">
@@ -152,8 +159,9 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
 export class DocumentTile {
   readonly document = input.required<KnowledgeItemSummary>();
   readonly open = output<string>();
-  readonly move = output<string>();
+  readonly download = output<string>();
   readonly delete = output<string>();
+  readonly dragEnd = output<void>();
 
   readonly statusKey = computed(() => this.document().status?.toString().toLowerCase() ?? '');
   readonly statusLabel = computed(() => {
@@ -161,4 +169,13 @@ export class DocumentTile {
     if (!raw) return '';
     return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   });
+
+  onDragStart(event: DragEvent): void {
+    const id = this.document().id;
+    event.dataTransfer?.setData('application/x-kv-document-id', id);
+    event.dataTransfer?.setData('text/plain', id);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
 }

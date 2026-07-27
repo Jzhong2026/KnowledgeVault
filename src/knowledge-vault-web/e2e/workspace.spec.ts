@@ -182,6 +182,73 @@ test.describe('Workspace plan — folder REST API', () => {
     }
   });
 
+  test('downloads a document as markdown file', async ({ request }) => {
+    const created = await request.post(DOCUMENTS, {
+      headers,
+      data: {
+        scope: SCOPE,
+        documentType: 'General',
+        title: uniqName('download-doc'),
+        content: '# Downloadable\n\nhello',
+        status: 'Active',
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+    const createdBody = (await created.json()) as { id: string };
+    docIds.push(createdBody.id);
+
+    const response = await request.get(`${DOCUMENTS}/${createdBody.id}/download`, {
+      headers,
+    });
+    expect(response.ok()).toBeTruthy();
+    expect(response.headers()['content-type']).toContain('text/markdown');
+    const body = await response.text();
+    expect(body).toContain('Downloadable');
+  });
+
+  test('downloads a folder subtree as zip', async ({ request }) => {
+    const root = await request.post(FOLDERS, {
+      headers,
+      data: { scope: SCOPE, name: uniqName('zip-root') },
+    });
+    expect(root.ok()).toBeTruthy();
+    const rootBody = (await root.json()) as { id: string };
+    folderIds.push(rootBody.id);
+
+    const child = await request.post(FOLDERS, {
+      headers,
+      data: { scope: SCOPE, parentFolderId: rootBody.id, name: uniqName('zip-child') },
+    });
+    expect(child.ok()).toBeTruthy();
+    const childBody = (await child.json()) as { id: string };
+    folderIds.push(childBody.id);
+
+    const created = await request.post(DOCUMENTS, {
+      headers,
+      data: {
+        scope: SCOPE,
+        documentType: 'General',
+        title: uniqName('zip-doc'),
+        content: 'inside child folder',
+        status: 'Active',
+        folderId: childBody.id,
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+    const createdBody = (await created.json()) as { id: string };
+    docIds.push(createdBody.id);
+
+    const response = await request.get(`${FOLDERS}/${rootBody.id}/download`, {
+      headers,
+    });
+    expect(response.ok()).toBeTruthy();
+    expect(response.headers()['content-type']).toContain('application/zip');
+    const bytes = await response.body();
+    expect(bytes.byteLength).toBeGreaterThan(0);
+    expect(bytes[0]).toBe(0x50); // 'P'
+    expect(bytes[1]).toBe(0x4b); // 'K'
+  });
+
   test('rejects deleting a non-empty folder with 409', async ({ request }) => {
     const parent = await request.post(FOLDERS, {
       headers,

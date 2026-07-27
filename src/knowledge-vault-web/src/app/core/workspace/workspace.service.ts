@@ -1,6 +1,7 @@
 import { Injectable, Signal, computed, signal } from '@angular/core';
 
 import { DocumentScope } from '../models/knowledge.models';
+import { KnowledgeItemSummary } from '../models/knowledge.models';
 import { FolderTreeNode } from '../models/folder.models';
 
 export interface WorkspaceState {
@@ -21,6 +22,12 @@ export interface OpenTab {
   title: string;
 }
 
+export interface DocumentMoveRequest {
+  documentId: string;
+  folderId: string | null;
+  requestId: number;
+}
+
 const STORAGE_PREFIX = 'kv:workspace:';
 
 @Injectable({ providedIn: 'root' })
@@ -28,8 +35,14 @@ export class WorkspaceService {
   private readonly state = signal<WorkspaceState | null>(null);
   private readonly tree = signal<FolderTreeNode | null>(null);
   private readonly breadcrumbPath = signal<BreadcrumbNode[]>([]);
+  private readonly currentFolderDocs = signal<KnowledgeItemSummary[]>([]);
   private readonly tabs = signal<OpenTab[]>([]);
   private readonly activeTabId = signal<string | null>(null);
+  private readonly moveRequest = signal<DocumentMoveRequest | null>(null);
+  /** Folder ids the user collapsed in the sidebar tree. Kept in the shared
+   *  service (instead of per-component) so the collapse state survives tree
+   *  reloads that happen when switching the active folder or refreshing data. */
+  private readonly collapsedNodeIds = signal<Set<string>>(new Set());
 
   readonly isWorkspaceMode = computed(() => this.state() !== null);
   readonly current = this.state.asReadonly();
@@ -39,10 +52,13 @@ export class WorkspaceService {
   readonly projectId = computed(() => this.state()?.projectId ?? null);
   readonly folderTree = this.tree.asReadonly();
   readonly breadcrumb = this.breadcrumbPath.asReadonly();
+  readonly currentFolderDocuments = this.currentFolderDocs.asReadonly();
   /** Display name of the current workspace root. Derived from the loaded tree. */
   readonly rootName = computed(() => this.tree()?.name ?? null);
   readonly openTabs = this.tabs.asReadonly();
   readonly activeTabIdSignal = this.activeTabId.asReadonly();
+  readonly documentMoveRequest = this.moveRequest.asReadonly();
+  readonly collapsedNodeIdsSignal = this.collapsedNodeIds.asReadonly();
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
     if (!id) return null;
@@ -72,11 +88,43 @@ export class WorkspaceService {
     this.state.set(null);
     this.tree.set(null);
     this.breadcrumbPath.set([]);
+    this.currentFolderDocs.set([]);
     this.tabs.set([]);
     this.activeTabId.set(null);
+    this.collapsedNodeIds.set(new Set());
     if (current) {
       this.clear(current);
     }
+  }
+
+  requestDocumentMove(documentId: string, folderId: string | null): void {
+    this.moveRequest.set({
+      documentId,
+      folderId,
+      requestId: Date.now(),
+    });
+  }
+
+  clearDocumentMoveRequest(): void {
+    this.moveRequest.set(null);
+  }
+
+  /** Whether a folder in the sidebar tree is currently collapsed. */
+  isNodeCollapsed(folderId: string): boolean {
+    return this.collapsedNodeIds().has(folderId);
+  }
+
+  /** Toggle the collapsed state of a folder in the sidebar tree. */
+  toggleCollapsedNode(folderId: string): void {
+    this.collapsedNodeIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
   }
 
   /** Open a document in a new tab (or activate an existing one for the same doc). */
@@ -131,6 +179,10 @@ export class WorkspaceService {
 
   setBreadcrumb(path: BreadcrumbNode[]): void {
     this.breadcrumbPath.set(path);
+  }
+
+  setCurrentFolderDocuments(docs: KnowledgeItemSummary[]): void {
+    this.currentFolderDocs.set(docs);
   }
 
   private isWithinRoot(node: FolderTreeNode | null, targetId: string): boolean {

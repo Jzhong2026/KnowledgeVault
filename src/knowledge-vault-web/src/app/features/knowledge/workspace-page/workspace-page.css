@@ -1,7 +1,13 @@
 .workspace-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 22px;
   padding: 26px 32px 40px;
+  /* Stretch to fill the viewport minus the app shell so the
+     .browse-content card can use flex:1 and visually fill the remaining
+     vertical space when the tile list is short. The height falls back to
+     auto when content overflows naturally. */
+  min-height: calc(100vh - 64px);
 }
 
 .page-heading {
@@ -103,10 +109,22 @@
   text-decoration: underline;
 }
 
+.browse-breadcrumb__home.is-drop-target,
+.browse-breadcrumb__segment.is-drop-target {
+  background: rgba(16, 185, 129, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.45);
+}
+
 .browse-breadcrumb__current {
   font-weight: 800;
   color: var(--text, #0f172a);
   padding: 4px 8px;
+}
+
+.browse-breadcrumb__current.is-drop-target {
+  background: rgba(16, 185, 129, 0.18);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.45);
 }
 
 .browse-breadcrumb__sep {
@@ -261,82 +279,42 @@ button:disabled {
   text-decoration: none;
 }
 
-.project-groups {
-  display: grid;
-  gap: 26px;
-}
-
-.project-group {
-  display: grid;
-  gap: 14px;
+/* Browse-mode content panel. Wraps the standalone tile grid (and its
+   empty state) so the folder/document area is visually distinct from the
+   page background. The panel uses flex column so the optional "Load more"
+   button can stick to the bottom and the panel itself fills the remaining
+   vertical space below the page heading/breadcrumb — see
+   .workspace-page { min-height } below. */
+.browse-content {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 14px;
   background: #ffffff;
   padding: 18px 20px 20px;
+  flex: 1 1 auto;
+  min-height: 100%;
 }
 
-.project-group__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--border, #e2e8f0);
-  padding-bottom: 12px;
-}
-
-.project-group__title {
+.browse-content--empty {
   display: grid;
-  gap: 4px;
-  min-width: 0;
+  place-items: center;
+  min-height: 240px;
 }
 
-.project-group__title h3 {
-  margin: 0;
-  color: var(--text, #0f172a);
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.project-group__open {
-  flex: none;
-  min-height: 36px;
-  padding: 8px 14px;
-  font-size: 13px;
-}
-
-.project-group__head .muted {
-  color: var(--muted, #64748b);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.project-group__head .alert {
-  border: 0;
-  background: transparent;
-  color: #991b1b;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 0;
-}
-
-.project-group__empty {
-  margin: 0;
-  color: var(--muted, #64748b);
-  font-size: 13px;
-}
-
-.pager {
+/* Load more row: appends more folders/documents without leaving the page.
+   Stays visible even when the tile grid is short so users always have a
+   clear next action when there is more data on the server. */
+.load-more {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 14px;
-  margin-top: 6px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border, #e2e8f0);
 }
 
-.pager__info {
-  color: var(--muted, #64748b);
-  font-size: 13px;
-  font-weight: 700;
+.load-more__btn {
+  min-width: 160px;
 }
 
 .dialog__actions {
@@ -344,38 +322,6 @@ button:disabled {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-}
-
-.folder-picker {
-  display: grid;
-  gap: 4px;
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 10px;
-  padding: 8px;
-}
-
-.folder-picker__item {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--text, #0f172a);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: left;
-  padding: 8px 12px;
-}
-
-.folder-picker__item:hover {
-  background: #f1f5f9;
-}
-
-.folder-picker__item.is-selected {
-  border-color: var(--accent, #10b981);
-  background: #edf7f3;
-  color: var(--accent-strong, #0f9d76);
 }
 
 /* ---------- VS Code–style workspace shell ---------- */
@@ -490,142 +436,23 @@ button:disabled {
   padding: 24px 28px;
 }
 
-.workspace-explorer {
-  display: grid;
-  gap: 14px;
-}
-
-.workspace-explorer__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border, #e8eeeb);
-}
-
-.workspace-explorer__header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text, #0f172a);
-}
-
-.workspace-explorer__header small {
-  color: var(--muted, #64748b);
-  font-size: 12px;
-}
-
-.workspace-explorer__folders,
-.workspace-explorer__documents {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.workspace-explorer__folder,
-.workspace-explorer__document {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  padding: 8px 10px;
-  text-align: left;
-  cursor: pointer;
-  color: var(--text, #0f172a);
-  font: inherit;
-  font-size: 14px;
-  transition: background-color 100ms ease, border-color 100ms ease;
-}
-
-.workspace-explorer__folder:hover,
-.workspace-explorer__document:hover {
-  background: #f1f5f9;
-  border-color: var(--border, #e8eeeb);
-}
-
-.workspace-explorer__icon {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--accent-strong, #0f9d76);
-  background: rgba(15, 157, 118, 0.08);
-}
-
-.workspace-explorer__icon svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.workspace-explorer__name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-.workspace-explorer__count {
-  min-width: 22px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(15, 157, 118, 0.12);
-  color: var(--accent-strong, #0f9d76);
-  font-size: 11px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.workspace-explorer__status {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted, #64748b);
-}
-
-.workspace-explorer__status--active {
-  color: #047857;
-}
-
-.workspace-explorer__status--draft {
-  color: #b45309;
-}
-
-.workspace-explorer__status--archived {
-  color: #6b7280;
-}
-
-.workspace-explorer__empty {
+.workspace-empty-canvas {
   display: grid;
   place-items: center;
-  padding: 60px 20px;
+  min-height: 320px;
+  padding: 40px 20px;
   text-align: center;
   color: var(--muted, #64748b);
 }
 
-.workspace-explorer__empty p {
+.workspace-empty-canvas__title {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text, #0f172a);
 }
 
-.workspace-explorer__empty small {
+.workspace-empty-canvas__hint {
   font-size: 12px;
 }
 

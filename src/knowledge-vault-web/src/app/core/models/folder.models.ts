@@ -31,6 +31,21 @@ export interface FolderContent {
   documents: KnowledgeItemSummary[];
 }
 
+/** Paged variant of FolderContent. The workspace "Load more" UI calls this
+ *  with page=1 initially, then bumps the page on each subsequent call.
+ *  Backend orders by createdAt DESC so the freshest items appear first. */
+export interface FolderContentPage {
+  folders: FolderSummary[];
+  documents: KnowledgeItemSummary[];
+  page: number;
+  pageSize: number;
+  totalFolderCount: number;
+  totalDocumentCount: number;
+  hasMoreFolders: boolean;
+  hasMoreDocuments: boolean;
+  hasMore: boolean;
+}
+
 export interface CreateFolderRequest {
   scope: DocumentScope;
   projectId?: string | null;

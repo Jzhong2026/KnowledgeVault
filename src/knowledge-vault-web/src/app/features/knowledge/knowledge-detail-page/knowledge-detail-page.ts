@@ -153,6 +153,17 @@ export class KnowledgeDetailPage {
     await this.copyValue(content, `revision:${revisionNumber}`);
   }
 
+  downloadDocument(): void {
+    const current = this.item();
+    if (!current) {
+      return;
+    }
+    this.api.downloadDocument(current.id).subscribe({
+      next: (blob) => this.triggerBrowserDownload(blob, `${this.sanitizeFileName(current.title)}.md`),
+      error: (err: unknown) => this.error.set(getErrorMessage(err)),
+    });
+  }
+
   async copyComment(comment: Comment): Promise<void> {
     if (comment.isDeleted) {
       return;
@@ -329,5 +340,19 @@ export class KnowledgeDetailPage {
     } finally {
       textArea.remove();
     }
+  }
+
+  private sanitizeFileName(name: string): string {
+    const sanitized = name.replace(/[\\/:*?"<>|]/g, '_').trim();
+    return sanitized || 'document';
+  }
+
+  private triggerBrowserDownload(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 }

@@ -19,6 +19,19 @@
         }
         <button
           type="button"
+          class="copy-button"
+          aria-label="Download this document"
+          (click)="downloadDocument()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 4v10"></path>
+            <path d="M8 10l4 4 4-4"></path>
+            <path d="M5 18h14"></path>
+          </svg>
+          Download
+        </button>
+        <button
+          type="button"
           class="copy-button copy-markdown-button"
           [attr.aria-label]="
             'Copy Markdown source for revision ' +

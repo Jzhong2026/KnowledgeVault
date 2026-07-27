@@ -4,6 +4,7 @@ using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace KnowledgeVault.Api.Controllers;
 
@@ -72,6 +73,16 @@ public sealed class DocumentsController(
     public async Task<ActionResult<KnowledgeItemDto>> Get(Guid documentId, CancellationToken cancellationToken)
     {
         return Ok(await documentProvider.GetAsync(documentId, cancellationToken));
+    }
+
+    [Authorize(Policy = "documents:read")]
+    [HttpGet("{documentId:guid}/download")]
+    public async Task<IActionResult> Download(Guid documentId, CancellationToken cancellationToken)
+    {
+        var document = await documentProvider.GetAsync(documentId, cancellationToken);
+        var fileName = BuildMarkdownFileName(document.Title, document.Id);
+        var payload = Encoding.UTF8.GetBytes(document.Content ?? string.Empty);
+        return File(payload, "text/markdown; charset=utf-8", fileName);
     }
 
     [Authorize(Policy = "documents:write")]
@@ -182,5 +193,24 @@ public sealed class DocumentsController(
     {
         await commentProvider.DeleteAsync(commentId, cancellationToken);
         return NoContent();
+    }
+
+    private static string BuildMarkdownFileName(string? title, Guid fallbackId)
+    {
+        var baseName = string.IsNullOrWhiteSpace(title)
+            ? $"document-{fallbackId:D}"
+            : title;
+        return $"{SanitizeFileName(baseName)}.md";
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = fileName
+            .Trim()
+            .Select(ch => invalid.Contains(ch) ? '_' : ch)
+            .ToArray();
+        var value = new string(chars).Trim();
+        return string.IsNullOrWhiteSpace(value) ? "document" : value;
     }
 }

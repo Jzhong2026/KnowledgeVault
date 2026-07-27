@@ -12,6 +12,22 @@ public interface IFolderProvider
         Guid? rootFolderId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Paged variant of <see cref="GetContentAsync"/>. Folders and documents
+    /// are paged independently (same <c>page</c>/<c>pageSize</c> applied to
+    /// each stream) and ordered by <c>CreatedAt</c> DESC. Used by the
+    /// workspace "Load more" UI; the unpaged <see cref="GetContentAsync"/>
+    /// remains in use for full-content downloads.
+    /// </summary>
+    Task<FolderContentPagedDto> GetContentPagedAsync(
+        DocumentScope? scope,
+        Guid? projectId,
+        Guid? parentFolderId,
+        Guid? rootFolderId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
+
     Task<FolderTreeNodeDto> GetTreeAsync(
         DocumentScope? scope,
         Guid? projectId,

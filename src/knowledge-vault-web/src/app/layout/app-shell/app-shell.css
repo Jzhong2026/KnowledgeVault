@@ -1,6 +1,9 @@
 .shell {
   display: grid;
   min-height: 100dvh;
+  /* grid-template-columns is set inline via [style.grid-template-columns]
+     so the live drag width is reflected without re-rendering. The values
+     come from AppShell.gridColumns(). */
   grid-template-columns: 264px minmax(0, 1fr);
   background:
     linear-gradient(rgba(255, 255, 255, 0.32) 1px, transparent 1px),
@@ -10,8 +13,12 @@
   transition: grid-template-columns 180ms ease;
 }
 
-.shell--sidebar-collapsed {
-  grid-template-columns: 82px minmax(0, 1fr);
+/* Suppress the layout transition while actively dragging — we want the
+   panel to track the cursor 1:1, not animate. */
+.shell--resizing {
+  transition: none;
+  cursor: col-resize;
+  user-select: none;
 }
 
 .shell__body {
@@ -22,9 +29,52 @@
   padding: 32px;
 }
 
+/* Drag handle: 6px wide strip absolutely positioned on the right edge
+   of the left panel column. Hidden in collapsed mode (no resizing
+   applies). The visible affordance is just a thin neutral line that
+   turns accent-green on hover/active so users discover it without it
+   being noisy. We pin the handle's left offset to the live sidebar
+   width via the --sidebar-width CSS variable that the inline style
+   binding writes to <div class="shell">. */
+.shell__resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--sidebar-width, 264px) - 3px);
+  width: 6px;
+  z-index: 5;
+  cursor: col-resize;
+  background: transparent;
+}
+.shell__resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+.shell__resizer:hover::before,
+.shell--resizing .shell__resizer::before {
+  background: var(--accent, #10b981);
+}
+.shell--sidebar-collapsed .shell__resizer {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .shell {
+    /* Below 900px the panel collapses to its narrow fixed width and the
+       resizer is hidden — dragging on small screens is more annoying
+       than helpful. */
     grid-template-columns: 74px minmax(0, 1fr);
+  }
+
+  .shell__resizer {
+    display: none;
   }
 
   .shell__content {

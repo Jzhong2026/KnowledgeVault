@@ -60,75 +60,12 @@
             </article>
           }
         } @else {
-          <!-- No tab open: show the folder's document list so the user can
-               see existing items and open any of them in a new tab. -->
-          <div class="workspace-explorer" data-testid="workspace-explorer">
-            <header class="workspace-explorer__header">
-              <h3>{{ currentFolderDisplayName() ?? 'Documents' }}</h3>
-              <small class="muted">
-                {{ documents().length }} document{{ documents().length === 1 ? '' : 's' }}
-                @if (folders().length) {
-                  · {{ folders().length }} folder{{ folders().length === 1 ? '' : 's' }}
-                }
-              </small>
-            </header>
-
+          <div class="workspace-empty-canvas" data-testid="workspace-empty-canvas">
             @if (loading()) {
               <app-loading-indicator label="Loading folder contents" />
-            } @else if (documents().length === 0 && folders().length === 0) {
-              <div class="workspace-explorer__empty">
-                <p>This folder is empty.</p>
-                <small>Create a subfolder or a document to get started.</small>
-              </div>
             } @else {
-              @if (folders().length) {
-                <ul class="workspace-explorer__folders" aria-label="Subfolders">
-                  @for (folder of folders(); track folder.id) {
-                    <li>
-                      <button
-                        type="button"
-                        class="workspace-explorer__folder"
-                        (click)="openFolderFromExplorer(folder.id)"
-                        [title]="folder.name"
-                      >
-                        <span class="workspace-explorer__icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                          </svg>
-                        </span>
-                        <span class="workspace-explorer__name">{{ folder.name }}</span>
-                        @if (folder.documentCount > 0) {
-                          <span class="workspace-explorer__count" [title]="folder.documentCount + ' document(s)'">{{ folder.documentCount }}</span>
-                        }
-                      </button>
-                    </li>
-                  }
-                </ul>
-              }
-
-              @if (documents().length) {
-                <ul class="workspace-explorer__documents" aria-label="Documents" data-testid="workspace-explorer-documents">
-                  @for (doc of documents(); track doc.id) {
-                    <li>
-                      <button
-                        type="button"
-                        class="workspace-explorer__document"
-                        (click)="openDocumentFromExplorer(doc)"
-                        [title]="doc.title"
-                        data-testid="workspace-explorer-document"
-                      >
-                        <span class="workspace-explorer__icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M6 3h9l4 4v14H6zM15 3v5h4M9 13h7M9 17h7" />
-                          </svg>
-                        </span>
-                        <span class="workspace-explorer__name">{{ doc.title }}</span>
-                        <span class="workspace-explorer__status" [class]="'workspace-explorer__status--' + (doc.status | lowercase)">{{ doc.status }}</span>
-                      </button>
-                    </li>
-                  }
-                </ul>
-              }
+              <p class="workspace-empty-canvas__title">No document opened</p>
+              <small class="workspace-empty-canvas__hint">Select a document from the left workspace tree to open it.</small>
             }
           </div>
         }
@@ -139,11 +76,10 @@
     <div class="page-heading__text">
       <p>{{ isProjectScope ? 'Team library' : 'Personal library' }}</p>
       <h2>{{ isProjectScope ? 'Project documents' : 'Personal documents' }}</h2>
-      <small>Click a folder to browse it like a file explorer. Use Open workspace for the VS Code-style folder tree and tabs.</small>
     </div>
 
     <div class="page-actions">
-      @if (isProjectScope) {
+      @if (isProjectScope && !browseFolderId()) {
         <select
           aria-label="Filter by project"
           [ngModel]="projectId() ?? ''"
@@ -183,27 +119,64 @@
 
   <!-- Browse-mode breadcrumb. Shown whenever the user has drilled into a
        folder. Each segment is keyed by id so a rename elsewhere cannot
-       desync the trail. The "Documents" root segment is virtual and points
-       at browseRoot (clears browseFolderId). -->
+       desync the trail. The trail is: Documents / {Project} / {folder…}.
+       "Documents" returns to the workspace root with no project filter;
+       clicking the project segment returns to the root with that project
+       preselected. The project segment only renders in project scope. -->
   @if (browseBreadcrumb().length) {
     <nav class="browse-breadcrumb" aria-label="Folder path" data-testid="browse-breadcrumb">
       <button
         type="button"
         class="browse-breadcrumb__home"
+        [class.is-drop-target]="breadcrumbDropTargetId() === 'root'"
         (click)="navigateBreadcrumb(null)"
+        (dragover)="onBreadcrumbDragOver($event)"
+        (dragenter)="onBreadcrumbDragEnter($event, null)"
+        (dragleave)="onBreadcrumbDragLeave($event, null)"
+        (drop)="onBreadcrumbDrop($event, null)"
         title="Back to documents root"
       >
         Documents
       </button>
+      @if (isProjectScope && projectId() && currentProjectName(); as projectName) {
+        <span class="browse-breadcrumb__sep" aria-hidden="true">/</span>
+        <button
+          type="button"
+          class="browse-breadcrumb__segment"
+          [class.is-drop-target]="breadcrumbDropTargetId() === 'project'"
+          (click)="goToProject()"
+          (dragover)="onBreadcrumbDragOver($event)"
+          (dragenter)="onBreadcrumbDragEnter($event, 'project')"
+          (dragleave)="onBreadcrumbDragLeave($event, 'project')"
+          (drop)="onBreadcrumbDrop($event, 'project')"
+          [title]="'Back to ' + projectName"
+          data-testid="browse-breadcrumb-project"
+        >
+          {{ projectName }}
+        </button>
+      }
       @for (segment of browseBreadcrumb(); track segment.id; let last = $last) {
         <span class="browse-breadcrumb__sep" aria-hidden="true">/</span>
         @if (last) {
-          <span class="browse-breadcrumb__current" [title]="segment.name">{{ segment.name }}</span>
+          <span
+            class="browse-breadcrumb__current"
+            [class.is-drop-target]="breadcrumbDropTargetId() === segment.id"
+            [title]="segment.name"
+            (dragover)="onBreadcrumbDragOver($event)"
+            (dragenter)="onBreadcrumbDragEnter($event, segment.id)"
+            (dragleave)="onBreadcrumbDragLeave($event, segment.id)"
+            (drop)="onBreadcrumbDrop($event, segment.id)"
+          >{{ segment.name }}</span>
         } @else {
           <button
             type="button"
             class="browse-breadcrumb__segment"
+            [class.is-drop-target]="breadcrumbDropTargetId() === segment.id"
             (click)="navigateBreadcrumb(segment.id)"
+            (dragover)="onBreadcrumbDragOver($event)"
+            (dragenter)="onBreadcrumbDragEnter($event, segment.id)"
+            (dragleave)="onBreadcrumbDragLeave($event, segment.id)"
+            (drop)="onBreadcrumbDrop($event, segment.id)"
             [title]="segment.name"
             [attr.data-testid]="'browse-breadcrumb-segment'"
           >
@@ -222,72 +195,6 @@
     <div class="panel__loading">
       <app-loading-indicator label="Loading workspace" />
     </div>
-  } @else if (showGroups()) {
-    <div class="project-groups">
-      @for (group of projectGroups(); track group.project.id) {
-        <section class="project-group">
-          <header class="project-group__head">
-            <div class="project-group__title">
-              <h3>{{ group.project.name }}</h3>
-              @if (group.loading) {
-                <small class="muted">Loading…</small>
-              } @else if (group.error) {
-                <small class="alert">{{ group.error }}</small>
-              } @else {
-                <small class="muted">{{ group.folders.length }} folders · {{ group.documents.length }} documents</small>
-              }
-            </div>
-            <button
-              type="button"
-              class="ghost project-group__open"
-              [disabled]="!group.folders.length"
-              [title]="group.folders.length ? '' : 'This project has no folders to open yet.'"
-              (click)="openGroupFirstWorkspace(group)"
-            >
-              Open workspace
-            </button>
-          </header>
-
-          @if (!group.loading && !group.error && group.folders.length === 0 && groupDocuments(group).length === 0) {
-            <p class="project-group__empty">No folders or documents in this project yet.</p>
-          } @else if (!group.loading && !group.error) {
-            <app-tile-grid
-              [folders]="group.folders"
-              [documents]="groupDocuments(group)"
-              [currentFolderId]="null"
-              (openFolder)="openGroupFolder(group.project.id, $event)"
-              (openWorkspace)="openGroupWorkspace(group.project.id, $event)"
-              (renameFolder)="openRenameFolder($event)"
-              (deleteFolder)="confirmDeleteFolder($event)"
-              (openDocument)="openDocument($event)"
-              (moveDocument)="openMoveDocument($event, group.project.id)"
-              (deleteDocument)="deleteDocument($event)"
-            />
-            @if (groupTotalPages(group) > 1) {
-              <div class="pager">
-                <button
-                  type="button"
-                  class="ghost"
-                  [disabled]="group.page <= 1"
-                  (click)="setGroupPage(group.project.id, group.page - 1)"
-                >
-                  Previous
-                </button>
-                <span class="pager__info">Page {{ group.page }} of {{ groupTotalPages(group) }}</span>
-                <button
-                  type="button"
-                  class="ghost"
-                  [disabled]="group.page >= groupTotalPages(group)"
-                  (click)="setGroupPage(group.project.id, group.page + 1)"
-                >
-                  Next
-                </button>
-              </div>
-            }
-          }
-        </section>
-      }
-    </div>
   } @else if (noFollowedProjects()) {
     <app-empty-state
       title="No followed projects yet"
@@ -301,26 +208,45 @@
       title="Pick a project to view its documents"
       message="Use the project dropdown above to choose a project. Folders and documents in the project library will appear here."
     />
-  } @else if (folders().length === 0 && documents().length === 0) {
-    <app-empty-state
-      [title]="workspace.isWorkspaceMode() ? 'This folder is empty' : 'No documents yet'"
-      [message]="workspace.isWorkspaceMode()
-        ? 'Create a subfolder or add a document to get started.'
-        : 'Create a folder to organise your documents, or add a document directly.'"
-    />
+  } @else if (folders().length === 0 && documents().length === 0 && !hasMoreContent()) {
+    <section class="browse-content browse-content--empty">
+      <app-empty-state
+        [title]="workspace.isWorkspaceMode() ? 'This folder is empty' : 'No documents yet'"
+        [message]="workspace.isWorkspaceMode()
+          ? 'Create a subfolder or add a document to get started.'
+          : 'Create a folder to organise your documents, or add a document directly.'"
+      />
+    </section>
   } @else {
-    <app-tile-grid
-      [folders]="folders()"
-      [documents]="documents()"
-      [currentFolderId]="workspace.currentFolderId()"
-      (openFolder)="openFolder($event)"
-      (openWorkspace)="openWorkspace($event)"
-      (renameFolder)="openRenameFolder($event)"
-      (deleteFolder)="confirmDeleteFolder($event)"
-      (openDocument)="openDocument($event)"
-      (moveDocument)="openMoveDocument($event)"
-      (deleteDocument)="deleteDocument($event)"
-    />
+    <section class="browse-content">
+      <app-tile-grid
+        [folders]="folders()"
+        [documents]="documents()"
+        [currentFolderId]="workspace.currentFolderId()"
+        (openFolder)="openFolder($event)"
+        (openWorkspace)="openWorkspace($event)"
+        (renameFolder)="openRenameFolder($event)"
+        (deleteFolder)="confirmDeleteFolder($event)"
+        (openDocument)="openDocument($event)"
+        (downloadDocument)="downloadDocument($event)"
+        (downloadFolder)="downloadFolder($event)"
+        (moveDocumentToFolder)="moveDocumentToFolder($event.documentId, $event.folderId)"
+        (deleteDocument)="deleteDocument($event)"
+      />
+      @if (hasMoreContent()) {
+        <div class="load-more">
+          <button
+            type="button"
+            class="ghost load-more__btn"
+            data-testid="load-more-content"
+            [disabled]="loadingMore()"
+            (click)="loadMore()"
+          >
+            {{ loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        </div>
+      }
+    </section>
   }
   }
 
@@ -437,35 +363,4 @@
     </div>
   }
 
-  @if (moveDocOpen()) {
-    <div class="dialog-backdrop" (click)="moveDocOpen.set(false)">
-      <div class="dialog" (click)="$event.stopPropagation()">
-        <h3>Move document</h3>
-        <p class="dialog__message">Choose a destination folder. Selecting the root places it outside any folder.</p>
-        <div class="folder-picker">
-          <button
-            type="button"
-            class="folder-picker__item"
-            [class.is-selected]="moveTargets().length === 0"
-            (click)="submitMoveDocument(null)"
-          >
-            Root (no folder)
-          </button>
-          @for (target of moveTargets(); track target.id) {
-            <button
-              type="button"
-              class="folder-picker__item"
-              [style.padding-left.px]="12 + target.depth * 16"
-              (click)="submitMoveDocument(target.id)"
-            >
-              {{ target.name }}
-            </button>
-          }
-        </div>
-        <div class="dialog__actions">
-          <button type="button" class="ghost" (click)="moveDocOpen.set(false)">Cancel</button>
-        </div>
-      </div>
-    </div>
-  }
 </section>

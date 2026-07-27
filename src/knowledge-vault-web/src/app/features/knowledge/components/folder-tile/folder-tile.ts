@@ -1,11 +1,20 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 
 import { FolderSummary } from '../../../../core/models/folder.models';
 
 @Component({
   selector: 'app-folder-tile',
   template: `
-    <article class="tile tile--folder" [class.tile--current]="isCurrent()" (click)="open.emit(folder().id)">
+    <article
+      class="tile tile--folder"
+      [class.tile--current]="isCurrent()"
+      [class.tile--drop-target]="isDropActive()"
+      (click)="open.emit(folder().id)"
+      (dragover)="onDragOver($event)"
+      (dragenter)="onDragEnter($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
       <div class="tile__icon tile__icon--folder" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -17,6 +26,19 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         <div class="tile__status tile__status--placeholder" aria-hidden="true"></div>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
+        <button
+          type="button"
+          class="tile__action"
+          title="Download folder"
+          aria-label="Download folder"
+          (click)="download.emit(folder().id)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 6v9" />
+            <path d="M8.5 12.5 12 16l3.5-3.5" />
+            <path d="M5 19h14" />
+          </svg>
+        </button>
         <button
           type="button"
           class="tile__action"
@@ -39,6 +61,10 @@ import { FolderSummary } from '../../../../core/models/folder.models';
     `
       .tile--folder {
         cursor: pointer;
+      }
+      .tile--drop-target {
+        border-color: var(--accent, #10b981);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
       }
       .tile__icon {
         display: grid;
@@ -100,7 +126,7 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       }
       .tile--folder:hover .tile__actions,
       .tile--folder:focus-within .tile__actions {
-        max-width: 120px;
+        max-width: 150px;
         opacity: 1;
       }
       .tile__action {
@@ -139,7 +165,46 @@ export class FolderTile {
   readonly folder = input.required<FolderSummary>();
   readonly isCurrent = input(false);
   readonly open = output<string>();
+  readonly download = output<string>();
   readonly openWorkspace = output<string>();
   readonly rename = output<string>();
   readonly delete = output<string>();
+  readonly moveDocumentToFolder = output<{ documentId: string; folderId: string }>();
+
+  private dragCounter = 0;
+  readonly isDropActive = signal(false);
+
+  onDragOver(event: DragEvent): void {
+    if (!event.dataTransfer) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  onDragEnter(event: DragEvent): void {
+    event.preventDefault();
+    this.dragCounter += 1;
+    this.isDropActive.set(true);
+  }
+
+  onDragLeave(_event: DragEvent): void {
+    this.dragCounter = Math.max(0, this.dragCounter - 1);
+    if (this.dragCounter === 0) {
+      this.isDropActive.set(false);
+    }
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragCounter = 0;
+    this.isDropActive.set(false);
+    const documentId = event.dataTransfer?.getData('application/x-kv-document-id')
+      ?? event.dataTransfer?.getData('text/plain')
+      ?? '';
+    if (!documentId) {
+      return;
+    }
+    this.moveDocumentToFolder.emit({ documentId, folderId: this.folder().id });
+  }
 }

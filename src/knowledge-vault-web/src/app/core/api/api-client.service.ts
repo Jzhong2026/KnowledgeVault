@@ -25,6 +25,7 @@ import {
 import {
   CreateFolderRequest,
   FolderContent,
+  FolderContentPage,
   FolderSummary,
   FolderTreeNode,
   UpdateFolderRequest,
@@ -172,13 +173,19 @@ export class ApiClient {
     return this.http.delete<void>(`${this.baseUrl}/documents/${id}`);
   }
 
+  downloadDocument(id: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/documents/${id}/download`, { responseType: 'blob' });
+  }
+
   // ----- Folders -----
   listFolderContent(query: {
     scope: DocumentScope;
     projectId?: string | null;
     parentFolderId?: string | null;
     rootFolderId?: string | null;
-  }): Observable<FolderContent> {
+    page?: number;
+    pageSize?: number;
+  }): Observable<FolderContent | FolderContentPage> {
     let params = new HttpParams().set('scope', query.scope);
     if (query.projectId) {
       params = params.set('projectId', query.projectId);
@@ -189,7 +196,11 @@ export class ApiClient {
     if (query.rootFolderId) {
       params = params.set('rootFolderId', query.rootFolderId);
     }
-    return this.http.get<FolderContent>(`${this.baseUrl}/folders`, { params });
+    if (query.page !== undefined) {
+      params = params.set('page', query.page);
+      params = params.set('pageSize', query.pageSize ?? 20);
+    }
+    return this.http.get<FolderContent | FolderContentPage>(`${this.baseUrl}/folders`, { params });
   }
 
   getFolderTree(query: {
@@ -221,6 +232,10 @@ export class ApiClient {
 
   deleteFolder(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/folders/${id}`);
+  }
+
+  downloadFolder(id: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/folders/${id}/download`, { responseType: 'blob' });
   }
 
   moveDocument(documentId: string, folderId: string | null): Observable<KnowledgeItem> {

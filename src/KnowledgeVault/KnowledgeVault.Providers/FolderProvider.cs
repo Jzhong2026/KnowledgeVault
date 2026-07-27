@@ -1,3 +1,4 @@
+using KnowledgeVault.Contracts.Common;
 using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Security;
@@ -41,9 +42,14 @@ public sealed class FolderProvider(
             }
         }
 
+        // Order by CreatedAt descending so newest items surface first. The
+        // user-facing list sorts deterministically off the backend so the
+        // tile grid does not need a client-side fallback. Folders and
+        // documents are ordered separately because they live in different
+        // tables and EF cannot mix them into a single ORDER BY.
         var folders = await QueryAccessibleFolders(userId, scope, projectId)
             .Where(f => f.ParentFolderId == parentFolderId)
-            .OrderBy(f => f.SortOrder)
+            .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.Name)
             .ToListAsync(cancellationToken);
 
@@ -58,7 +64,8 @@ public sealed class FolderProvider(
             .ToListAsync(cancellationToken);
 
         documents = documents
-            .OrderBy(d => d.CurrentRevision?.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(d => d.CreatedAt)
+            .ThenBy(d => d.CurrentRevision?.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var folderIds = folders.Select(f => f.Id).ToList();
@@ -80,6 +87,89 @@ public sealed class FolderProvider(
         }).ToArray();
 
         return new FolderContentDto(folderDtos, documents.Select(x => x.ToSummaryDto()).ToArray());
+    }
+
+    public async Task<FolderContentPagedDto> GetContentPagedAsync(
+        DocumentScope? scope,
+        Guid? projectId,
+        Guid? parentFolderId,
+        Guid? rootFolderId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var userId = currentUserContext.RequireUserId();
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        if (rootFolderId.HasValue)
+        {
+            await EnsureFolderAccessibleAsync(rootFolderId.Value, userId, cancellationToken);
+            if (!await IsWithinRootAsync(parentFolderId, rootFolderId.Value, cancellationToken))
+            {
+                throw new ValidationException("The requested folder is outside of the workspace root.");
+            }
+        }
+
+        // Folders page: ordered by CreatedAt DESC, name as tie-breaker.
+        var foldersQuery = QueryAccessibleFolders(userId, scope, projectId)
+            .Where(f => f.ParentFolderId == parentFolderId)
+            .OrderByDescending(f => f.CreatedAt)
+            .ThenBy(f => f.Name);
+
+        var totalFolderCount = await foldersQuery.CountAsync(cancellationToken);
+        var folders = await foldersQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        // Documents page: ordered by CreatedAt DESC, title as tie-breaker.
+        var documentsQuery = QueryAccessibleDocuments(userId, scope, projectId)
+            .Where(x => x.FolderId == parentFolderId);
+
+        var totalDocumentCount = await documentsQuery.CountAsync(cancellationToken);
+        var documents = await documentsQuery
+            .Include(x => x.OwnerUser)
+            .Include(x => x.Project)
+            .Include(x => x.Topic)
+            .Include(x => x.Category)
+            .Include(x => x.KnowledgeItemTags).ThenInclude(t => t.Tag)
+            .Include(x => x.CurrentRevision)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.CurrentRevision != null ? x.CurrentRevision.Title : string.Empty)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var folderIds = folders.Select(f => f.Id).ToList();
+        var childCounts = folderIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : await dbContext.Folders
+                .Where(f => f.ParentFolderId != null && folderIds.Contains(f.ParentFolderId.Value))
+                .GroupBy(f => f.ParentFolderId!.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.Count(), cancellationToken);
+        var docCounts = folderIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : await dbContext.KnowledgeItems
+                .Where(x => x.Status != KnowledgeItemStatus.Deleted && x.FolderId != null && folderIds.Contains(x.FolderId.Value))
+                .GroupBy(x => x.FolderId!.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.Count(), cancellationToken);
+
+        var folderDtos = folders.Select(f =>
+        {
+            childCounts.TryGetValue(f.Id, out var cc);
+            docCounts.TryGetValue(f.Id, out var dc);
+            return new FolderSummaryDto(
+                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc);
+        }).ToArray();
+
+        return new FolderContentPagedDto(
+            folderDtos,
+            documents.Select(x => x.ToSummaryDto()).ToArray(),
+            page,
+            pageSize,
+            totalFolderCount,
+            totalDocumentCount);
     }
 
     public async Task<FolderTreeNodeDto> GetTreeAsync(

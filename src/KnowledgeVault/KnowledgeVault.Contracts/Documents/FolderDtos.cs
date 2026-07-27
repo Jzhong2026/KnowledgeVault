@@ -24,6 +24,28 @@ public sealed record FolderContentDto(
     IReadOnlyList<FolderSummaryDto> Folders,
     IReadOnlyList<KnowledgeItemSummaryDto> Documents);
 
+/// <summary>
+/// Paged view of a folder's direct children. Folders and documents are
+/// paged independently because they live in different tables; both streams
+/// share the same <see cref="Page"/> / <see cref="PageSize"/> so a single
+/// "Load more" action reveals <see cref="PageSize"/> more of each. Counts
+/// stay separate (<see cref="TotalFolderCount"/> + <see cref="TotalDocumentCount"/>)
+/// so the UI can render independent totals or hide one of the streams
+/// when it is empty.
+/// </summary>
+public sealed record FolderContentPagedDto(
+    IReadOnlyList<FolderSummaryDto> Folders,
+    IReadOnlyList<KnowledgeItemSummaryDto> Documents,
+    int Page,
+    int PageSize,
+    int TotalFolderCount,
+    int TotalDocumentCount)
+{
+    public bool HasMoreFolders => PageSize > 0 && Page * PageSize < TotalFolderCount;
+    public bool HasMoreDocuments => PageSize > 0 && Page * PageSize < TotalDocumentCount;
+    public bool HasMore => HasMoreFolders || HasMoreDocuments;
+}
+
 public sealed record CreateFolderRequest(
     DocumentScope Scope,
     Guid? ProjectId,
