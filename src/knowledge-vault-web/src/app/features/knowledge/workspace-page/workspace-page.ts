@@ -1,5 +1,5 @@
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
-import { LowerCasePipe } from '@angular/common';
+import { DatePipe, LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, forkJoin, of } from 'rxjs';
@@ -12,6 +12,8 @@ import {
   DocumentScope,
   KnowledgeItem,
   KnowledgeItemSummary,
+  Revision,
+  RevisionSummary,
   SaveDocumentRequest,
   Tag,
 } from '../../../core/models/knowledge.models';
@@ -30,6 +32,7 @@ import { TileGrid } from '../components/tile-grid/tile-grid';
  *  final value to the range [1, 100]. */
 const FOLDER_CONTENT_PAGE_SIZE = 20;
 const PROJECT_DOCUMENTS_PREFERENCE_PREFIX = 'knowledge-vault.project-documents.';
+const DOCUMENT_VIEW_PREFERENCE_PREFIX = 'knowledge-vault.document-view.';
 
 interface ProjectDocumentsPreference {
   defaultProjectId: string | null;
@@ -48,6 +51,7 @@ interface ProjectDocumentsPreference {
     MarkdownContentPipe,
     MermaidDiagramsDirective,
     LowerCasePipe,
+    DatePipe,
   ],
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.css',
@@ -67,6 +71,7 @@ export class WorkspacePage implements OnDestroy {
   readonly error = signal<string | null>(null);
   readonly folders = signal<FolderSummary[]>([]);
   readonly documents = signal<KnowledgeItemSummary[]>([]);
+  readonly documentView = signal<'tile' | 'list'>('tile');
   readonly projects = signal<ProjectSummary[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly tags = signal<Tag[]>([]);
@@ -170,12 +175,15 @@ export class WorkspacePage implements OnDestroy {
   readonly activeDocument = signal<KnowledgeItem | null>(null);
   readonly activeDocumentLoading = signal(false);
   readonly activeDocumentError = signal<string | null>(null);
+  readonly activeDocumentRevisions = signal<RevisionSummary[]>([]);
+  readonly activeDocumentRevision = signal<Revision | null>(null);
 
   private readonly sub = new Subscription();
   private lastProcessedMoveRequestId = 0;
   private preferenceResolved = false;
 
   constructor() {
+    this.restoreDocumentViewPreference();
     this.sub.add(
       this.route.queryParamMap.subscribe((params) => {
         const projectId = params.get('projectId');
@@ -233,15 +241,11 @@ export class WorkspacePage implements OnDestroy {
       if (!tab) {
         this.activeDocument.set(null);
         this.activeDocumentError.set(null);
+        this.activeDocumentRevisions.set([]);
+        this.activeDocumentRevision.set(null);
         return;
       }
-      this.activeDocumentLoading.set(true);
-      this.activeDocumentError.set(null);
-      this.api.getKnowledgeItem(tab.documentId).subscribe({
-        next: (item) => this.activeDocument.set(item),
-        error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
-        complete: () => this.activeDocumentLoading.set(false),
-      });
+      this.loadActiveDocument(tab.documentId);
     });
 
     effect(() => {
@@ -397,10 +401,18 @@ export class WorkspacePage implements OnDestroy {
     const preference = this.readProjectDocumentsPreference();
     const availableIds = new Set(projects.map((project) => project.id));
     const projectId = [preference.lastProjectId, preference.defaultProjectId]
-      .find((id): id is string => !!id && availableIds.has(id));
+      .find((id): id is string => !!id && availableIds.has(id))
+      // Every migrated account is a member of the shared default project.
+      // Seed the browser preference on first visit so the Project Documents
+      // workspace opens instead of showing an unselected-project state.
+      ?? (projects.length === 1 ? projects[0].id : null);
 
     if (!projectId) {
       return;
+    }
+
+    if (!preference.defaultProjectId) {
+      this.saveProjectDocumentsPreference({ defaultProjectId: projectId });
     }
 
     void this.router.navigate([], {
@@ -443,6 +455,22 @@ export class WorkspacePage implements OnDestroy {
 
   private projectDocumentsPreferenceKey(): string {
     return `${PROJECT_DOCUMENTS_PREFERENCE_PREFIX}${this.auth.currentUser()?.id ?? 'anonymous'}`;
+  }
+
+  private restoreDocumentViewPreference(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    const view = localStorage.getItem(this.documentViewPreferenceKey());
+    if (view === 'tile' || view === 'list') {
+      this.documentView.set(view);
+    }
+  }
+
+  private documentViewPreferenceKey(): string {
+    const userId = this.auth.currentUser()?.id ?? 'anonymous';
+    return `${DOCUMENT_VIEW_PREFERENCE_PREFIX}${userId}.${this.workspaceScope.toLowerCase()}`;
   }
 
   toggleShowArchived(): void {
@@ -652,6 +680,13 @@ export class WorkspacePage implements OnDestroy {
     this.workspace.closeTab(tabId);
   }
 
+  setDocumentView(view: 'tile' | 'list'): void {
+    this.documentView.set(view);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(this.documentViewPreferenceKey(), view);
+    }
+  }
+
   exitWorkspace(): void {
     this.workspace.exitWorkspace();
     void this.router.navigate([], {
@@ -857,6 +892,38 @@ export class WorkspacePage implements OnDestroy {
     this.openDocument(doc, doc.title);
   }
 
+  viewActiveDocumentRevision(revisionNumber: number): void {
+    const item = this.activeDocument();
+    if (!item) {
+      return;
+    }
+
+    this.activeDocumentError.set(null);
+    this.api.getRevision(item.id, revisionNumber).subscribe({
+      next: (revision) => this.activeDocumentRevision.set(revision),
+      error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
+    });
+  }
+
+  showActiveDocumentLatest(): void {
+    this.activeDocumentRevision.set(null);
+  }
+
+  editActiveDocument(): void {
+    const item = this.activeDocument();
+    if (!item || item.documentType === 'ProjectMemory') {
+      return;
+    }
+
+    this.selectedId.set(item.id);
+    this.selectedItem.set(item);
+    this.editorTopics.set([]);
+    if (item.projectId) {
+      this.onEditorProjectSelected(item.projectId);
+    }
+    this.editorOpen.set(true);
+  }
+
   moveDocumentToFolder(documentId: string, folderId: string | null): void {
     this.saving.set(true);
     this.api.moveDocument(documentId, folderId).subscribe({
@@ -959,6 +1026,14 @@ export class WorkspacePage implements OnDestroy {
     return sanitized || 'download';
   }
 
+  onDocumentListDragStart(event: DragEvent, documentId: string): void {
+    event.dataTransfer?.setData('application/x-kv-document-id', documentId);
+    event.dataTransfer?.setData('text/plain', documentId);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
   private documentFileName(title: string): string {
     const fileName = this.sanitizeFileName(title);
     return /\.[^./\\\s]+$/.test(fileName) ? fileName : `${fileName}.md`;
@@ -1028,6 +1103,9 @@ export class WorkspacePage implements OnDestroy {
         this.editorOpen.set(false);
         this.saving.set(false);
         this.loadContent(this.workspace.current(), 1, /*append*/ false);
+        if (item && this.activeDocument()?.id === item.id) {
+          this.loadActiveDocument(item.id);
+        }
       },
       error: (err: unknown) => {
         this.error.set(getErrorMessage(err));
@@ -1038,6 +1116,24 @@ export class WorkspacePage implements OnDestroy {
 
   closeEditor(): void {
     this.editorOpen.set(false);
+  }
+
+  private loadActiveDocument(documentId: string): void {
+    this.activeDocumentLoading.set(true);
+    this.activeDocumentError.set(null);
+    this.activeDocumentRevision.set(null);
+    this.activeDocumentRevisions.set([]);
+    this.api.getKnowledgeItem(documentId).subscribe({
+      next: (item) => {
+        this.activeDocument.set(item);
+        this.api.listRevisions(documentId).subscribe({
+          next: (result) => this.activeDocumentRevisions.set(result.items),
+          error: () => this.activeDocumentRevisions.set([]),
+        });
+      },
+      error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
+      complete: () => this.activeDocumentLoading.set(false),
+    });
   }
 }
 

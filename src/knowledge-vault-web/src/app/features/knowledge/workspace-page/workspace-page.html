@@ -40,12 +40,19 @@
           } @else if (activeDocumentError()) {
             <p class="alert">{{ activeDocumentError() }}</p>
           } @else if (activeDocument(); as doc) {
+            <div class="workspace-document-layout">
             <article class="workspace-doc">
               <header class="workspace-doc__head">
-                <h3 class="workspace-doc__title">{{ doc.title }}</h3>
+                <div class="workspace-doc__heading-row">
+                  <h3 class="workspace-doc__title">{{ activeDocumentRevision()?.title || doc.title }}</h3>
+                  @if (doc.documentType !== 'ProjectMemory') {
+                    <button type="button" class="ghost workspace-doc__edit" [disabled]="saving()" (click)="editActiveDocument()">Edit</button>
+                  }
+                </div>
                 <div class="workspace-doc__meta">
                   <span class="workspace-doc__dot" [class]="'workspace-doc__dot--' + (doc.status | lowercase)"></span>
                   <span>{{ doc.status }}</span>
+                  <span class="workspace-doc__revision">Revision {{ activeDocumentRevision()?.revisionNumber || doc.currentRevisionNumber }}</span>
                   @if (doc.summary) {
                     <span class="workspace-doc__sep">·</span>
                     <span>{{ doc.summary }}</span>
@@ -54,10 +61,18 @@
               </header>
               <div
                 class="workspace-doc__body markdown-body"
-                [innerHTML]="doc.content | markdownContent"
-                appMermaidDiagrams
+                [innerHTML]="(activeDocumentRevision()?.content || doc.content) | markdownContent"
+                [appMermaidDiagrams]="activeDocumentRevision()?.content || doc.content"
               ></div>
             </article>
+            <aside class="workspace-revision-rail" aria-label="Document revisions">
+              <h4>Revisions</h4>
+              <button type="button" class="workspace-revision" [class.is-active]="!activeDocumentRevision()" (click)="showActiveDocumentLatest()">Latest</button>
+              @for (revision of activeDocumentRevisions(); track revision.revisionNumber) {
+                <button type="button" class="workspace-revision" [class.is-active]="activeDocumentRevision()?.revisionNumber === revision.revisionNumber" [title]="revision.title" (click)="viewActiveDocumentRevision(revision.revisionNumber)">{{ revision.revisionNumber }}</button>
+              }
+            </aside>
+            </div>
           }
         } @else {
           <div class="workspace-empty-canvas" data-testid="workspace-empty-canvas">
@@ -79,6 +94,10 @@
     </div>
 
     <div class="page-actions">
+      <div class="document-view-toggle" aria-label="Document view">
+        <button type="button" [class.is-active]="documentView() === 'tile'" (click)="setDocumentView('tile')">Tiles</button>
+        <button type="button" [class.is-active]="documentView() === 'list'" (click)="setDocumentView('list')">List</button>
+      </div>
       @if (isProjectScope && !browseFolderId()) {
         <select
           aria-label="Filter by project"
@@ -222,6 +241,7 @@
     </section>
     } @else {
     <section class="browse-content">
+      @if (documentView() === 'tile') {
       <app-tile-grid
         [folders]="folders()"
         [documents]="documents()"
@@ -236,6 +256,57 @@
         (moveDocumentToFolder)="moveDocumentToFolder($event.documentId, $event.folderId)"
         (deleteDocument)="deleteDocument($event)"
       />
+      } @else {
+        <div class="document-list" role="list" aria-label="Documents">
+          @for (folder of folders(); track folder.id) {
+            <article
+              class="document-list__row document-list__row--folder"
+              role="listitem"
+              [class.is-drop-target]="explorerDropTargetId() === folder.id"
+              (click)="openFolder(folder.id)"
+              (dragover)="onExplorerFolderDragOver($event)"
+              (dragenter)="onExplorerFolderDragEnter($event, folder.id)"
+              (dragleave)="onExplorerFolderDragLeave($event, folder.id)"
+              (drop)="onExplorerFolderDrop($event, folder.id)"
+            >
+              <div class="document-list__title">
+                <span class="document-list__icon document-list__icon--folder" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 10h18" /></svg>
+                </span>
+                <span class="document-list__copy"><strong>{{ folder.name }}</strong>@if (folder.description) { <small>{{ folder.description }}</small> }</span>
+              </div>
+              <span>Folder</span>
+              <span>{{ folder.documentCount }} documents</span>
+              <span>{{ folder.childFolderCount }} folders</span>
+              <span>{{ folder.isArchived ? 'Archived' : 'Active' }}</span>
+              <div class="document-list__actions" (click)="$event.stopPropagation()">
+                <button type="button" class="ghost" (click)="downloadFolder(folder.id)">Download</button>
+                <button type="button" class="ghost" (click)="openWorkspace(folder.id)">Workspace</button>
+                <button type="button" class="ghost" (click)="openRenameFolder(folder.id)">Rename</button>
+                <button type="button" class="danger" (click)="confirmDeleteFolder(folder.id)">Archive</button>
+              </div>
+            </article>
+          }
+          @for (document of documents(); track document.id) {
+            <article class="document-list__row" role="listitem" draggable="true" (dragstart)="onDocumentListDragStart($event, document.id)" (click)="openDocument(document)">
+              <div class="document-list__title">
+                <span class="document-list__icon document-list__icon--document" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z" /><path d="M15 2v6h5M9 13h6M9 17h4" /></svg>
+                </span>
+                <span class="document-list__copy"><strong>{{ document.title }}</strong>@if (document.summary) { <small>{{ document.summary }}</small> }</span>
+              </div>
+              <span>{{ document.documentType }}</span>
+              <span>{{ document.status }}</span>
+              <span>Rev {{ document.currentRevisionNumber }}</span>
+              <time [attr.datetime]="document.updatedAt || document.createdAt">{{ document.updatedAt || document.createdAt | date: 'mediumDate' }}</time>
+              <div class="document-list__actions" (click)="$event.stopPropagation()">
+                <button type="button" class="ghost" (click)="downloadDocument(document.id)">Download</button>
+                <button type="button" class="danger" (click)="deleteDocument(document.id)">Archive</button>
+              </div>
+            </article>
+          }
+        </div>
+      }
       @if (hasMoreContent()) {
         <div class="load-more">
           <button

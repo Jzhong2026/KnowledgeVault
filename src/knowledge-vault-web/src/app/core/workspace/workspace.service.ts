@@ -82,6 +82,7 @@ export class WorkspaceService {
     }
     const updated: WorkspaceState = { ...current, currentFolderId: folderId };
     this.state.set(updated);
+    this.expandPathTo(this.tree(), folderId);
     this.persist(updated);
   }
 
@@ -178,6 +179,7 @@ export class WorkspaceService {
 
   setTree(next: FolderTreeNode | null): void {
     this.tree.set(next);
+    this.expandPathTo(next, this.state()?.currentFolderId ?? null);
   }
 
   setBreadcrumb(path: BreadcrumbNode[]): void {
@@ -203,6 +205,44 @@ export class WorkspaceService {
       return true;
     }
     return node.children.some((child) => this.isWithinRoot(child, targetId));
+  }
+
+  /**
+   * Keep the selected folder visible in the sidebar by expanding every
+   * ancestor from the workspace root to that folder. This is invoked both
+   * when a folder is selected and when a freshly loaded tree arrives.
+   */
+  private expandPathTo(node: FolderTreeNode | null, targetId: string | null): void {
+    if (!node || !targetId) {
+      return;
+    }
+
+    const path: string[] = [];
+    const findPath = (current: FolderTreeNode): boolean => {
+      path.push(current.id);
+      if (current.id === targetId) {
+        return true;
+      }
+      for (const child of current.children) {
+        if (findPath(child)) {
+          return true;
+        }
+      }
+      path.pop();
+      return false;
+    };
+
+    if (!findPath(node)) {
+      return;
+    }
+
+    this.collapsedNodeIds.update((collapsed) => {
+      const next = new Set(collapsed);
+      for (const folderId of path) {
+        next.delete(folderId);
+      }
+      return next;
+    });
   }
 
   private keyFor(scope: DocumentScope, projectId: string | null): string {

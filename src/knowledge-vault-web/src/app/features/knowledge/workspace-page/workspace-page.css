@@ -59,6 +59,32 @@
   gap: 10px;
 }
 
+.document-view-toggle {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.document-view-toggle button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted, #64748b);
+  font-size: 12px;
+  padding: 10px 12px;
+}
+
+.document-view-toggle button + button {
+  border-left: 1px solid var(--border, #e2e8f0);
+}
+
+.document-view-toggle button.is-active {
+  background: #ecfdf5;
+  color: var(--accent-strong, #0f9d76);
+}
+
 .page-actions select {
   min-height: 42px;
   border: 1px solid var(--border, #e2e8f0);
@@ -311,6 +337,99 @@ button:disabled {
   min-height: 240px;
 }
 
+.document-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.document-list__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(84px, auto)) minmax(105px, auto) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 12px 14px;
+  color: var(--muted, #64748b);
+  font-size: 12px;
+}
+
+.document-list__row:hover {
+  border-color: var(--accent, #10b981);
+  background: #f8fffc;
+}
+
+.document-list__row--folder {
+  background: #fffcf4;
+}
+
+.document-list__row--folder:hover,
+.document-list__row--folder.is-drop-target {
+  border-color: #f59e0b;
+  background: #fff8e6;
+}
+
+.document-list__row--folder.is-drop-target {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+.document-list__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text, #0f172a);
+}
+
+.document-list__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.document-list__copy strong,
+.document-list__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-list__icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+}
+
+.document-list__icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.document-list__icon--folder {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.document-list__icon--document {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.document-list__title small { color: var(--muted, #64748b); }
+
+.document-list__actions { display: flex; gap: 6px; }
+.document-list__actions button { padding: 6px 9px; font-size: 11px; }
+
 /* Load more row: appends more folders/documents without leaving the page.
    Stays visible even when the tile grid is short so users always have a
    clear next action when there is more data on the server. */
@@ -470,6 +589,43 @@ button:disabled {
   gap: 18px;
 }
 
+.workspace-document-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: 24px;
+}
+
+.workspace-doc__heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workspace-doc__edit { padding: 7px 11px; font-size: 12px; }
+
+.workspace-doc__revision {
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: var(--accent-strong, #0f9d76);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 7px;
+}
+
+.workspace-revision-rail {
+  display: flex;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-left: 1px solid var(--border, #e2e8f0);
+  padding-left: 18px;
+}
+
+.workspace-revision-rail h4 { width: 100%; margin: 2px 0 6px; color: var(--text, #0f172a); font-size: 12px; }
+.workspace-revision { border: 1px solid var(--border, #e2e8f0); background: #ffffff; color: var(--muted, #64748b); font-size: 11px; padding: 6px 8px; }
+.workspace-revision.is-active { border-color: var(--accent, #10b981); background: #ecfdf5; color: var(--accent-strong, #0f9d76); }
+
 .workspace-doc__head {
   border-bottom: 1px solid var(--border, #e2e8f0);
   padding-bottom: 14px;
@@ -521,4 +677,8 @@ button:disabled {
   .workspace-shell {
     grid-template-columns: 220px 1fr;
   }
+  .workspace-document-layout { grid-template-columns: 1fr; }
+  .workspace-revision-rail { border-left: 0; border-top: 1px solid var(--border, #e2e8f0); padding: 14px 0 0; }
+  .document-list__row { grid-template-columns: 1fr auto; }
+  .document-list__row > span, .document-list__row > time { display: none; }
 }

@@ -100,7 +100,7 @@ public sealed class ProjectProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task List_excludes_projects_the_caller_is_not_a_member_of()
+    public async Task List_includes_discoverable_projects_when_following_only_is_disabled()
     {
         var mine = Guid.NewGuid();
         var theirs = Guid.NewGuid();
@@ -110,7 +110,8 @@ public sealed class ProjectProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         var result = await Projects().ListAsync(new ProjectQuery(null, false, false), CancellationToken.None);
-        Assert.Single(result.Items);
-        Assert.Equal(mine, result.Items[0].Id);
+        Assert.Equal(2, result.Items.Count);
+        Assert.Contains(result.Items, item => item.Id == mine && item.IsFollowing);
+        Assert.Contains(result.Items, item => item.Id == theirs && !item.IsFollowing && item.CurrentUserRole is null);
     }
 }

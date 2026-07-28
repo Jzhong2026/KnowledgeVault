@@ -25,12 +25,12 @@ public sealed class ProjectProvider(
         var page = Math.Max(query.Page, 1);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
-        // Projects are private: only list projects the caller is a member of.
-        // FollowingOnly is now implied, but is kept for API compatibility.
+        // The directory is discoverable to signed-in users so a new user can
+        // find a project and use Follow. Detail, members, and documents remain
+        // membership-protected by their respective access checks.
         var baseQuery = dbContext.Projects
             .AsNoTracking()
-            .Where(p => (query.IncludeArchived || !p.IsArchived) &&
-                        p.Members.Any(m => m.UserId == userId));
+            .Where(p => query.IncludeArchived || !p.IsArchived);
 
         if (query.FollowingOnly)
         {
