@@ -44,7 +44,7 @@
             <article class="workspace-doc">
               <header class="workspace-doc__head">
                 <div class="workspace-doc__heading-row">
-                  <h3 class="workspace-doc__title">{{ activeDocumentRevision()?.title || doc.title }}</h3>
+                  <h3 class="workspace-doc__title">{{ doc.title }}</h3>
                   @if (doc.documentType !== 'ProjectMemory') {
                     <button type="button" class="ghost workspace-doc__edit" [disabled]="saving()" (click)="editActiveDocument()">Edit</button>
                   }
@@ -52,7 +52,9 @@
                 <div class="workspace-doc__meta">
                   <span class="workspace-doc__dot" [class]="'workspace-doc__dot--' + (doc.status | lowercase)"></span>
                   <span>{{ doc.status }}</span>
-                  <span class="workspace-doc__revision">Revision {{ activeDocumentRevision()?.revisionNumber || doc.currentRevisionNumber }}</span>
+                  <span class="workspace-doc__revision">
+                    {{ activeDocumentRevision() ? 'Viewing content revision ' + activeDocumentRevision()?.revisionNumber : 'Latest content' }}
+                  </span>
                   @if (doc.summary) {
                     <span class="workspace-doc__sep">·</span>
                     <span>{{ doc.summary }}</span>
@@ -66,16 +68,21 @@
               ></div>
             </article>
             <aside class="workspace-revision-rail" aria-label="Document revisions">
-              <h4>Revisions</h4>
+              <h4>Latest</h4>
               <button type="button" class="workspace-revision" [class.is-active]="!activeDocumentRevision()" (click)="showActiveDocumentLatest()">Latest</button>
+              @if (activeDocumentRevisions().length > 1) {
+                <p class="workspace-revision-rail__label">History</p>
+              }
               @for (revision of activeDocumentRevisions(); track revision.revisionNumber) {
-                <button type="button" class="workspace-revision" [class.is-active]="activeDocumentRevision()?.revisionNumber === revision.revisionNumber" [title]="revision.title" (click)="viewActiveDocumentRevision(revision.revisionNumber)">{{ revision.revisionNumber }}</button>
+                @if (revision.revisionNumber !== doc.currentRevisionNumber) {
+                  <button type="button" class="workspace-revision" [class.is-active]="activeDocumentRevision()?.revisionNumber === revision.revisionNumber" [title]="revision.title" (click)="viewActiveDocumentRevision(revision.revisionNumber)">{{ revision.revisionNumber }}</button>
+                }
               }
             </aside>
             </div>
           }
         } @else {
-          <div class="workspace-empty-canvas" data-testid="workspace-empty-canvas">
+          <div class="workspace-empty-canvas" data-testid="workspace-empty-canvas" (contextmenu)="onWorkspaceEmptyContextMenu($event)">
             @if (loading()) {
               <app-loading-indicator label="Loading folder contents" />
             } @else {
@@ -323,6 +330,22 @@
     </section>
     }
   }
+  }
+
+  @if (workspaceContextMenu(); as menu) {
+    <div class="workspace-context-menu-backdrop" (click)="closeWorkspaceContextMenu()" (contextmenu)="$event.preventDefault(); closeWorkspaceContextMenu()">
+      <div
+        class="workspace-context-menu"
+        role="menu"
+        [style.left.px]="menu.x"
+        [style.top.px]="menu.y"
+        (click)="$event.stopPropagation()"
+      >
+        <p>Create in {{ workspaceContextFolderName(menu.folderId) }}</p>
+        <button type="button" role="menuitem" (click)="createFromWorkspaceContextMenu('folder')">New folder</button>
+        <button type="button" role="menuitem" (click)="createFromWorkspaceContextMenu('document')">New document</button>
+      </div>
+    </div>
   }
 
   @if (editorOpen()) {

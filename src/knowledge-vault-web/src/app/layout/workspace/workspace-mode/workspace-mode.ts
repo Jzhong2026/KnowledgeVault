@@ -24,7 +24,7 @@ import { FolderTree } from '../folder-tree/folder-tree';
         </div>
         <button type="button" class="workspace-mode__exit" (click)="exit()">Exit Workspace</button>
       </header>
-      <div class="workspace-mode__tree">
+      <div class="workspace-mode__tree" (contextmenu)="onRootContextMenu($event)">
         @if (tree(); as root) {
           <app-folder-tree
             [nodes]="[root]"
@@ -33,6 +33,7 @@ import { FolderTree } from '../folder-tree/folder-tree';
             (navigate)="onNavigate($event)"
             (openWorkspace)="onOpenWorkspace($event)"
             (openDocument)="onOpenDocument($event)"
+            (folderContextMenu)="onFolderContextMenu($event)"
           />
         } @else {
           <p class="workspace-mode__empty">Loading workspace tree…</p>
@@ -155,6 +156,19 @@ export class WorkspaceMode {
 
   onOpenDocument(doc: KnowledgeItemSummary): void {
     this.workspace.openDocumentTab(doc.id, doc.title);
+  }
+
+  onFolderContextMenu(event: { folderId: string; x: number; y: number }): void {
+    this.workspace.requestFolderContextMenu(event.folderId, event.x, event.y);
+  }
+
+  onRootContextMenu(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (target.closest('.folder-tree__row, .folder-tree__doc')) {
+      return;
+    }
+    event.preventDefault();
+    this.workspace.requestFolderContextMenu(this.rootFolderId(), event.clientX, event.clientY);
   }
 
   onRootDragOver(event: DragEvent): void {

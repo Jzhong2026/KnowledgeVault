@@ -114,6 +114,7 @@ export class WorkspacePage implements OnDestroy {
   readonly selectedId = signal<string | null>(null);
 
   readonly createFolderOpen = signal(false);
+  readonly createTargetFolderId = signal<string | null>(null);
   readonly createFolderName = signal('');
   readonly createFolderDescription = signal('');
   readonly createFolderProjectId = signal<string>('');
@@ -136,7 +137,7 @@ export class WorkspacePage implements OnDestroy {
    */
   readonly createFolderParentName = computed(() => {
     const state = this.workspace.current();
-    const parentId = state ? state.currentFolderId : this.browseFolderId();
+    const parentId = this.createTargetFolderId() ?? (state ? state.currentFolderId : this.browseFolderId());
     return this.findFolderName(parentId);
   });
 
@@ -144,7 +145,7 @@ export class WorkspacePage implements OnDestroy {
    *  resolution as the folder parent hint so it stays accurate after renames. */
   readonly createDocumentParentName = computed(() => {
     const state = this.workspace.current();
-    const parentId = state ? state.currentFolderId : this.browseFolderId();
+    const parentId = this.createTargetFolderId() ?? (state ? state.currentFolderId : this.browseFolderId());
     return this.findFolderName(parentId);
   });
 
@@ -177,9 +178,11 @@ export class WorkspacePage implements OnDestroy {
   readonly activeDocumentError = signal<string | null>(null);
   readonly activeDocumentRevisions = signal<RevisionSummary[]>([]);
   readonly activeDocumentRevision = signal<Revision | null>(null);
+  readonly workspaceContextMenu = signal<{ folderId: string | null; x: number; y: number } | null>(null);
 
   private readonly sub = new Subscription();
   private lastProcessedMoveRequestId = 0;
+  private lastProcessedContextMenuRequestId = 0;
   private preferenceResolved = false;
 
   constructor() {
@@ -256,6 +259,16 @@ export class WorkspacePage implements OnDestroy {
       this.lastProcessedMoveRequestId = moveRequest.requestId;
       this.moveDocumentToFolder(moveRequest.documentId, moveRequest.folderId);
       this.workspace.clearDocumentMoveRequest();
+    });
+
+    effect(() => {
+      const request = this.workspace.folderContextMenuRequest();
+      if (!request || request.requestId <= this.lastProcessedContextMenuRequestId) {
+        return;
+      }
+      this.lastProcessedContextMenuRequestId = request.requestId;
+      this.workspaceContextMenu.set(request);
+      this.workspace.clearFolderContextMenuRequest();
     });
 
     this.loadReferenceData();
@@ -747,7 +760,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   // ----- Folder CRUD -----
-  openCreateFolder(): void {
+  openCreateFolder(parentFolderId: string | null = null): void {
     if (!this.canCreate()) {
       this.error.set(
         this.noFollowedProjects()
@@ -758,6 +771,7 @@ export class WorkspacePage implements OnDestroy {
     }
     this.createFolderName.set('');
     this.createFolderDescription.set('');
+    this.createTargetFolderId.set(parentFolderId);
     this.createFolderProjectId.set(this.projectId() ?? '');
     this.createFolderOpen.set(true);
   }
@@ -780,7 +794,7 @@ export class WorkspacePage implements OnDestroy {
       .createFolder({
         scope: this.workspaceScope,
         projectId,
-        parentFolderId: state ? state.currentFolderId : this.browseFolderId(),
+        parentFolderId: this.createTargetFolderId() ?? (state ? state.currentFolderId : this.browseFolderId()),
         name,
         description: this.createFolderDescription().trim() || null,
       })
@@ -1066,7 +1080,7 @@ export class WorkspacePage implements OnDestroy {
   }
 
   // ----- Editor -----
-  createNew(): void {
+  createNew(parentFolderId: string | null = null): void {
     if (!this.canCreate()) {
       this.error.set(
         this.noFollowedProjects()
@@ -1077,6 +1091,7 @@ export class WorkspacePage implements OnDestroy {
     }
     this.selectedId.set(null);
     this.selectedItem.set(null);
+    this.createTargetFolderId.set(parentFolderId);
     this.editorTopics.set([]);
     this.editorOpen.set(true);
   }
@@ -1092,7 +1107,9 @@ export class WorkspacePage implements OnDestroy {
     this.saving.set(true);
     const state = this.workspace.current();
     const item = this.selectedItem();
-    const folderId = item ? undefined : state ? state.currentFolderId : this.browseFolderId();
+    const folderId = item
+      ? undefined
+      : this.createTargetFolderId() ?? (state ? state.currentFolderId : this.browseFolderId());
     const payload: SaveDocumentRequest = { ...request, folderId };
     const operation = item
       ? this.api.updateKnowledgeItem(item.id, payload)
@@ -1101,6 +1118,7 @@ export class WorkspacePage implements OnDestroy {
     operation.subscribe({
       next: () => {
         this.editorOpen.set(false);
+        this.createTargetFolderId.set(null);
         this.saving.set(false);
         this.loadContent(this.workspace.current(), 1, /*append*/ false);
         if (item && this.activeDocument()?.id === item.id) {
@@ -1116,6 +1134,36 @@ export class WorkspacePage implements OnDestroy {
 
   closeEditor(): void {
     this.editorOpen.set(false);
+    if (!this.selectedItem()) {
+      this.createTargetFolderId.set(null);
+    }
+  }
+
+  onWorkspaceEmptyContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    this.workspaceContextMenu.set({
+      folderId: this.workspace.workspaceRootFolderId(),
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  closeWorkspaceContextMenu(): void {
+    this.workspaceContextMenu.set(null);
+  }
+
+  createFromWorkspaceContextMenu(kind: 'folder' | 'document'): void {
+    const target = this.workspaceContextMenu()?.folderId ?? this.workspace.workspaceRootFolderId();
+    this.closeWorkspaceContextMenu();
+    if (kind === 'folder') {
+      this.openCreateFolder(target);
+      return;
+    }
+    this.createNew(target);
+  }
+
+  workspaceContextFolderName(folderId: string | null): string {
+    return this.findFolderName(folderId) ?? 'Workspace root';
   }
 
   private loadActiveDocument(documentId: string): void {

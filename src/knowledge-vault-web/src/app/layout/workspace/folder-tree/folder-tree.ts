@@ -17,6 +17,7 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
             [class.is-collapsed]="isCollapsed(node.id)"
             [class.is-drop-target]="activeDropFolderId() === node.id"
             (click)="navigate.emit(node.id)"
+            (contextmenu)="onContextMenu($event, node.id)"
             (dragover)="onDragOver($event)"
             (dragenter)="onDragEnter($event, node.id)"
             (dragleave)="onDragLeave($event, node.id)"
@@ -96,6 +97,7 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
               (navigate)="navigate.emit($event)"
               (openWorkspace)="openWorkspace.emit($event)"
               (openDocument)="openDocument.emit($event)"
+              (folderContextMenu)="folderContextMenu.emit($event)"
             />
           }
         </li>
@@ -308,6 +310,7 @@ export class FolderTree {
   readonly navigate = output<string>();
   readonly openWorkspace = output<string>();
   readonly openDocument = output<KnowledgeItemSummary>();
+  readonly folderContextMenu = output<{ folderId: string; x: number; y: number }>();
   readonly activeDropFolderId = signal<string | null>(null);
 
   isCurrent(folderId: string): boolean {
@@ -324,6 +327,12 @@ export class FolderTree {
 
   toggleNode(folderId: string): void {
     this.workspace.toggleCollapsedNode(folderId);
+  }
+
+  onContextMenu(event: MouseEvent, folderId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.folderContextMenu.emit({ folderId, x: event.clientX, y: event.clientY });
   }
 
   onDragOver(event: DragEvent): void {
