@@ -76,6 +76,7 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
                     type="button"
                     class="folder-tree__doc"
                     (click)="$event.stopPropagation(); openDocument.emit(doc)"
+                    (contextmenu)="onDocumentContextMenu($event, doc.id)"
                     [title]="doc.title"
                   >
                     <span class="folder-tree__doc-icon" aria-hidden="true">
@@ -98,6 +99,7 @@ import { WorkspaceService } from '../../../core/workspace/workspace.service';
               (openWorkspace)="openWorkspace.emit($event)"
               (openDocument)="openDocument.emit($event)"
               (folderContextMenu)="folderContextMenu.emit($event)"
+              (documentContextMenu)="documentContextMenu.emit($event)"
             />
           }
         </li>
@@ -311,6 +313,7 @@ export class FolderTree {
   readonly openWorkspace = output<string>();
   readonly openDocument = output<KnowledgeItemSummary>();
   readonly folderContextMenu = output<{ folderId: string; x: number; y: number }>();
+  readonly documentContextMenu = output<{ documentId: string; x: number; y: number }>();
   readonly activeDropFolderId = signal<string | null>(null);
 
   isCurrent(folderId: string): boolean {
@@ -333,6 +336,12 @@ export class FolderTree {
     event.preventDefault();
     event.stopPropagation();
     this.folderContextMenu.emit({ folderId, x: event.clientX, y: event.clientY });
+  }
+
+  onDocumentContextMenu(event: MouseEvent, documentId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.documentContextMenu.emit({ documentId, x: event.clientX, y: event.clientY });
   }
 
   onDragOver(event: DragEvent): void {

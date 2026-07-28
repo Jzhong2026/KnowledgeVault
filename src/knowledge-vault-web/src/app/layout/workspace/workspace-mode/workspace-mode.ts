@@ -34,6 +34,7 @@ import { FolderTree } from '../folder-tree/folder-tree';
             (openWorkspace)="onOpenWorkspace($event)"
             (openDocument)="onOpenDocument($event)"
             (folderContextMenu)="onFolderContextMenu($event)"
+            (documentContextMenu)="onDocumentContextMenu($event)"
           />
         } @else {
           <p class="workspace-mode__empty">Loading workspace tree…</p>
@@ -160,6 +161,10 @@ export class WorkspaceMode {
 
   onFolderContextMenu(event: { folderId: string; x: number; y: number }): void {
     this.workspace.requestFolderContextMenu(event.folderId, event.x, event.y);
+  }
+
+  onDocumentContextMenu(event: { documentId: string; x: number; y: number }): void {
+    this.workspace.requestDocumentContextMenu(event.documentId, event.x, event.y);
   }
 
   onRootContextMenu(event: MouseEvent): void {

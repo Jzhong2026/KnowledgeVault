@@ -19,7 +19,12 @@ import {
 } from '../../../core/models/knowledge.models';
 import { FolderSummary, FolderTreeNode } from '../../../core/models/folder.models';
 import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.models';
-import { BreadcrumbNode, WorkspaceService, WorkspaceState } from '../../../core/workspace/workspace.service';
+import {
+  BreadcrumbNode,
+  WorkspaceContextMenuRequest,
+  WorkspaceService,
+  WorkspaceState,
+} from '../../../core/workspace/workspace.service';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
@@ -178,7 +183,7 @@ export class WorkspacePage implements OnDestroy {
   readonly activeDocumentError = signal<string | null>(null);
   readonly activeDocumentRevisions = signal<RevisionSummary[]>([]);
   readonly activeDocumentRevision = signal<Revision | null>(null);
-  readonly workspaceContextMenu = signal<{ folderId: string | null; x: number; y: number } | null>(null);
+  readonly workspaceContextMenu = signal<WorkspaceContextMenuRequest | null>(null);
 
   private readonly sub = new Subscription();
   private lastProcessedMoveRequestId = 0;
@@ -262,13 +267,13 @@ export class WorkspacePage implements OnDestroy {
     });
 
     effect(() => {
-      const request = this.workspace.folderContextMenuRequest();
+      const request = this.workspace.workspaceContextMenuRequest();
       if (!request || request.requestId <= this.lastProcessedContextMenuRequestId) {
         return;
       }
       this.lastProcessedContextMenuRequestId = request.requestId;
       this.workspaceContextMenu.set(request);
-      this.workspace.clearFolderContextMenuRequest();
+      this.workspace.clearWorkspaceContextMenuRequest();
     });
 
     this.loadReferenceData();
@@ -1142,9 +1147,11 @@ export class WorkspacePage implements OnDestroy {
   onWorkspaceEmptyContextMenu(event: MouseEvent): void {
     event.preventDefault();
     this.workspaceContextMenu.set({
+      target: 'folder',
       folderId: this.workspace.workspaceRootFolderId(),
       x: event.clientX,
       y: event.clientY,
+      requestId: Date.now(),
     });
   }
 
@@ -1153,7 +1160,10 @@ export class WorkspacePage implements OnDestroy {
   }
 
   createFromWorkspaceContextMenu(kind: 'folder' | 'document'): void {
-    const target = this.workspaceContextMenu()?.folderId ?? this.workspace.workspaceRootFolderId();
+    const menu = this.workspaceContextMenu();
+    const target = menu?.target === 'folder'
+      ? menu.folderId
+      : this.workspace.workspaceRootFolderId();
     this.closeWorkspaceContextMenu();
     if (kind === 'folder') {
       this.openCreateFolder(target);
@@ -1164,6 +1174,23 @@ export class WorkspacePage implements OnDestroy {
 
   workspaceContextFolderName(folderId: string | null): string {
     return this.findFolderName(folderId) ?? 'Workspace root';
+  }
+
+  downloadFromWorkspaceContextMenu(): void {
+    const menu = this.workspaceContextMenu();
+    this.closeWorkspaceContextMenu();
+    if (!menu) {
+      return;
+    }
+
+    if (menu.target === 'document') {
+      this.downloadDocument(menu.documentId);
+      return;
+    }
+
+    if (menu.folderId) {
+      this.downloadFolder(menu.folderId);
+    }
   }
 
   private loadActiveDocument(documentId: string): void {

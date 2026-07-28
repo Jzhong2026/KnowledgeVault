@@ -326,9 +326,45 @@ h2 {
   padding: 12px 14px;
 }
 
-.comment p {
+.comment > p {
   margin: 7px 0 0;
   line-height: 1.55;
+}
+
+.comment__content {
+  position: relative;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.comment__content--collapsed {
+  max-height: 320px;
+}
+
+.comment__content--collapsed::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 72px;
+  background: linear-gradient(transparent, #fbfcfc);
+  content: '';
+  pointer-events: none;
+}
+
+.comment-expand-button {
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+}
+
+.comment-expand-button:hover {
+  text-decoration: underline;
 }
 
 .comment__head {

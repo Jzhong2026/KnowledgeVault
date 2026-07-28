@@ -217,7 +217,22 @@
                 }
               </div>
               @if (!comment.isDeleted) {
-                <p>{{ comment.content }}</p>
+                <div
+                  class="comment__content markdown-body"
+                  [class.comment__content--collapsed]="isCommentCollapsed(comment)"
+                  [innerHTML]="comment.content | markdownContent"
+                  [appMermaidDiagrams]="comment.content"
+                ></div>
+                @if (comment.content.length > 1200) {
+                  <button
+                    type="button"
+                    class="comment-expand-button"
+                    [attr.aria-expanded]="!isCommentCollapsed(comment)"
+                    (click)="toggleCommentExpansion(comment.id)"
+                  >
+                    {{ isCommentCollapsed(comment) ? 'Show more' : 'Show less' }}
+                  </button>
+                }
               } @else {
                 <p class="muted"><em>Comment deleted</em></p>
               }

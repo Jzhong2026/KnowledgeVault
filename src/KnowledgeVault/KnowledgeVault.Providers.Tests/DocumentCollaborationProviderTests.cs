@@ -102,6 +102,19 @@ public sealed class DocumentCollaborationProviderTests : IAsyncLifetime
         Assert.NotNull(resolved.ResolvedAt);
     }
 
+    [Fact]
+    public async Task Comments_accept_content_longer_than_the_previous_limit()
+    {
+        _currentUser.UserId = _reviewerId;
+        var comment = await CreateProviders().Comments.AddAsync(
+            _documentId,
+            1,
+            new AddCommentRequest(new string('x', 4_001)),
+            CancellationToken.None);
+
+        Assert.Equal(4_001, comment.Content.Length);
+    }
+
     private ProviderSet CreateProviders()
     {
         var access = TestProviders.DocAccess(_dbContext, _currentUser);

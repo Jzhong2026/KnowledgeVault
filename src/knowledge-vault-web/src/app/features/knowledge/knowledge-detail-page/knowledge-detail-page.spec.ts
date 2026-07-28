@@ -212,4 +212,45 @@ describe('KnowledgeDetailPage', () => {
     expect(fixture.nativeElement.querySelector('.copy-content-button')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.comment-copy-button')).not.toBeNull();
   });
+
+  it('renders comment Markdown and collapses long comments by default', async () => {
+    const item: KnowledgeItem = {
+      id: 'document-id', scope: 'Personal', ownerUserId: 'owner-id', ownerDisplayName: 'Owner',
+      documentType: 'General', currentRevisionNumber: 1, title: 'Document', content: 'Content',
+      status: 'Active', tags: [], createdAt: '2026-07-18T00:00:00Z',
+    };
+    const comment: Comment = {
+      id: 'long-comment', revisionNumber: 1, authorUserId: 'reviewer-id',
+      authorDisplayName: 'Reviewer', content: `## Heading\n\n${'Long content '.repeat(120)}`,
+      createdAt: '2026-07-18T01:00:00Z', isDeleted: false,
+    };
+    const api = {
+      getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
+      listRevisions: vi.fn().mockReturnValue(of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })),
+      listComments: vi.fn().mockReturnValue(of({ items: [comment], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 })),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeDetailPage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        { provide: ActivatedRoute, useValue: { snapshot: { data: { scope: 'Personal' }, paramMap: convertToParamMap({ id: item.id }) } } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeDetailPage);
+    fixture.detectChanges();
+
+    const content = fixture.nativeElement.querySelector('.comment__content') as HTMLElement;
+    const button = fixture.nativeElement.querySelector('.comment-expand-button') as HTMLButtonElement;
+    expect(content.querySelector('h2')?.textContent).toBe('Heading');
+    expect(content.classList.contains('comment__content--collapsed')).toBe(true);
+    expect(button.textContent?.trim()).toBe('Show more');
+
+    button.click();
+    fixture.detectChanges();
+    expect(content.classList.contains('comment__content--collapsed')).toBe(false);
+    expect(button.textContent?.trim()).toBe('Show less');
+  });
 });

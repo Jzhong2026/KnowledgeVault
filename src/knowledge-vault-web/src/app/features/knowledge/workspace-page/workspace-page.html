@@ -341,9 +341,17 @@
         [style.top.px]="menu.y"
         (click)="$event.stopPropagation()"
       >
-        <p>Create in {{ workspaceContextFolderName(menu.folderId) }}</p>
-        <button type="button" role="menuitem" (click)="createFromWorkspaceContextMenu('folder')">New folder</button>
-        <button type="button" role="menuitem" (click)="createFromWorkspaceContextMenu('document')">New document</button>
+        @if (menu.target === 'document') {
+          <p>Document actions</p>
+          <button type="button" role="menuitem" (click)="downloadFromWorkspaceContextMenu()">Download document</button>
+        } @else {
+          <p>Create in {{ workspaceContextFolderName(menu.folderId) }}</p>
+          @if (menu.folderId) {
+            <button type="button" role="menuitem" (click)="downloadFromWorkspaceContextMenu()">Download folder</button>
+          }
+          <button type="button" role="menuitem" (click)="createFromWorkspaceContextMenu('folder')">New folder</button>
+          <button type="button" role="menuitem" (click)="createFromWorkspaceContextMenu('document')">New document</button>
+        }
       </div>
     </div>
   }

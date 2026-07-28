@@ -359,7 +359,6 @@ namespace KnowledgeVault.DataAccess.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
                     b.Property<long>("CreatedAt")

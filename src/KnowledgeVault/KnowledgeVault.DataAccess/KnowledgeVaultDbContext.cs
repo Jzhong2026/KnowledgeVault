@@ -181,7 +181,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
         modelBuilder.Entity<KnowledgeItemComment>(builder =>
         {
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+            builder.Property(x => x.Content).IsRequired();
             builder.HasIndex(x => new { x.KnowledgeItemRevisionId, x.CreatedAt });
             builder.HasIndex(x => x.ParentCommentId);
             builder.HasOne(x => x.Revision)

@@ -8,15 +8,21 @@ namespace KnowledgeVault.Infrastructure.Text;
 /// </summary>
 public static class RequestText
 {
-    /// <summary>Requires a non-empty value, trims it, and enforces a max length.</summary>
-    public static string Require(string? value, string fieldName, int maxLength)
+    /// <summary>Requires a non-empty value and trims it without imposing a length limit.</summary>
+    public static string Require(string? value, string fieldName)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new ValidationException($"{fieldName} is required.");
         }
 
-        var trimmed = value.Trim();
+        return value.Trim();
+    }
+
+    /// <summary>Requires a non-empty value, trims it, and enforces a max length.</summary>
+    public static string Require(string? value, string fieldName, int maxLength)
+    {
+        var trimmed = Require(value, fieldName);
         if (trimmed.Length > maxLength)
         {
             throw new ValidationException($"{fieldName} must be {maxLength} characters or fewer.");

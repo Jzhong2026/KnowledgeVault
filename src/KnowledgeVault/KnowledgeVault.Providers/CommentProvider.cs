@@ -81,7 +81,7 @@ public sealed class CommentProvider(
             KnowledgeItemRevisionId = revision.Id,
             AuthorUserId = userId,
             ParentCommentId = request.ParentCommentId,
-            Content = RequestText.Require(request.Content, "Comment", 4000),
+            Content = RequestText.Require(request.Content, "Comment"),
             CreatedAt = now
         };
 
@@ -110,7 +110,7 @@ public sealed class CommentProvider(
             throw new ForbiddenException("You can only edit your own comments.");
         }
 
-        comment.Content = RequestText.Require(request.Content, "Comment", 4000);
+        comment.Content = RequestText.Require(request.Content, "Comment");
         comment.UpdatedAt = dateTimeProvider.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 

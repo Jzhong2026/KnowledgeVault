@@ -28,12 +28,21 @@ export interface DocumentMoveRequest {
   requestId: number;
 }
 
-export interface FolderContextMenuRequest {
-  folderId: string | null;
-  x: number;
-  y: number;
-  requestId: number;
-}
+export type WorkspaceContextMenuRequest =
+  | {
+      target: 'folder';
+      folderId: string | null;
+      x: number;
+      y: number;
+      requestId: number;
+    }
+  | {
+      target: 'document';
+      documentId: string;
+      x: number;
+      y: number;
+      requestId: number;
+    };
 
 const STORAGE_PREFIX = 'kv:workspace:';
 
@@ -47,7 +56,7 @@ export class WorkspaceService {
   private readonly tabs = signal<OpenTab[]>([]);
   private readonly activeTabId = signal<string | null>(null);
   private readonly moveRequest = signal<DocumentMoveRequest | null>(null);
-  private readonly contextMenuRequest = signal<FolderContextMenuRequest | null>(null);
+  private readonly contextMenuRequest = signal<WorkspaceContextMenuRequest | null>(null);
   /** Folder ids the user collapsed in the sidebar tree. Kept in the shared
    *  service (instead of per-component) so the collapse state survives tree
    *  reloads that happen when switching the active folder or refreshing data. */
@@ -68,7 +77,7 @@ export class WorkspaceService {
   readonly openTabs = this.tabs.asReadonly();
   readonly activeTabIdSignal = this.activeTabId.asReadonly();
   readonly documentMoveRequest = this.moveRequest.asReadonly();
-  readonly folderContextMenuRequest = this.contextMenuRequest.asReadonly();
+  readonly workspaceContextMenuRequest = this.contextMenuRequest.asReadonly();
   readonly collapsedNodeIdsSignal = this.collapsedNodeIds.asReadonly();
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
@@ -124,10 +133,14 @@ export class WorkspaceService {
   }
 
   requestFolderContextMenu(folderId: string | null, x: number, y: number): void {
-    this.contextMenuRequest.set({ folderId, x, y, requestId: Date.now() });
+    this.contextMenuRequest.set({ target: 'folder', folderId, x, y, requestId: Date.now() });
   }
 
-  clearFolderContextMenuRequest(): void {
+  requestDocumentContextMenu(documentId: string, x: number, y: number): void {
+    this.contextMenuRequest.set({ target: 'document', documentId, x, y, requestId: Date.now() });
+  }
+
+  clearWorkspaceContextMenuRequest(): void {
     this.contextMenuRequest.set(null);
   }
 

@@ -39,6 +39,8 @@ import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor
   styleUrl: './knowledge-detail-page.css',
 })
 export class KnowledgeDetailPage {
+  private static readonly collapsedCommentThreshold = 1200;
+
   private readonly api = inject(ApiClient);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -58,6 +60,7 @@ export class KnowledgeDetailPage {
   readonly viewingRevision = signal<Revision | null>(null);
   readonly addingComment = signal(false);
   readonly newComment = signal('');
+  readonly expandedCommentIds = signal<ReadonlySet<string>>(new Set());
   readonly copiedTarget = signal<string | null>(null);
   readonly copyError = signal<string | null>(null);
 
@@ -301,6 +304,25 @@ export class KnowledgeDetailPage {
 
   hasContent(content: string): boolean {
     return content.trim().length > 0;
+  }
+
+  isCommentCollapsed(comment: Comment): boolean {
+    return (
+      comment.content.length > KnowledgeDetailPage.collapsedCommentThreshold &&
+      !this.expandedCommentIds().has(comment.id)
+    );
+  }
+
+  toggleCommentExpansion(commentId: string): void {
+    this.expandedCommentIds.update((expanded) => {
+      const next = new Set(expanded);
+      if (next.has(commentId)) {
+        next.delete(commentId);
+      } else {
+        next.add(commentId);
+      }
+      return next;
+    });
   }
 
   private async copyValue(value: string, target: string): Promise<void> {
