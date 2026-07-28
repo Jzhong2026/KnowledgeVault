@@ -117,6 +117,7 @@ export class WorkspacePage implements OnDestroy {
   readonly editorOpen = signal(false);
   readonly selectedItem = signal<KnowledgeItem | null>(null);
   readonly selectedId = signal<string | null>(null);
+  readonly copyMessage = signal<string | null>(null);
 
   readonly createFolderOpen = signal(false);
   readonly createTargetFolderId = signal<string | null>(null);
@@ -943,6 +944,16 @@ export class WorkspacePage implements OnDestroy {
     this.editorOpen.set(true);
   }
 
+  async copyActiveDocumentContent(): Promise<void> {
+    const item = this.activeDocument();
+    if (!item) {
+      return;
+    }
+
+    const content = this.activeDocumentRevision()?.content ?? item.content;
+    await this.copyContent(content);
+  }
+
   moveDocumentToFolder(documentId: string, folderId: string | null): void {
     this.saving.set(true);
     this.api.moveDocument(documentId, folderId).subscribe({
@@ -1190,6 +1201,67 @@ export class WorkspacePage implements OnDestroy {
 
     if (menu.folderId) {
       this.downloadFolder(menu.folderId);
+    }
+  }
+
+  copyFromWorkspaceContextMenu(): void {
+    const menu = this.workspaceContextMenu();
+    this.closeWorkspaceContextMenu();
+    if (!menu || menu.target !== 'document') {
+      return;
+    }
+
+    this.api.getKnowledgeItem(menu.documentId).subscribe({
+      next: (document) => void this.copyContent(document.content),
+      error: (err: unknown) => this.error.set(getErrorMessage(err)),
+    });
+  }
+
+  private async copyContent(content: string): Promise<void> {
+    this.copyMessage.set(null);
+    const value = this.formatContentForCopy(content);
+    if (await this.copyText(value)) {
+      this.copyMessage.set('Content copied');
+      return;
+    }
+
+    this.error.set('Unable to access the clipboard. Please copy the text manually.');
+  }
+
+  private async copyText(value: string): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch {
+        // Fall through to the legacy browser clipboard path.
+      }
+    }
+
+    if (typeof document === 'undefined') {
+      return false;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      return document.execCommand('copy');
+    } finally {
+      textArea.remove();
+    }
+  }
+
+  private formatContentForCopy(content: string): string {
+    try {
+      return JSON.stringify(JSON.parse(content), null, 2);
+    } catch {
+      return content;
     }
   }
 

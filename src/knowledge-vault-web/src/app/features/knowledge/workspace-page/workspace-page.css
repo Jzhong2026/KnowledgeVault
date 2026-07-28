@@ -644,7 +644,19 @@ button:disabled {
   gap: 16px;
 }
 
+.workspace-doc__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .workspace-doc__edit { padding: 7px 11px; font-size: 12px; }
+
+.workspace-doc__copy-message {
+  color: var(--accent-strong, #0f9d76);
+  font-size: 12px;
+  font-weight: 700;
+}
 
 .workspace-doc__revision {
   border-radius: 999px;

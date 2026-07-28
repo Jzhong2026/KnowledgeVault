@@ -48,15 +48,14 @@ artifacts/
 /src/KnowledgeVault/publish/
 /.tmp/
 
-# Local SQLite databases
+# Local SQLite databases (runtime artifacts, never committed). The published
+# IIS bundle ships its own copy inside the artifacts/ payload, but the
+# working copy under db/ is purely local.
 *.db
 *.db-shm
 *.db-wal
-
-# The checked-in server database is part of the IIS publish payload. Its WAL
-# sidecars remain local runtime files and must never be committed.
-!db/
-!db/knowledge-vault.db
+*.db-bak
+/db/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

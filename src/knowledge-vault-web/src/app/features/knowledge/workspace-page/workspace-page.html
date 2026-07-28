@@ -45,9 +45,15 @@
               <header class="workspace-doc__head">
                 <div class="workspace-doc__heading-row">
                   <h3 class="workspace-doc__title">{{ doc.title }}</h3>
-                  @if (doc.documentType !== 'ProjectMemory') {
-                    <button type="button" class="ghost workspace-doc__edit" [disabled]="saving()" (click)="editActiveDocument()">Edit</button>
-                  }
+                  <div class="workspace-doc__actions">
+                    <button type="button" class="ghost workspace-doc__edit" (click)="copyActiveDocumentContent()">Copy</button>
+                    @if (doc.documentType !== 'ProjectMemory') {
+                      <button type="button" class="ghost workspace-doc__edit" [disabled]="saving()" (click)="editActiveDocument()">Edit</button>
+                    }
+                    @if (copyMessage()) {
+                      <span class="workspace-doc__copy-message" role="status">{{ copyMessage() }}</span>
+                    }
+                  </div>
                 </div>
                 <div class="workspace-doc__meta">
                   <span class="workspace-doc__dot" [class]="'workspace-doc__dot--' + (doc.status | lowercase)"></span>
@@ -343,6 +349,7 @@
       >
         @if (menu.target === 'document') {
           <p>Document actions</p>
+          <button type="button" role="menuitem" (click)="copyFromWorkspaceContextMenu()">Copy content</button>
           <button type="button" role="menuitem" (click)="downloadFromWorkspaceContextMenu()">Download document</button>
         } @else {
           <p>Create in {{ workspaceContextFolderName(menu.folderId) }}</p>
