@@ -18,12 +18,27 @@ public sealed class CommentProvider(
     IDateTimeProvider dateTimeProvider,
     IDocumentAccessService documentAccessService) : ICommentProvider
 {
-    public async Task<PagedResult<CommentDto>> ListAsync(Guid documentId, int revisionNumber, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<PagedResult<CommentDto>> ListForDocumentAsync(
+        Guid documentId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
     {
         await documentAccessService.EnsureViewAsync(documentId, cancellationToken);
 
-        page = Math.Max(page, 1);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var commentsQuery = dbContext.KnowledgeItemComments
+            .AsNoTracking()
+            .Include(x => x.AuthorUser)
+            .Include(x => x.ResolvedByUser)
+            .Include(x => x.Revision)
+            .Where(x => x.Revision != null && x.Revision.KnowledgeItemId == documentId);
+
+        return await ToPagedResultAsync(commentsQuery, page, pageSize, descending: true, cancellationToken);
+    }
+
+    public async Task<PagedResult<CommentDto>> ListAsync(Guid documentId, int revisionNumber, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        await documentAccessService.EnsureViewAsync(documentId, cancellationToken);
 
         var commentsQuery = dbContext.KnowledgeItemComments
             .AsNoTracking()
@@ -32,10 +47,24 @@ public sealed class CommentProvider(
             .Include(x => x.Revision)
             .Where(x => x.Revision != null && x.Revision.KnowledgeItemId == documentId && x.Revision.RevisionNumber == revisionNumber);
 
+        return await ToPagedResultAsync(commentsQuery, page, pageSize, descending: false, cancellationToken);
+    }
+
+    private static async Task<PagedResult<CommentDto>> ToPagedResultAsync(
+        IQueryable<KnowledgeItemComment> commentsQuery,
+        int page,
+        int pageSize,
+        bool descending,
+        CancellationToken cancellationToken)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var totalCount = await commentsQuery.CountAsync(cancellationToken);
-        var comments = await commentsQuery
-            .OrderBy(x => x.CreatedAt)
-            .ThenBy(x => x.Id)
+        var orderedQuery = descending
+            ? commentsQuery.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            : commentsQuery.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
+        var comments = await orderedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

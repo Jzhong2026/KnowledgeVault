@@ -912,6 +912,20 @@ export class WorkspacePage implements OnDestroy {
     this.openDocument(doc, doc.title);
   }
 
+  restoreFolder(id: string): void {
+    this.saving.set(true);
+    this.api.restoreFolder(id).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.loadContent(this.workspace.current(), 1, /*append*/ false);
+      },
+      error: (err: unknown) => {
+        this.error.set(getErrorMessage(err));
+        this.saving.set(false);
+      },
+    });
+  }
+
   viewActiveDocumentRevision(revisionNumber: number): void {
     const item = this.activeDocument();
     if (!item) {
@@ -1153,6 +1167,20 @@ export class WorkspacePage implements OnDestroy {
     if (!this.selectedItem()) {
       this.createTargetFolderId.set(null);
     }
+  }
+
+  restoreDocument(id: string): void {
+    this.saving.set(true);
+    this.api.restoreKnowledgeItem(id).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.loadContent(this.workspace.current(), 1, /*append*/ false);
+      },
+      error: (err: unknown) => {
+        this.error.set(getErrorMessage(err));
+        this.saving.set(false);
+      },
+    });
   }
 
   onWorkspaceEmptyContextMenu(event: MouseEvent): void {

@@ -34,9 +34,15 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
             <path d="M5 18h14" />
           </svg>
         </button>
-        <button type="button" class="tile__action tile__action--danger" title="Archive" (click)="delete.emit(document().id)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 5v-2h8v2M8 12h8" /></svg>
-        </button>
+        @if (statusKey() === 'archived') {
+          <button type="button" class="tile__action" title="Restore" (click)="restore.emit(document().id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 18V8M8 12l4-4 4 4M5 5h14v14H5z" /></svg>
+          </button>
+        } @else {
+          <button type="button" class="tile__action tile__action--danger" title="Archive" (click)="delete.emit(document().id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 5v-2h8v2M8 12h8" /></svg>
+          </button>
+        }
       </div>
     </article>
   `,
@@ -161,6 +167,7 @@ export class DocumentTile {
   readonly open = output<string>();
   readonly download = output<string>();
   readonly delete = output<string>();
+  readonly restore = output<string>();
   readonly dragEnd = output<void>();
 
   readonly statusKey = computed(() => this.document().status?.toString().toLowerCase() ?? '');

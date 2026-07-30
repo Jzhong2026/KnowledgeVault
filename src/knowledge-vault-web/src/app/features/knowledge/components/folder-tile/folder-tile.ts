@@ -52,12 +52,18 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" /></svg>
         </button>
-        <button type="button" class="tile__action" title="Rename" (click)="rename.emit(folder().id)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg>
-        </button>
-        <button type="button" class="tile__action tile__action--danger" title="Archive" (click)="delete.emit(folder().id)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 5v-2h8v2M8 12h8" /></svg>
-        </button>
+        @if (folder().isArchived) {
+          <button type="button" class="tile__action" title="Restore" (click)="restore.emit(folder().id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 18V8M8 12l4-4 4 4M5 5h14v14H5z" /></svg>
+          </button>
+        } @else {
+          <button type="button" class="tile__action" title="Rename" (click)="rename.emit(folder().id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg>
+          </button>
+          <button type="button" class="tile__action tile__action--danger" title="Archive" (click)="delete.emit(folder().id)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 5v-2h8v2M8 12h8" /></svg>
+          </button>
+        }
       </div>
     </article>
   `,
@@ -173,6 +179,7 @@ export class FolderTile {
   readonly openWorkspace = output<string>();
   readonly rename = output<string>();
   readonly delete = output<string>();
+  readonly restore = output<string>();
   readonly moveDocumentToFolder = output<{ documentId: string; folderId: string }>();
 
   private dragCounter = 0;

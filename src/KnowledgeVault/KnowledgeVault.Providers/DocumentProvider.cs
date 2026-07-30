@@ -158,6 +158,15 @@ public sealed class DocumentProvider(
         return item.ToDto();
     }
 
+    public async Task<KnowledgeItemDto> GetForMcpAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await BuildDetailQuery()
+            .FirstOrDefaultAsync(x => x.Id == id && x.Status != KnowledgeItemStatus.Archived && x.Status != KnowledgeItemStatus.Deleted, cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+
+        return item.ToDto();
+    }
+
     public async Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken)
     {
         if (request.DocumentType == DocumentType.ProjectMemory)
@@ -331,6 +340,21 @@ public sealed class DocumentProvider(
             throw new ValidationException("A project's shared MEMORY.md cannot be archived.");
         }
         item.ChangeStatus(KnowledgeItemStatus.Archived, dateTimeProvider.UtcNow);
+        item.UpdatedAt = dateTimeProvider.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RestoreAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await documentAccessService.EnsureEditAsync(id, cancellationToken);
+        var item = await dbContext.KnowledgeItems.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+        if (item.Status == KnowledgeItemStatus.Deleted)
+        {
+            throw new ValidationException("Deleted documents cannot be restored.");
+        }
+
+        item.ChangeStatus(KnowledgeItemStatus.Active, dateTimeProvider.UtcNow);
         item.UpdatedAt = dateTimeProvider.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
     }

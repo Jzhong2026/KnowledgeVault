@@ -150,6 +150,14 @@ public sealed class FoldersController(
         return NoContent();
     }
 
+    [Authorize(Policy = "documents:write")]
+    [HttpPost("{id:guid}/restore")]
+    public async Task<IActionResult> Restore(Guid id, CancellationToken cancellationToken)
+    {
+        await folderProvider.RestoreAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     private static string BuildMarkdownFileName(string? title, Guid fallbackId)
     {
         var baseName = string.IsNullOrWhiteSpace(title)

@@ -133,6 +133,14 @@ public sealed class DocumentsController(
         return NoContent();
     }
 
+    [Authorize(Policy = "documents:write")]
+    [HttpPost("{documentId:guid}/restore")]
+    public async Task<IActionResult> Restore(Guid documentId, CancellationToken cancellationToken)
+    {
+        await documentProvider.RestoreAsync(documentId, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{documentId:guid}/revisions")]
     public async Task<ActionResult<PagedResult<RevisionSummaryDto>>> ListRevisions(
         Guid documentId,
@@ -150,6 +158,16 @@ public sealed class DocumentsController(
         CancellationToken cancellationToken)
     {
         return Ok(await revisionProvider.GetAsync(documentId, revisionNumber, cancellationToken));
+    }
+
+    [HttpGet("{documentId:guid}/comments")]
+    public async Task<ActionResult<PagedResult<CommentDto>>> ListDocumentComments(
+        Guid documentId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await commentProvider.ListForDocumentAsync(documentId, page, pageSize, cancellationToken));
     }
 
     [HttpGet("{documentId:guid}/revisions/{revisionNumber:int}/comments")]

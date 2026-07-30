@@ -424,14 +424,157 @@ public sealed class FolderProvider(
         var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
         await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
 
-        var tracked = await dbContext.Folders.FirstAsync(f => f.Id == id, cancellationToken);
-        tracked.IsArchived = true;
-        tracked.ArchivedAt ??= dateTimeProvider.UtcNow;
-        tracked.UpdatedAt = dateTimeProvider.UtcNow;
+        var now = dateTimeProvider.UtcNow;
+        var folderIds = await GetDescendantFolderIdsAsync(id, cancellationToken);
+        var folders = await dbContext.Folders.Where(f => folderIds.Contains(f.Id)).ToListAsync(cancellationToken);
+        foreach (var tracked in folders)
+        {
+            tracked.IsArchived = true;
+            tracked.ArchivedAt ??= now;
+            tracked.UpdatedAt = now;
+        }
+
+        var documents = await dbContext.KnowledgeItems
+            .Where(x => x.FolderId.HasValue && folderIds.Contains(x.FolderId.Value) && x.Status != KnowledgeItemStatus.Deleted)
+            .ToListAsync(cancellationToken);
+        foreach (var document in documents)
+        {
+            document.ChangeStatus(KnowledgeItemStatus.Archived, now);
+            document.UpdatedAt = now;
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task RestoreAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = currentUserContext.RequireUserId();
+        var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
+        await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
+
+        var now = dateTimeProvider.UtcNow;
+        var folderIds = await GetDescendantFolderIdsAsync(id, cancellationToken);
+        var folders = await dbContext.Folders.Where(f => folderIds.Contains(f.Id)).ToListAsync(cancellationToken);
+        foreach (var tracked in folders)
+        {
+            tracked.IsArchived = false;
+            tracked.ArchivedAt = null;
+            tracked.UpdatedAt = now;
+        }
+
+        var documents = await dbContext.KnowledgeItems
+            .Where(x => x.FolderId.HasValue && folderIds.Contains(x.FolderId.Value) && x.Status != KnowledgeItemStatus.Deleted)
+            .ToListAsync(cancellationToken);
+        foreach (var document in documents)
+        {
+            document.ChangeStatus(KnowledgeItemStatus.Active, now);
+            document.UpdatedAt = now;
+        }
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<FolderDescendantDto>> ListDescendantsForMcpAsync(Guid folderId, CancellationToken cancellationToken)
+    {
+        var allFolders = await dbContext.Folders.AsNoTracking().ToListAsync(cancellationToken);
+        var root = allFolders.FirstOrDefault(f => f.Id == folderId && !f.IsArchived);
+        if (root is null || HasArchivedAncestor(root, allFolders))
+        {
+            return [];
+        }
+
+        var childrenByParent = allFolders
+            .Where(f => !f.IsArchived && f.ParentFolderId.HasValue)
+            .GroupBy(f => f.ParentFolderId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToArray());
+
+        var paths = new Dictionary<Guid, string>();
+        var queue = new Queue<(Guid FolderId, string Path)>();
+        queue.Enqueue((root.Id, string.Empty));
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!childrenByParent.TryGetValue(current.FolderId, out var children))
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                var path = string.IsNullOrEmpty(current.Path) ? child.Name : $"{current.Path}/{child.Name}";
+                paths[child.Id] = path;
+                queue.Enqueue((child.Id, path));
+            }
+        }
+
+        var folderItems = allFolders
+            .Where(f => paths.ContainsKey(f.Id))
+            .Select(f => new FolderDescendantDto(f.Id, "folder", f.Name, f.ParentFolderId, paths[f.Id]));
+        var documentParentPaths = new Dictionary<Guid, string>(paths) { [root.Id] = string.Empty };
+        var documentParentIds = documentParentPaths.Keys.ToArray();
+        var documents = await dbContext.KnowledgeItems.AsNoTracking()
+            .Include(x => x.CurrentRevision)
+            .Where(x => x.FolderId.HasValue && documentParentIds.Contains(x.FolderId.Value) &&
+                x.Status != KnowledgeItemStatus.Archived && x.Status != KnowledgeItemStatus.Deleted)
+            .ToListAsync(cancellationToken);
+        var documentItems = documents.Select(x =>
+        {
+            var name = x.CurrentRevision?.Title ?? $"document-{x.Id:D}";
+            var parentPath = documentParentPaths[x.FolderId!.Value];
+            var path = string.IsNullOrEmpty(parentPath) ? name : $"{parentPath}/{name}";
+            return new FolderDescendantDto(x.Id, "document", name, x.FolderId, path);
+        });
+
+        return folderItems.Concat(documentItems)
+            .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Type, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static bool HasArchivedAncestor(Folder folder, IReadOnlyCollection<Folder> allFolders)
+    {
+        var byId = allFolders.ToDictionary(f => f.Id);
+        var parentId = folder.ParentFolderId;
+        while (parentId.HasValue && byId.TryGetValue(parentId.Value, out var parent))
+        {
+            if (parent.IsArchived)
+            {
+                return true;
+            }
+            parentId = parent.ParentFolderId;
+        }
+        return false;
+    }
+
     public Task DeleteAsync(Guid id, CancellationToken cancellationToken) => ArchiveAsync(id, cancellationToken);
+
+    private async Task<HashSet<Guid>> GetDescendantFolderIdsAsync(Guid rootFolderId, CancellationToken cancellationToken)
+    {
+        var allFolders = await dbContext.Folders.AsNoTracking()
+            .Select(f => new { f.Id, f.ParentFolderId })
+            .ToListAsync(cancellationToken);
+        var childrenByParent = allFolders
+            .Where(f => f.ParentFolderId.HasValue)
+            .GroupBy(f => f.ParentFolderId!.Value)
+            .ToDictionary(g => g.Key, g => g.Select(f => f.Id).ToArray());
+        var result = new HashSet<Guid> { rootFolderId };
+        var queue = new Queue<Guid>();
+        queue.Enqueue(rootFolderId);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!childrenByParent.TryGetValue(current, out var children))
+            {
+                continue;
+            }
+            foreach (var child in children)
+            {
+                if (result.Add(child))
+                {
+                    queue.Enqueue(child);
+                }
+            }
+        }
+        return result;
+    }
 
     private IQueryable<Folder> QueryAccessibleFolders(Guid userId, DocumentScope? scope, Guid? projectId)
     {

@@ -21,6 +21,9 @@ public interface IDocumentProvider
 
     Task<KnowledgeItemDto> GetAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Reads a current document for an authenticated MCP API key without user visibility filtering.</summary>
+    Task<KnowledgeItemDto> GetForMcpAsync(Guid id, CancellationToken cancellationToken);
+
     Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken);
 
     Task<KnowledgeItemDto> UpdateAsync(Guid id, UpdateDocumentRequest request, CancellationToken cancellationToken);
@@ -32,6 +35,8 @@ public interface IDocumentProvider
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
 
     Task ArchiveAsync(Guid id, CancellationToken cancellationToken);
+
+    Task RestoreAsync(Guid id, CancellationToken cancellationToken);
 }
 
 public interface IRevisionProvider
@@ -43,6 +48,8 @@ public interface IRevisionProvider
 
 public interface ICommentProvider
 {
+    Task<PagedResult<CommentDto>> ListForDocumentAsync(Guid documentId, int page, int pageSize, CancellationToken cancellationToken);
+
     Task<PagedResult<CommentDto>> ListAsync(Guid documentId, int revisionNumber, int page, int pageSize, CancellationToken cancellationToken);
 
     Task<CommentDto> AddAsync(Guid documentId, int revisionNumber, AddCommentRequest request, CancellationToken cancellationToken);

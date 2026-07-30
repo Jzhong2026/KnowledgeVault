@@ -115,6 +115,50 @@ public sealed class DocumentCollaborationProviderTests : IAsyncLifetime
         Assert.Equal(4_001, comment.Content.Length);
     }
 
+    [Fact]
+    public async Task Document_comments_include_all_revisions_in_descending_created_order_with_pagination()
+    {
+        var firstRevision = await _dbContext.KnowledgeItemRevisions.SingleAsync();
+        var secondRevision = new KnowledgeItemRevision
+        {
+            Id = Guid.NewGuid(),
+            KnowledgeItemId = _documentId,
+            RevisionNumber = 2,
+            Title = "Review plan v2",
+            Content = "# Plan v2",
+            CreatedByUserId = _ownerId,
+            CreatedAt = _clock.UtcNow.AddDays(1)
+        };
+        _dbContext.KnowledgeItemRevisions.Add(secondRevision);
+        _dbContext.KnowledgeItemComments.AddRange(
+            new KnowledgeItemComment
+            {
+                Id = Guid.NewGuid(), KnowledgeItemRevisionId = firstRevision.Id, AuthorUserId = _reviewerId,
+                Content = "oldest", CreatedAt = _clock.UtcNow.AddMinutes(1)
+            },
+            new KnowledgeItemComment
+            {
+                Id = Guid.NewGuid(), KnowledgeItemRevisionId = firstRevision.Id, AuthorUserId = _reviewerId,
+                Content = "middle", CreatedAt = _clock.UtcNow.AddMinutes(2)
+            },
+            new KnowledgeItemComment
+            {
+                Id = Guid.NewGuid(), KnowledgeItemRevisionId = secondRevision.Id, AuthorUserId = _reviewerId,
+                Content = "newest", CreatedAt = _clock.UtcNow.AddMinutes(3)
+            });
+        await _dbContext.SaveChangesAsync();
+
+        _currentUser.UserId = _reviewerId;
+        var comments = CreateProviders().Comments;
+        var firstPage = await comments.ListForDocumentAsync(_documentId, 1, 2, CancellationToken.None);
+        var secondPage = await comments.ListForDocumentAsync(_documentId, 2, 2, CancellationToken.None);
+
+        Assert.Equal(3, firstPage.TotalCount);
+        Assert.Equal(["newest", "middle"], firstPage.Items.Select(x => x.Content));
+        Assert.Equal([2, 1], firstPage.Items.Select(x => x.RevisionNumber));
+        Assert.Equal(["oldest"], secondPage.Items.Select(x => x.Content));
+    }
+
     private ProviderSet CreateProviders()
     {
         var access = TestProviders.DocAccess(_dbContext, _currentUser);

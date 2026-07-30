@@ -263,11 +263,13 @@
         (openWorkspace)="openWorkspace($event)"
         (renameFolder)="openRenameFolder($event)"
         (deleteFolder)="confirmDeleteFolder($event)"
+        (restoreFolder)="restoreFolder($event)"
         (openDocument)="openDocument($event)"
         (downloadDocument)="downloadDocument($event)"
         (downloadFolder)="downloadFolder($event)"
         (moveDocumentToFolder)="moveDocumentToFolder($event.documentId, $event.folderId)"
         (deleteDocument)="deleteDocument($event)"
+        (restoreDocument)="restoreDocument($event)"
       />
       } @else {
         <div class="document-list" role="list" aria-label="Documents">
@@ -294,9 +296,13 @@
               <span>{{ folder.isArchived ? 'Archived' : 'Active' }}</span>
               <div class="document-list__actions" (click)="$event.stopPropagation()">
                 <button type="button" class="ghost" (click)="downloadFolder(folder.id)">Download</button>
-                <button type="button" class="ghost" (click)="openWorkspace(folder.id)">Workspace</button>
-                <button type="button" class="ghost" (click)="openRenameFolder(folder.id)">Rename</button>
-                <button type="button" class="danger" (click)="confirmDeleteFolder(folder.id)">Archive</button>
+                @if (folder.isArchived) {
+                  <button type="button" class="ghost" (click)="restoreFolder(folder.id)">Restore</button>
+                } @else {
+                  <button type="button" class="ghost" (click)="openWorkspace(folder.id)">Workspace</button>
+                  <button type="button" class="ghost" (click)="openRenameFolder(folder.id)">Rename</button>
+                  <button type="button" class="danger" (click)="confirmDeleteFolder(folder.id)">Archive</button>
+                }
               </div>
             </article>
           }
@@ -314,7 +320,11 @@
               <time [attr.datetime]="document.updatedAt || document.createdAt">{{ document.updatedAt || document.createdAt | date: 'mediumDate' }}</time>
               <div class="document-list__actions" (click)="$event.stopPropagation()">
                 <button type="button" class="ghost" (click)="downloadDocument(document.id)">Download</button>
-                <button type="button" class="danger" (click)="deleteDocument(document.id)">Archive</button>
+                @if (document.status === 'Archived') {
+                  <button type="button" class="ghost" (click)="restoreDocument(document.id)">Restore</button>
+                } @else {
+                  <button type="button" class="danger" (click)="deleteDocument(document.id)">Archive</button>
+                }
               </div>
             </article>
           }

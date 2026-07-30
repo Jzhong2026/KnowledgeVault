@@ -186,7 +186,7 @@
       <div class="comments-panel__header">
         <div>
           <h3>Comments</h3>
-          <p>Revision {{ knowledge.currentRevisionNumber }}</p>
+          <p>All revisions · newest first</p>
         </div>
       </div>
 
@@ -199,6 +199,7 @@
               <div class="comment__head">
                 <div class="comment__meta">
                   <strong>{{ comment.authorDisplayName }}</strong>
+                  <span class="comment__revision">Revision {{ comment.revisionNumber }}</span>
                   <span class="muted">{{ comment.createdAt | date: 'short' }}</span>
                 </div>
                 @if (!comment.isDeleted) {
@@ -239,6 +240,16 @@
             </li>
           }
         </ul>
+        @if (hasMoreComments()) {
+          <button
+            type="button"
+            class="comment-load-more-button"
+            [disabled]="loadingMoreComments()"
+            (click)="loadMoreComments()"
+          >
+            {{ loadingMoreComments() ? 'Loading comments' : 'Load more comments' }}
+          </button>
+        }
       }
 
       <div class="comment-form">

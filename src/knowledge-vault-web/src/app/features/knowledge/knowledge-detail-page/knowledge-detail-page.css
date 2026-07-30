@@ -331,6 +331,23 @@ h2 {
   line-height: 1.55;
 }
 
+.comment-load-more-button {
+  justify-self: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.comment-load-more-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .comment__content {
   position: relative;
   margin-top: 10px;
@@ -383,6 +400,12 @@ h2 {
 
 .comment__meta .muted {
   font-size: 12px;
+}
+
+.comment__revision {
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .comment-form {

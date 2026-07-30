@@ -19,6 +19,7 @@ import { FolderTile } from '../folder-tile/folder-tile';
           (openWorkspace)="openWorkspace.emit($event)"
           (rename)="renameFolder.emit($event)"
           (delete)="deleteFolder.emit($event)"
+          (restore)="restoreFolder.emit($event)"
           (moveDocumentToFolder)="moveDocumentToFolder.emit($event)"
         />
       }
@@ -28,6 +29,7 @@ import { FolderTile } from '../folder-tile/folder-tile';
           (open)="openDocument.emit(document)"
           (download)="downloadDocument.emit($event)"
           (delete)="deleteDocument.emit($event)"
+          (restore)="restoreDocument.emit($event)"
         />
       }
     </div>
@@ -73,9 +75,11 @@ export class TileGrid {
   readonly openWorkspace = output<string>();
   readonly renameFolder = output<string>();
   readonly deleteFolder = output<string>();
+  readonly restoreFolder = output<string>();
   readonly openDocument = output<KnowledgeItemSummary>();
   readonly downloadDocument = output<string>();
   readonly downloadFolder = output<string>();
   readonly moveDocumentToFolder = output<{ documentId: string; folderId: string }>();
   readonly deleteDocument = output<string>();
+  readonly restoreDocument = output<string>();
 }

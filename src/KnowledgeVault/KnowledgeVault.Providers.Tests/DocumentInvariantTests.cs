@@ -80,4 +80,35 @@ public sealed class DocumentInvariantTests : IAsyncLifetime
         var stored = await _db.KnowledgeItems.SingleAsync(d => d.Id == id);
         Assert.NotNull(stored.ArchivedAt);
     }
+
+    [Fact]
+    public async Task Restoring_document_makes_it_active_and_clears_archived_at()
+    {
+        var id = await SeedPersonalDoc(KnowledgeItemStatus.Archived);
+        var archived = await _db.KnowledgeItems.SingleAsync(d => d.Id == id);
+        archived.ArchivedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync();
+
+        await Docs().RestoreAsync(id, CancellationToken.None);
+
+        var restored = await _db.KnowledgeItems.SingleAsync(d => d.Id == id);
+        Assert.Equal(KnowledgeItemStatus.Active, restored.Status);
+        Assert.Null(restored.ArchivedAt);
+    }
+
+    [Fact]
+    public async Task Mcp_read_returns_current_document_without_user_visibility_check()
+    {
+        var otherUserId = Guid.NewGuid();
+        _db.Users.Add(Seed.User(otherUserId, "other"));
+        var id = Guid.NewGuid();
+        var document = Seed.Document(id, otherUserId, DocumentScope.Personal, null, 1, KnowledgeItemStatus.Active);
+        _db.KnowledgeItems.Add(document);
+        _db.KnowledgeItemRevisions.Add(Seed.Revision(Guid.NewGuid(), id, 1, otherUserId));
+        await _db.SaveChangesAsync();
+
+        var result = await Docs().GetForMcpAsync(id, CancellationToken.None);
+
+        Assert.Equal(id, result.Id);
+    }
 }

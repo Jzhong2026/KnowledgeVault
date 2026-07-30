@@ -85,7 +85,7 @@ public sealed class FolderProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Non_empty_folder_cannot_be_deleted()
+    public async Task Non_empty_folder_is_recursively_archived()
     {
         var folderId = Guid.NewGuid();
         _db.Folders.Add(Seed.Folder(folderId, "F", DocumentScope.Personal, _userId, null));
@@ -94,8 +94,10 @@ public sealed class FolderProviderTests : IAsyncLifetime
         _db.KnowledgeItems.Add(nonEmptyDoc);
         await _db.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<ConflictException>(() =>
-            Folders().DeleteAsync(folderId, CancellationToken.None));
+        await Folders().DeleteAsync(folderId, CancellationToken.None);
+
+        Assert.True((await _db.Folders.SingleAsync()).IsArchived);
+        Assert.Equal(KnowledgeItemStatus.Archived, (await _db.KnowledgeItems.SingleAsync()).Status);
     }
 
     [Fact]
@@ -146,5 +148,57 @@ public sealed class FolderProviderTests : IAsyncLifetime
         Assert.Equal(childId, childNode.Id);
         var grandNode = Assert.Single(childNode.Children);
         Assert.Equal(grandId, grandNode.Id);
+    }
+
+    [Fact]
+    public async Task Archive_and_restore_folder_recursively_updates_descendants_and_documents()
+    {
+        var rootId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var documentId = Guid.NewGuid();
+        _db.Folders.AddRange(
+            Seed.Folder(rootId, "Root", DocumentScope.Personal, _userId, null),
+            Seed.Folder(childId, "Child", DocumentScope.Personal, _userId, null, rootId));
+        var document = Seed.Document(documentId, _userId, DocumentScope.Personal, null, 1, KnowledgeItemStatus.Active);
+        document.FolderId = childId;
+        _db.KnowledgeItems.Add(document);
+        await _db.SaveChangesAsync();
+
+        await Folders().ArchiveAsync(rootId, CancellationToken.None);
+
+        Assert.All(await _db.Folders.ToListAsync(), folder => Assert.True(folder.IsArchived));
+        Assert.Equal(KnowledgeItemStatus.Archived, (await _db.KnowledgeItems.SingleAsync()).Status);
+
+        await Folders().RestoreAsync(rootId, CancellationToken.None);
+
+        Assert.All(await _db.Folders.ToListAsync(), folder => Assert.False(folder.IsArchived));
+        var restored = await _db.KnowledgeItems.SingleAsync();
+        Assert.Equal(KnowledgeItemStatus.Active, restored.Status);
+        Assert.Null(restored.ArchivedAt);
+    }
+
+    [Fact]
+    public async Task Mcp_descendant_listing_is_flat_and_ignores_user_visibility()
+    {
+        var rootId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var documentId = Guid.NewGuid();
+        _db.Folders.AddRange(
+            Seed.Folder(rootId, "Root", DocumentScope.Personal, _otherId, null),
+            Seed.Folder(childId, "Child", DocumentScope.Personal, _otherId, null, rootId));
+        var document = Seed.Document(documentId, _otherId, DocumentScope.Personal, null, 1, KnowledgeItemStatus.Active);
+        var revision = Seed.Revision(Guid.NewGuid(), documentId, 1, _otherId);
+        document.FolderId = rootId;
+        _db.KnowledgeItems.Add(document);
+        await _db.SaveChangesAsync();
+        _db.KnowledgeItemRevisions.Add(revision);
+        await _db.SaveChangesAsync();
+        document.CurrentRevisionId = revision.Id;
+        await _db.SaveChangesAsync();
+
+        var items = await Folders().ListDescendantsForMcpAsync(rootId, CancellationToken.None);
+
+        Assert.Contains(items, item => item.Id == childId && item.Type == "folder" && item.Path == "Child");
+        Assert.Contains(items, item => item.Id == documentId && item.Type == "document" && item.Path == "Revision 1");
     }
 }

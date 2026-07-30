@@ -43,4 +43,8 @@ public interface IFolderProvider
     Task<FolderSummaryDto> UpdateAsync(Guid id, UpdateFolderRequest request, CancellationToken cancellationToken);
 
     Task ArchiveAsync(Guid id, CancellationToken cancellationToken);
+
+    Task RestoreAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<FolderDescendantDto>> ListDescendantsForMcpAsync(Guid folderId, CancellationToken cancellationToken);
 }

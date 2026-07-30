@@ -242,8 +242,16 @@ export class ApiClient {
     return this.http.post<void>(`${this.baseUrl}/documents/${id}/archive`, {});
   }
 
+  restoreKnowledgeItem(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/documents/${id}/restore`, {});
+  }
+
   archiveFolder(id: string): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/folders/${id}/archive`, {});
+  }
+
+  restoreFolder(id: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/folders/${id}/restore`, {});
   }
 
   downloadFolder(id: string): Observable<Blob> {
@@ -276,6 +284,17 @@ export class ApiClient {
   }
 
   // ----- Comments -----
+  listDocumentComments(
+    documentId: string,
+    page = 1,
+    pageSize = 20,
+  ): Observable<PagedResult<Comment>> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<PagedResult<Comment>>(`${this.baseUrl}/documents/${documentId}/comments`, {
+      params,
+    });
+  }
+
   listComments(
     documentId: string,
     revisionNumber: number,

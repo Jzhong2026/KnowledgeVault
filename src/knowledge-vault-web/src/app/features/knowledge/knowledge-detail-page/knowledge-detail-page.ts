@@ -40,6 +40,7 @@ import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor
 })
 export class KnowledgeDetailPage {
   private static readonly collapsedCommentThreshold = 1200;
+  private static readonly commentPageSize = 20;
 
   private readonly api = inject(ApiClient);
   private readonly route = inject(ActivatedRoute);
@@ -57,6 +58,9 @@ export class KnowledgeDetailPage {
 
   readonly revisions = signal<RevisionSummary[]>([]);
   readonly comments = signal<Comment[]>([]);
+  readonly commentPage = signal(0);
+  readonly commentTotalCount = signal(0);
+  readonly loadingMoreComments = signal(false);
   readonly viewingRevision = signal<Revision | null>(null);
   readonly addingComment = signal(false);
   readonly newComment = signal('');
@@ -107,7 +111,7 @@ export class KnowledgeDetailPage {
 
         this.item.set(item);
         this.loadRevisions(id);
-        this.loadComments(id, item.currentRevisionNumber);
+        this.loadComments(id);
       },
       error: (error) => this.error.set(getErrorMessage(error)),
       complete: () => this.loading.set(false),
@@ -121,10 +125,43 @@ export class KnowledgeDetailPage {
     });
   }
 
-  private loadComments(documentId: string, revisionNumber: number): void {
-    this.api.listComments(documentId, revisionNumber).subscribe({
-      next: (result) => this.comments.set(result.items),
-      error: () => this.comments.set([]),
+  private loadComments(documentId: string, page = 1): void {
+    this.api.listDocumentComments(documentId, page, KnowledgeDetailPage.commentPageSize).subscribe({
+      next: (result) => {
+        this.comments.update((comments) => (page === 1 ? result.items : [...comments, ...result.items]));
+        this.commentPage.set(result.page);
+        this.commentTotalCount.set(result.totalCount);
+      },
+      error: () => {
+        if (page === 1) {
+          this.comments.set([]);
+          this.commentPage.set(0);
+          this.commentTotalCount.set(0);
+        }
+      },
+    });
+  }
+
+  hasMoreComments(): boolean {
+    return this.comments().length < this.commentTotalCount();
+  }
+
+  loadMoreComments(): void {
+    const documentId = this.currentItemId;
+    if (!documentId || this.loadingMoreComments() || !this.hasMoreComments()) {
+      return;
+    }
+
+    this.loadingMoreComments.set(true);
+    const nextPage = this.commentPage() + 1;
+    this.api.listDocumentComments(documentId, nextPage, KnowledgeDetailPage.commentPageSize).subscribe({
+      next: (result) => {
+        this.comments.update((comments) => [...comments, ...result.items]);
+        this.commentPage.set(result.page);
+        this.commentTotalCount.set(result.totalCount);
+      },
+      error: (error) => this.error.set(getErrorMessage(error)),
+      complete: () => this.loadingMoreComments.set(false),
     });
   }
 
@@ -294,7 +331,8 @@ export class KnowledgeDetailPage {
     this.addingComment.set(true);
     this.api.addComment(item.id, item.currentRevisionNumber, content).subscribe({
       next: (comment) => {
-        this.comments.set([...this.comments(), comment]);
+        this.comments.update((comments) => [comment, ...comments]);
+        this.commentTotalCount.update((totalCount) => totalCount + 1);
         this.newComment.set('');
       },
       error: (error) => this.error.set(getErrorMessage(error)),

@@ -90,8 +90,23 @@ public sealed class DocumentMcpTools(
         return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
-            var document = await provider.GetAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);
+            var document = await provider.GetForMcpAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);
             return McpJson.Serialize(document);
+        });
+    }
+
+    [McpServerTool]
+    [Description("Recursively list the current subfolders and documents below a folder. Results are flat metadata only; use get_knowledge_item to read document content.")]
+    public Task<string> ListFolderContents(
+        [Description("Root folder id (Guid); the root itself is not returned")] string folderId,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteReadAsync(async services =>
+        {
+            var provider = services.GetRequiredService<IFolderProvider>();
+            var items = await provider.ListDescendantsForMcpAsync(
+                McpArguments.Guid(folderId, nameof(folderId)), cancellationToken);
+            return McpJson.Serialize(items);
         });
     }
 

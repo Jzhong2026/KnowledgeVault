@@ -40,7 +40,7 @@ describe('KnowledgeDetailPage', () => {
       listRevisions: vi.fn().mockReturnValue(
         of({ items: revisions, page: 1, pageSize: 20, totalCount: 2, totalPages: 1 }),
       ),
-      listComments: vi.fn().mockReturnValue(
+      listDocumentComments: vi.fn().mockReturnValue(
         of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }),
       ),
     };
@@ -83,6 +83,7 @@ describe('KnowledgeDetailPage', () => {
       'Back to project documents',
     );
     expect(fixture.nativeElement.querySelector('.detail-page > .comments-panel')).not.toBeNull();
+    expect(api.listDocumentComments).toHaveBeenCalledWith(item.id, 1, 20);
   });
 
   it('redirects a legacy project document URL to the project document route', async () => {
@@ -168,7 +169,7 @@ describe('KnowledgeDetailPage', () => {
         of({ items: [revision], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }),
       ),
       getRevision: vi.fn().mockReturnValue(of(revision)),
-      listComments: vi.fn().mockReturnValue(
+      listDocumentComments: vi.fn().mockReturnValue(
         of({ items: [comment], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }),
       ),
     };
@@ -227,7 +228,7 @@ describe('KnowledgeDetailPage', () => {
     const api = {
       getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
       listRevisions: vi.fn().mockReturnValue(of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })),
-      listComments: vi.fn().mockReturnValue(of({ items: [comment], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 })),
+      listDocumentComments: vi.fn().mockReturnValue(of({ items: [comment], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 })),
     };
 
     await TestBed.configureTestingModule({
@@ -252,5 +253,54 @@ describe('KnowledgeDetailPage', () => {
     fixture.detectChanges();
     expect(content.classList.contains('comment__content--collapsed')).toBe(false);
     expect(button.textContent?.trim()).toBe('Show less');
+  });
+
+  it('shows comments from all revisions in newest-first pages', async () => {
+    const item: KnowledgeItem = {
+      id: 'document-id', scope: 'Personal', ownerUserId: 'owner-id', ownerDisplayName: 'Owner',
+      documentType: 'General', currentRevisionNumber: 2, title: 'Document', content: 'Content',
+      status: 'Active', tags: [], createdAt: '2026-07-18T00:00:00Z',
+    };
+    const newest: Comment = {
+      id: 'revision-2-comment', revisionNumber: 2, authorUserId: 'reviewer-id',
+      authorDisplayName: 'Reviewer', content: 'Newest comment', createdAt: '2026-07-20T00:00:00Z', isDeleted: false,
+    };
+    const previous: Comment = {
+      id: 'revision-1-comment', revisionNumber: 1, authorUserId: 'reviewer-id',
+      authorDisplayName: 'Reviewer', content: 'Historical comment', createdAt: '2026-07-19T00:00:00Z', isDeleted: false,
+    };
+    const oldest: Comment = {
+      id: 'oldest-comment', revisionNumber: 1, authorUserId: 'reviewer-id',
+      authorDisplayName: 'Reviewer', content: 'Oldest comment', createdAt: '2026-07-18T00:00:00Z', isDeleted: false,
+    };
+    const api = {
+      getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
+      listRevisions: vi.fn().mockReturnValue(of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })),
+      listDocumentComments: vi.fn()
+        .mockReturnValueOnce(of({ items: [newest, previous], page: 1, pageSize: 2, totalCount: 3, totalPages: 2 }))
+        .mockReturnValueOnce(of({ items: [oldest], page: 2, pageSize: 2, totalCount: 3, totalPages: 2 })),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeDetailPage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        { provide: ActivatedRoute, useValue: { snapshot: { data: { scope: 'Personal' }, paramMap: convertToParamMap({ id: item.id }) } } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeDetailPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Revision 2');
+    expect(fixture.nativeElement.textContent).toContain('Revision 1');
+    expect(fixture.nativeElement.querySelector('.comment-load-more-button')).not.toBeNull();
+
+    (fixture.nativeElement.querySelector('.comment-load-more-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(api.listDocumentComments).toHaveBeenLastCalledWith(item.id, 2, 20);
+    expect(fixture.nativeElement.textContent).toContain('Oldest comment');
   });
 });

@@ -26,6 +26,13 @@ public sealed record FolderContentDto(
     IReadOnlyList<FolderSummaryDto> Folders,
     IReadOnlyList<KnowledgeItemSummaryDto> Documents);
 
+public sealed record FolderDescendantDto(
+    Guid Id,
+    string Type,
+    string Name,
+    Guid? ParentFolderId,
+    string Path);
+
 /// <summary>
 /// Paged view of a folder's direct children. Folders and documents are
 /// paged independently because they live in different tables; both streams
