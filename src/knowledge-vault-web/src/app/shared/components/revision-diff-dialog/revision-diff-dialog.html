@@ -1,0 +1,48 @@
+<div class="revision-diff-backdrop" (click)="closeDialog.emit()">
+  <section class="revision-diff-dialog" role="dialog" aria-modal="true" aria-labelledby="revision-diff-title" (click)="$event.stopPropagation()">
+    <header class="revision-diff-dialog__header">
+      <div>
+        <h2 id="revision-diff-title">Revision comparison</h2>
+        <p>Markdown source changes from revision {{ previousRevision.revisionNumber }} to {{ selectedRevision.revisionNumber }}</p>
+      </div>
+      <button type="button" class="revision-diff-dialog__close" aria-label="Close revision comparison" (click)="closeDialog.emit()">×</button>
+    </header>
+
+    <div class="revision-diff-dialog__metadata" [style.--left-width.%]="leftWidth()">
+      <section><strong>Revision {{ previousRevision.revisionNumber }}</strong><span>{{ previousRevision.createdAt | date: 'medium' }}</span>@if (previousRevision.changeNote) { <em>{{ previousRevision.changeNote }}</em> }</section>
+      <section><strong>Revision {{ selectedRevision.revisionNumber }}</strong><span>{{ selectedRevision.createdAt | date: 'medium' }}</span>@if (selectedRevision.changeNote) { <em>{{ selectedRevision.changeNote }}</em> }</section>
+    </div>
+
+    <div class="revision-diff" [style.--left-width.%]="leftWidth()">
+      <div class="revision-diff__pane revision-diff__pane--old" aria-label="Previous revision" (scroll)="syncScroll($event, 'revision-diff__pane--new')">
+        @for (block of blocks(); track $index) {
+          @if (block.kind === 'collapsed' && !expandedBlockIndexes().has($index)) {
+            <button type="button" class="revision-diff__collapsed" (click)="toggleBlock($index)">Show {{ block.rows.length }} unchanged lines</button>
+          } @else {
+            @for (row of block.rows; track $index) {
+              <div class="revision-diff__line" [class]="'revision-diff__line--' + row.kind">
+                <span class="revision-diff__line-number">{{ row.oldLineNumber ?? '' }}</span>
+                <code>@for (fragment of row.oldFragments; track $index) { <span [class]="'revision-diff__fragment--' + fragment.kind">{{ fragment.text }}</span> }</code>
+              </div>
+            }
+          }
+        }
+      </div>
+      <div class="revision-diff__divider" role="separator" aria-label="Resize comparison panes" (pointerdown)="onDividerPointerDown($event)"></div>
+      <div class="revision-diff__pane revision-diff__pane--new" aria-label="Selected revision" (scroll)="syncScroll($event, 'revision-diff__pane--old')">
+        @for (block of blocks(); track $index) {
+          @if (block.kind === 'collapsed' && !expandedBlockIndexes().has($index)) {
+            <button type="button" class="revision-diff__collapsed" (click)="toggleBlock($index)">Show {{ block.rows.length }} unchanged lines</button>
+          } @else {
+            @for (row of block.rows; track $index) {
+              <div class="revision-diff__line" [class]="'revision-diff__line--' + row.kind">
+                <span class="revision-diff__line-number">{{ row.newLineNumber ?? '' }}</span>
+                <code>@for (fragment of row.newFragments; track $index) { <span [class]="'revision-diff__fragment--' + fragment.kind">{{ fragment.text }}</span> }</code>
+              </div>
+            }
+          }
+        }
+      </div>
+    </div>
+  </section>
+</div>

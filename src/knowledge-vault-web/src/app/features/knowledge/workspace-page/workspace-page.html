@@ -76,16 +76,73 @@
             <aside class="workspace-revision-rail" aria-label="Document revisions">
               <h4>Latest</h4>
               <button type="button" class="workspace-revision" [class.is-active]="!activeDocumentRevision()" (click)="showActiveDocumentLatest()">Latest</button>
+              @if (doc.currentRevisionNumber > 1) {
+                <button type="button" class="workspace-revision workspace-revision--compare" [disabled]="revisionComparisonLoading()" (click)="compareActiveDocumentRevisionWithPrevious(doc.currentRevisionNumber)">Compare latest</button>
+              }
               @if (activeDocumentRevisions().length > 1) {
                 <p class="workspace-revision-rail__label">History</p>
               }
               @for (revision of activeDocumentRevisions(); track revision.revisionNumber) {
                 @if (revision.revisionNumber !== doc.currentRevisionNumber) {
                   <button type="button" class="workspace-revision" [class.is-active]="activeDocumentRevision()?.revisionNumber === revision.revisionNumber" [title]="revision.title" (click)="viewActiveDocumentRevision(revision.revisionNumber)">{{ revision.revisionNumber }}</button>
+                  @if (revision.revisionNumber > 1) {
+                    <button type="button" class="workspace-revision workspace-revision--compare" [disabled]="revisionComparisonLoading()" (click)="compareActiveDocumentRevisionWithPrevious(revision.revisionNumber)">Compare</button>
+                  }
                 }
               }
             </aside>
             </div>
+            <section class="workspace-comments" aria-label="Document comments">
+              <div class="workspace-comments__header">
+                <h4>Comments</h4>
+                <p>All revisions · newest first</p>
+              </div>
+              @if (activeDocumentComments().length === 0) {
+                <p class="workspace-comments__empty">No comments yet.</p>
+              } @else {
+                <ul class="workspace-comment-list">
+                  @for (comment of activeDocumentComments(); track comment.id) {
+                    <li class="workspace-comment">
+                      <div class="workspace-comment__meta">
+                        <strong>{{ comment.authorDisplayName }}</strong>
+                        <span>Revision {{ comment.revisionNumber }}</span>
+                        <time>{{ comment.createdAt | date: 'short' }}</time>
+                      </div>
+                      @if (!comment.isDeleted) {
+                        <div
+                          class="workspace-comment__content markdown-body"
+                          [class.workspace-comment__content--collapsed]="isActiveDocumentCommentCollapsed(comment)"
+                          [innerHTML]="comment.content | markdownContent"
+                          [appMermaidDiagrams]="comment.content"
+                        ></div>
+                        @if (comment.content.length > 1200) {
+                          <button
+                            type="button"
+                            class="workspace-comment__expand"
+                            [attr.aria-expanded]="!isActiveDocumentCommentCollapsed(comment)"
+                            (click)="toggleActiveDocumentCommentExpansion(comment.id)"
+                          >
+                            {{ isActiveDocumentCommentCollapsed(comment) ? 'Show more' : 'Show less' }}
+                          </button>
+                        }
+                      } @else {
+                        <p class="workspace-comments__empty"><em>Comment deleted</em></p>
+                      }
+                    </li>
+                  }
+                </ul>
+                @if (hasMoreActiveDocumentComments()) {
+                  <button
+                    type="button"
+                    class="ghost workspace-comments__load-more"
+                    [disabled]="loadingMoreActiveDocumentComments()"
+                    (click)="loadMoreActiveDocumentComments()"
+                  >
+                    {{ loadingMoreActiveDocumentComments() ? 'Loading comments' : 'Load more comments' }}
+                  </button>
+                }
+              }
+            </section>
           }
         } @else {
           <div class="workspace-empty-canvas" data-testid="workspace-empty-canvas" (contextmenu)="onWorkspaceEmptyContextMenu($event)">
@@ -487,3 +544,11 @@
   }
 
 </section>
+
+@if (revisionComparison(); as comparison) {
+  <app-revision-diff-dialog
+    [previousRevision]="comparison.previous"
+    [selectedRevision]="comparison.selected"
+    (closeDialog)="closeRevisionComparison()"
+  />
+}

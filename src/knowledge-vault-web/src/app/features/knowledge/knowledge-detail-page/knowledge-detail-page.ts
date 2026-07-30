@@ -19,6 +19,7 @@ import {
 import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.models';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { StatusPill } from '../../../shared/components/status-pill/status-pill';
+import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dialog/revision-diff-dialog';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
@@ -32,6 +33,7 @@ import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor
     LoadingIndicator,
     MarkdownContentPipe,
     MermaidDiagramsDirective,
+    RevisionDiffDialog,
     RouterLink,
     StatusPill,
   ],
@@ -67,6 +69,8 @@ export class KnowledgeDetailPage {
   readonly expandedCommentIds = signal<ReadonlySet<string>>(new Set());
   readonly copiedTarget = signal<string | null>(null);
   readonly copyError = signal<string | null>(null);
+  readonly revisionComparison = signal<{ previous: Revision; selected: Revision } | null>(null);
+  readonly revisionComparisonLoading = signal(false);
 
   // ----- Inline editor state -----
   readonly editorOpen = signal(false);
@@ -179,6 +183,32 @@ export class KnowledgeDetailPage {
 
   backToCurrent(): void {
     this.viewingRevision.set(null);
+  }
+
+  compareRevisionWithPrevious(revisionNumber: number): void {
+    const item = this.item();
+    if (!item || revisionNumber <= 1 || this.revisionComparisonLoading()) {
+      return;
+    }
+
+    this.revisionComparisonLoading.set(true);
+    this.api.getRevision(item.id, revisionNumber - 1).subscribe({
+      next: (previous) => {
+        this.api.getRevision(item.id, revisionNumber).subscribe({
+          next: (selected) => this.revisionComparison.set({ previous, selected }),
+          error: (error) => this.error.set(getErrorMessage(error)),
+          complete: () => this.revisionComparisonLoading.set(false),
+        });
+      },
+      error: (error) => {
+        this.error.set(getErrorMessage(error));
+        this.revisionComparisonLoading.set(false);
+      },
+    });
+  }
+
+  closeRevisionComparison(): void {
+    this.revisionComparison.set(null);
   }
 
   async copyDocumentContent(): Promise<void> {

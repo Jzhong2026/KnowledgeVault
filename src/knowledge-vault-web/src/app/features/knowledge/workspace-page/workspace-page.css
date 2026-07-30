@@ -680,6 +680,7 @@ button:disabled {
 .workspace-revision-rail__label { width: 100%; margin: 10px 0 0; border-top: 1px solid var(--border, #e2e8f0); color: var(--muted, #64748b); font-size: 11px; font-weight: 800; padding-top: 10px; text-transform: uppercase; }
 .workspace-revision { border: 1px solid var(--border, #e2e8f0); background: #ffffff; color: var(--muted, #64748b); font-size: 11px; padding: 6px 8px; }
 .workspace-revision.is-active { border-color: var(--accent, #10b981); background: #ecfdf5; color: var(--accent-strong, #0f9d76); }
+.workspace-revision--compare { width: 100%; color: var(--accent-strong, #0f9d76); }
 
 .workspace-doc__head {
   border-bottom: 1px solid var(--border, #e2e8f0);
@@ -724,6 +725,20 @@ button:disabled {
   font-size: 15px;
   line-height: 1.65;
 }
+
+.workspace-comments { display: grid; gap: 14px; border-top: 1px solid var(--border, #e2e8f0); padding-top: 20px; }
+.workspace-comments__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.workspace-comments__header h4, .workspace-comments__header p, .workspace-comments__empty { margin: 0; }
+.workspace-comments__header h4 { color: var(--text, #0f172a); font-size: 16px; }
+.workspace-comments__header p, .workspace-comments__empty, .workspace-comment__meta { color: var(--muted, #64748b); font-size: 13px; }
+.workspace-comment-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.workspace-comment { display: grid; gap: 8px; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; padding: 14px 16px; }
+.workspace-comment__meta { display: flex; flex-wrap: wrap; gap: 5px 10px; }
+.workspace-comment__meta strong, .workspace-comment__content { color: var(--text, #0f172a); }
+.workspace-comment__content { overflow: hidden; }
+.workspace-comment__content--collapsed { max-height: 320px; }
+.workspace-comment__expand, .workspace-comments__load-more { justify-self: start; padding: 7px 11px; font-size: 12px; }
+.workspace-comment__expand { border: 0; background: transparent; color: var(--accent-strong, #0f9d76); }
 
 @media (max-width: 700px) {
   .workspace-page {

@@ -157,26 +157,36 @@
       <aside class="revision-rail" aria-label="Document revisions">
         <h3>Revisions</h3>
         <nav class="revision-list" aria-label="Choose document revision">
-          <button
-            type="button"
-            class="revision-item revision-item--latest"
-            [class.is-active]="!viewingRevision()"
-            (click)="backToCurrent()"
-          >
-            Latest
-          </button>
-
-          @for (revision of revisions(); track revision.revisionNumber) {
+          <div class="revision-item-row">
             <button
               type="button"
-              class="revision-item"
-              [class.is-active]="viewingRevision()?.revisionNumber === revision.revisionNumber"
-              [attr.aria-label]="'View revision ' + revision.revisionNumber + ': ' + revision.title"
-              [title]="revision.title"
-              (click)="viewRevision(revision.revisionNumber)"
+              class="revision-item revision-item--latest"
+              [class.is-active]="!viewingRevision()"
+              (click)="backToCurrent()"
             >
-              {{ revision.revisionNumber }}
+              Latest
             </button>
+            @if (knowledge.currentRevisionNumber > 1) {
+              <button type="button" class="revision-compare" (click)="compareRevisionWithPrevious(knowledge.currentRevisionNumber)">Compare</button>
+            }
+          </div>
+
+          @for (revision of revisions(); track revision.revisionNumber) {
+            <div class="revision-item-row">
+                <button
+                  type="button"
+                  class="revision-item"
+                  [class.is-active]="viewingRevision()?.revisionNumber === revision.revisionNumber"
+                  [attr.aria-label]="'View revision ' + revision.revisionNumber + ': ' + revision.title"
+                  [title]="revision.title"
+                  (click)="viewRevision(revision.revisionNumber)"
+                >
+                  {{ revision.revisionNumber }}
+                </button>
+                @if (revision.revisionNumber > 1) {
+                  <button type="button" class="revision-compare" (click)="compareRevisionWithPrevious(revision.revisionNumber)">Compare</button>
+                }
+            </div>
           }
         </nav>
       </aside>
@@ -271,6 +281,14 @@
     </section>
   }
 </section>
+
+@if (revisionComparison(); as comparison) {
+  <app-revision-diff-dialog
+    [previousRevision]="comparison.previous"
+    [selectedRevision]="comparison.selected"
+    (closeDialog)="closeRevisionComparison()"
+  />
+}
 
 @if (editorOpen()) {
   <app-knowledge-editor

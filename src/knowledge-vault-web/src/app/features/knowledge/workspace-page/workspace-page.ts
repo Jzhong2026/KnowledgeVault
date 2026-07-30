@@ -9,6 +9,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { getErrorMessage } from '../../../core/http/error-message';
 import {
   Category,
+  Comment,
   DocumentScope,
   KnowledgeItem,
   KnowledgeItemSummary,
@@ -27,6 +28,7 @@ import {
 } from '../../../core/workspace/workspace.service';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dialog/revision-diff-dialog';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
@@ -36,6 +38,8 @@ import { TileGrid } from '../components/tile-grid/tile-grid';
  *  this many more folders AND this many more documents. Backend clamps the
  *  final value to the range [1, 100]. */
 const FOLDER_CONTENT_PAGE_SIZE = 20;
+const COMMENT_PAGE_SIZE = 20;
+const COLLAPSED_COMMENT_THRESHOLD = 1200;
 const PROJECT_DOCUMENTS_PREFERENCE_PREFIX = 'knowledge-vault.project-documents.';
 const DOCUMENT_VIEW_PREFERENCE_PREFIX = 'knowledge-vault.document-view.';
 
@@ -55,6 +59,7 @@ interface ProjectDocumentsPreference {
     TileGrid,
     MarkdownContentPipe,
     MermaidDiagramsDirective,
+    RevisionDiffDialog,
     LowerCasePipe,
     DatePipe,
   ],
@@ -184,6 +189,13 @@ export class WorkspacePage implements OnDestroy {
   readonly activeDocumentError = signal<string | null>(null);
   readonly activeDocumentRevisions = signal<RevisionSummary[]>([]);
   readonly activeDocumentRevision = signal<Revision | null>(null);
+  readonly activeDocumentComments = signal<Comment[]>([]);
+  readonly activeDocumentCommentPage = signal(0);
+  readonly activeDocumentCommentTotalCount = signal(0);
+  readonly loadingMoreActiveDocumentComments = signal(false);
+  readonly expandedActiveDocumentCommentIds = signal<ReadonlySet<string>>(new Set());
+  readonly revisionComparison = signal<{ previous: Revision; selected: Revision } | null>(null);
+  readonly revisionComparisonLoading = signal(false);
   readonly workspaceContextMenu = signal<WorkspaceContextMenuRequest | null>(null);
 
   private readonly sub = new Subscription();
@@ -252,6 +264,7 @@ export class WorkspacePage implements OnDestroy {
         this.activeDocumentError.set(null);
         this.activeDocumentRevisions.set([]);
         this.activeDocumentRevision.set(null);
+        this.resetActiveDocumentComments();
         return;
       }
       this.loadActiveDocument(tab.documentId);
@@ -943,6 +956,65 @@ export class WorkspacePage implements OnDestroy {
     this.activeDocumentRevision.set(null);
   }
 
+  compareActiveDocumentRevisionWithPrevious(revisionNumber: number): void {
+    const item = this.activeDocument();
+    if (!item || revisionNumber <= 1 || this.revisionComparisonLoading()) {
+      return;
+    }
+
+    this.revisionComparisonLoading.set(true);
+    this.api.getRevision(item.id, revisionNumber - 1).subscribe({
+      next: (previous) => {
+        this.api.getRevision(item.id, revisionNumber).subscribe({
+          next: (selected) => this.revisionComparison.set({ previous, selected }),
+          error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
+          complete: () => this.revisionComparisonLoading.set(false),
+        });
+      },
+      error: (err: unknown) => {
+        this.activeDocumentError.set(getErrorMessage(err));
+        this.revisionComparisonLoading.set(false);
+      },
+    });
+  }
+
+  closeRevisionComparison(): void {
+    this.revisionComparison.set(null);
+  }
+
+  hasMoreActiveDocumentComments(): boolean {
+    return this.activeDocumentComments().length < this.activeDocumentCommentTotalCount();
+  }
+
+  loadMoreActiveDocumentComments(): void {
+    const documentId = this.activeDocument()?.id;
+    if (!documentId || this.loadingMoreActiveDocumentComments() || !this.hasMoreActiveDocumentComments()) {
+      return;
+    }
+
+    this.loadingMoreActiveDocumentComments.set(true);
+    this.loadActiveDocumentComments(documentId, this.activeDocumentCommentPage() + 1, true);
+  }
+
+  isActiveDocumentCommentCollapsed(comment: Comment): boolean {
+    return (
+      comment.content.length > COLLAPSED_COMMENT_THRESHOLD &&
+      !this.expandedActiveDocumentCommentIds().has(comment.id)
+    );
+  }
+
+  toggleActiveDocumentCommentExpansion(commentId: string): void {
+    this.expandedActiveDocumentCommentIds.update((expanded) => {
+      const next = new Set(expanded);
+      if (next.has(commentId)) {
+        next.delete(commentId);
+      } else {
+        next.add(commentId);
+      }
+      return next;
+    });
+  }
+
   editActiveDocument(): void {
     const item = this.activeDocument();
     if (!item || item.documentType === 'ProjectMemory') {
@@ -1298,6 +1370,7 @@ export class WorkspacePage implements OnDestroy {
     this.activeDocumentError.set(null);
     this.activeDocumentRevision.set(null);
     this.activeDocumentRevisions.set([]);
+    this.resetActiveDocumentComments();
     this.api.getKnowledgeItem(documentId).subscribe({
       next: (item) => {
         this.activeDocument.set(item);
@@ -1305,10 +1378,35 @@ export class WorkspacePage implements OnDestroy {
           next: (result) => this.activeDocumentRevisions.set(result.items),
           error: () => this.activeDocumentRevisions.set([]),
         });
+        this.loadActiveDocumentComments(documentId);
       },
       error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
       complete: () => this.activeDocumentLoading.set(false),
     });
+  }
+
+  private loadActiveDocumentComments(documentId: string, page = 1, append = false): void {
+    this.api.listDocumentComments(documentId, page, COMMENT_PAGE_SIZE).subscribe({
+      next: (result) => {
+        this.activeDocumentComments.update((comments) => append ? [...comments, ...result.items] : result.items);
+        this.activeDocumentCommentPage.set(result.page);
+        this.activeDocumentCommentTotalCount.set(result.totalCount);
+      },
+      error: () => {
+        if (!append) {
+          this.resetActiveDocumentComments();
+        }
+      },
+      complete: () => this.loadingMoreActiveDocumentComments.set(false),
+    });
+  }
+
+  private resetActiveDocumentComments(): void {
+    this.activeDocumentComments.set([]);
+    this.activeDocumentCommentPage.set(0);
+    this.activeDocumentCommentTotalCount.set(0);
+    this.loadingMoreActiveDocumentComments.set(false);
+    this.expandedActiveDocumentCommentIds.set(new Set());
   }
 }
 
