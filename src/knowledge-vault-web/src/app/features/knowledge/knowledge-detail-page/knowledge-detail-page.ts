@@ -23,6 +23,7 @@ import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dia
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
+import { ContentEditor } from '../components/content-editor/content-editor';
 
 @Component({
   selector: 'app-knowledge-detail-page',
@@ -30,6 +31,7 @@ import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor
     DatePipe,
     FormsModule,
     KnowledgeEditor,
+    ContentEditor,
     LoadingIndicator,
     MarkdownContentPipe,
     MermaidDiagramsDirective,
@@ -71,6 +73,7 @@ export class KnowledgeDetailPage {
   readonly copyError = signal<string | null>(null);
   readonly revisionComparison = signal<{ previous: Revision; selected: Revision } | null>(null);
   readonly revisionComparisonLoading = signal(false);
+  readonly revisionsCollapsed = signal(false);
 
   // ----- Inline editor state -----
   readonly editorOpen = signal(false);
@@ -80,6 +83,8 @@ export class KnowledgeDetailPage {
   readonly editorTags = signal<Tag[]>([]);
   readonly editorProjects = signal<ProjectSummary[]>([]);
   readonly editorTopics = signal<ProjectTopic[]>([]);
+  readonly contentEditorOpen = signal(false);
+  readonly contentEditorSaving = signal(false);
   private currentItemId: string | null = null;
 
   constructor() {
@@ -183,6 +188,57 @@ export class KnowledgeDetailPage {
 
   backToCurrent(): void {
     this.viewingRevision.set(null);
+  }
+
+  toggleRevisions(): void {
+    this.revisionsCollapsed.update((collapsed) => !collapsed);
+  }
+
+  openContentEditor(): void {
+    if (!this.item() || this.viewingRevision()) {
+      return;
+    }
+    this.contentEditorOpen.set(true);
+  }
+
+  closeContentEditor(): void {
+    this.contentEditorOpen.set(false);
+  }
+
+  saveContent(content: string): void {
+    const item = this.item();
+    if (!item || this.contentEditorSaving()) {
+      return;
+    }
+
+    this.contentEditorSaving.set(true);
+    const payload: SaveDocumentRequest = {
+      scope: item.scope,
+      projectId: item.projectId ?? null,
+      topicId: item.topicId ?? null,
+      documentType: item.documentType,
+      title: item.title,
+      content,
+      summary: item.summary ?? null,
+      sourceUrl: item.sourceUrl ?? null,
+      linkDisplayText: item.linkDisplayText ?? null,
+      linkUrl: item.linkUrl ?? null,
+      changeNote: null,
+      categoryId: item.category?.id ?? null,
+      status: item.status,
+      tagIds: item.tags.map((tag) => tag.id),
+      tagNames: [],
+      expectedRevisionNumber: item.currentRevisionNumber,
+    };
+
+    this.api.updateKnowledgeItem(item.id, payload).subscribe({
+      next: () => {
+        this.contentEditorOpen.set(false);
+        this.loadItem(item.id);
+      },
+      error: (error) => this.error.set(getErrorMessage(error)),
+      complete: () => this.contentEditorSaving.set(false),
+    });
   }
 
   compareRevisionWithPrevious(revisionNumber: number): void {

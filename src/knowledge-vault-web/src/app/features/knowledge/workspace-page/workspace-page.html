@@ -49,6 +49,9 @@
                     <button type="button" class="ghost workspace-doc__edit" (click)="copyActiveDocumentContent()">Copy</button>
                     @if (doc.documentType !== 'ProjectMemory') {
                       <button type="button" class="ghost workspace-doc__edit" [disabled]="saving()" (click)="editActiveDocument()">Edit</button>
+                      @if (!activeDocumentRevision()) {
+                        <button type="button" class="ghost workspace-doc__edit" (click)="openActiveDocumentContentEditor()">Edit content</button>
+                      }
                     }
                     @if (copyMessage()) {
                       <span class="workspace-doc__copy-message" role="status">{{ copyMessage() }}</span>
@@ -67,26 +70,43 @@
                   }
                 </div>
               </header>
-              <div
-                class="workspace-doc__body markdown-body"
-                [innerHTML]="(activeDocumentRevision()?.content || doc.content) | markdownContent"
-                [appMermaidDiagrams]="activeDocumentRevision()?.content || doc.content"
-              ></div>
+              @if (activeDocumentContentEditorOpen()) {
+                <app-content-editor
+                  [content]="doc.content"
+                  [saving]="activeDocumentContentEditorSaving()"
+                  (cancelEdit)="closeActiveDocumentContentEditor()"
+                  (saveContent)="saveActiveDocumentContent($event)"
+                />
+              } @else {
+                <div
+                  class="workspace-doc__body markdown-body"
+                  [innerHTML]="(activeDocumentRevision()?.content || doc.content) | markdownContent"
+                  [appMermaidDiagrams]="activeDocumentRevision()?.content || doc.content"
+                ></div>
+              }
             </article>
             <aside class="workspace-revision-rail" aria-label="Document revisions">
-              <h4>Latest</h4>
-              <button type="button" class="workspace-revision" [class.is-active]="!activeDocumentRevision()" (click)="showActiveDocumentLatest()">Latest</button>
-              @if (doc.currentRevisionNumber > 1) {
-                <button type="button" class="workspace-revision workspace-revision--compare" [disabled]="revisionComparisonLoading()" (click)="compareActiveDocumentRevisionWithPrevious(doc.currentRevisionNumber)">Compare latest</button>
-              }
-              @if (activeDocumentRevisions().length > 1) {
-                <p class="workspace-revision-rail__label">History</p>
-              }
-              @for (revision of activeDocumentRevisions(); track revision.revisionNumber) {
-                @if (revision.revisionNumber !== doc.currentRevisionNumber) {
-                  <button type="button" class="workspace-revision" [class.is-active]="activeDocumentRevision()?.revisionNumber === revision.revisionNumber" [title]="revision.title" (click)="viewActiveDocumentRevision(revision.revisionNumber)">{{ revision.revisionNumber }}</button>
-                  @if (revision.revisionNumber > 1) {
-                    <button type="button" class="workspace-revision workspace-revision--compare" [disabled]="revisionComparisonLoading()" (click)="compareActiveDocumentRevisionWithPrevious(revision.revisionNumber)">Compare</button>
+              <div class="workspace-revision-rail__head">
+                <h4>Revisions</h4>
+                <button type="button" class="workspace-revision workspace-revision-toggle" [attr.aria-expanded]="!activeDocumentRevisionsCollapsed()" (click)="toggleActiveDocumentRevisions()">
+                  {{ activeDocumentRevisionsCollapsed() ? 'Expand' : 'Collapse' }}
+                </button>
+              </div>
+              @if (!activeDocumentRevisionsCollapsed()) {
+                <h4>Latest</h4>
+                <button type="button" class="workspace-revision" [class.is-active]="!activeDocumentRevision()" (click)="showActiveDocumentLatest()">Latest</button>
+                @if (doc.currentRevisionNumber > 1) {
+                  <button type="button" class="workspace-revision workspace-revision--compare" [disabled]="revisionComparisonLoading()" (click)="compareActiveDocumentRevisionWithPrevious(doc.currentRevisionNumber)">Compare latest</button>
+                }
+                @if (activeDocumentRevisions().length > 1) {
+                  <p class="workspace-revision-rail__label">History</p>
+                }
+                @for (revision of activeDocumentRevisions(); track revision.revisionNumber) {
+                  @if (revision.revisionNumber !== doc.currentRevisionNumber) {
+                    <button type="button" class="workspace-revision" [class.is-active]="activeDocumentRevision()?.revisionNumber === revision.revisionNumber" [title]="revision.title" (click)="viewActiveDocumentRevision(revision.revisionNumber)">{{ revision.revisionNumber }}</button>
+                    @if (revision.revisionNumber > 1) {
+                      <button type="button" class="workspace-revision workspace-revision--compare" [disabled]="revisionComparisonLoading()" (click)="compareActiveDocumentRevisionWithPrevious(revision.revisionNumber)">Compare</button>
+                    }
                   }
                 }
               }

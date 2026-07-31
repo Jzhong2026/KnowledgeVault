@@ -32,6 +32,7 @@ import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dia
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
+import { ContentEditor } from '../components/content-editor/content-editor';
 import { TileGrid } from '../components/tile-grid/tile-grid';
 
 /** Page size used for the workspace "Load more" UI. Each click reveals
@@ -56,6 +57,7 @@ interface ProjectDocumentsPreference {
     LoadingIndicator,
     EmptyState,
     KnowledgeEditor,
+    ContentEditor,
     TileGrid,
     MarkdownContentPipe,
     MermaidDiagramsDirective,
@@ -196,6 +198,9 @@ export class WorkspacePage implements OnDestroy {
   readonly expandedActiveDocumentCommentIds = signal<ReadonlySet<string>>(new Set());
   readonly revisionComparison = signal<{ previous: Revision; selected: Revision } | null>(null);
   readonly revisionComparisonLoading = signal(false);
+  readonly activeDocumentRevisionsCollapsed = signal(false);
+  readonly activeDocumentContentEditorOpen = signal(false);
+  readonly activeDocumentContentEditorSaving = signal(false);
   readonly workspaceContextMenu = signal<WorkspaceContextMenuRequest | null>(null);
 
   private readonly sub = new Subscription();
@@ -956,6 +961,10 @@ export class WorkspacePage implements OnDestroy {
     this.activeDocumentRevision.set(null);
   }
 
+  toggleActiveDocumentRevisions(): void {
+    this.activeDocumentRevisionsCollapsed.update((collapsed) => !collapsed);
+  }
+
   compareActiveDocumentRevisionWithPrevious(revisionNumber: number): void {
     const item = this.activeDocument();
     if (!item || revisionNumber <= 1 || this.revisionComparisonLoading()) {
@@ -1028,6 +1037,54 @@ export class WorkspacePage implements OnDestroy {
       this.onEditorProjectSelected(item.projectId);
     }
     this.editorOpen.set(true);
+  }
+
+  openActiveDocumentContentEditor(): void {
+    if (!this.activeDocument() || this.activeDocumentRevision()) {
+      return;
+    }
+    this.activeDocumentContentEditorOpen.set(true);
+  }
+
+  closeActiveDocumentContentEditor(): void {
+    this.activeDocumentContentEditorOpen.set(false);
+  }
+
+  saveActiveDocumentContent(content: string): void {
+    const item = this.activeDocument();
+    if (!item || this.activeDocumentContentEditorSaving()) {
+      return;
+    }
+
+    this.activeDocumentContentEditorSaving.set(true);
+    const payload: SaveDocumentRequest = {
+      scope: item.scope,
+      projectId: item.projectId ?? null,
+      topicId: item.topicId ?? null,
+      documentType: item.documentType,
+      title: item.title,
+      content,
+      summary: item.summary ?? null,
+      sourceUrl: item.sourceUrl ?? null,
+      linkDisplayText: item.linkDisplayText ?? null,
+      linkUrl: item.linkUrl ?? null,
+      changeNote: null,
+      categoryId: item.category?.id ?? null,
+      status: item.status,
+      tagIds: item.tags.map((tag) => tag.id),
+      tagNames: [],
+      expectedRevisionNumber: item.currentRevisionNumber,
+    };
+
+    this.api.updateKnowledgeItem(item.id, payload).subscribe({
+      next: () => {
+        this.activeDocumentContentEditorOpen.set(false);
+        this.loadActiveDocument(item.id);
+        this.loadContent(this.workspace.current(), 1, false);
+      },
+      error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
+      complete: () => this.activeDocumentContentEditorSaving.set(false),
+    });
   }
 
   async copyActiveDocumentContent(): Promise<void> {
@@ -1369,6 +1426,7 @@ export class WorkspacePage implements OnDestroy {
     this.activeDocumentLoading.set(true);
     this.activeDocumentError.set(null);
     this.activeDocumentRevision.set(null);
+    this.activeDocumentContentEditorOpen.set(false);
     this.activeDocumentRevisions.set([]);
     this.resetActiveDocumentComments();
     this.api.getKnowledgeItem(documentId).subscribe({

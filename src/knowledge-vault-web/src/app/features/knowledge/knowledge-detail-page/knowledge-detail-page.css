@@ -242,6 +242,10 @@ h2 {
   gap: 8px;
 }
 
+.revision-rail__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.revision-toggle { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font: 700 11px/1.2 inherit; padding: 3px; }
+.revision-toggle:hover { text-decoration: underline; }
+
 .revision-item-row { display: grid; gap: 4px; }
 .revision-compare { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font: 700 11px/1.2 inherit; padding: 3px; }
 .revision-compare:hover { text-decoration: underline; }

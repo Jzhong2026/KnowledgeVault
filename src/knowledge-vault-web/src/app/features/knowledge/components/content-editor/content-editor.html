@@ -1,0 +1,29 @@
+<section class="content-editor" aria-label="Edit document content">
+  <div class="content-editor__head">
+    <div>
+      <h3>Edit content</h3>
+      <p>Markdown preview updates as you type.</p>
+    </div>
+    <div class="content-editor__actions">
+      <button type="button" class="ghost" [disabled]="saving" (click)="cancelEdit.emit()">Cancel</button>
+      <button type="button" class="primary" [disabled]="saving" (click)="save()">
+        {{ saving ? 'Saving…' : 'Save content' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="content-editor__panes">
+    <label class="content-editor__pane">
+      <span>Markdown source</span>
+      <textarea [(ngModel)]="draft" [disabled]="saving" aria-label="Markdown source"></textarea>
+    </label>
+    <section class="content-editor__pane" aria-label="Markdown preview">
+      <span>Preview</span>
+      <div
+        class="content-editor__preview markdown-body"
+        [innerHTML]="draft | markdownContent"
+        [appMermaidDiagrams]="draft"
+      ></div>
+    </section>
+  </div>
+</section>

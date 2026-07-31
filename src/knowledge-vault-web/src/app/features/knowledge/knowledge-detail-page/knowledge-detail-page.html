@@ -16,6 +16,9 @@
             </svg>
             Edit
           </button>
+          @if (!viewingRevision()) {
+            <button type="button" class="copy-button" (click)="openContentEditor()">Edit content</button>
+          }
         }
         <button
           type="button"
@@ -108,7 +111,14 @@
         </header>
 
         <div class="article-body">
-          @if (hasContent(viewingRevision()?.content || knowledge.content)) {
+          @if (contentEditorOpen()) {
+            <app-content-editor
+              [content]="knowledge.content"
+              [saving]="contentEditorSaving()"
+              (cancelEdit)="closeContentEditor()"
+              (saveContent)="saveContent($event)"
+            />
+          } @else if (hasContent(viewingRevision()?.content || knowledge.content)) {
             <div
               class="markdown-body markdown-body--wide"
               [innerHTML]="viewingRevision()?.content || knowledge.content | markdownContent"
@@ -155,8 +165,14 @@
       </article>
 
       <aside class="revision-rail" aria-label="Document revisions">
-        <h3>Revisions</h3>
-        <nav class="revision-list" aria-label="Choose document revision">
+        <div class="revision-rail__head">
+          <h3>Revisions</h3>
+          <button type="button" class="revision-toggle" [attr.aria-expanded]="!revisionsCollapsed()" (click)="toggleRevisions()">
+            {{ revisionsCollapsed() ? 'Expand' : 'Collapse' }}
+          </button>
+        </div>
+        @if (!revisionsCollapsed()) {
+          <nav class="revision-list" aria-label="Choose document revision">
           <div class="revision-item-row">
             <button
               type="button"
@@ -188,7 +204,8 @@
                 }
             </div>
           }
-        </nav>
+          </nav>
+        }
       </aside>
     </div>
 

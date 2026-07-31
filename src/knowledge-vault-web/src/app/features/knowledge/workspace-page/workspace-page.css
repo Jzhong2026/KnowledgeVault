@@ -676,7 +676,9 @@ button:disabled {
   padding-left: 18px;
 }
 
-.workspace-revision-rail h4 { width: 100%; margin: 2px 0 6px; color: var(--text, #0f172a); font-size: 12px; }
+.workspace-revision-rail > h4 { width: 100%; margin: 2px 0 6px; color: var(--text, #0f172a); font-size: 12px; }
+.workspace-revision-rail__head { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; }
+.workspace-revision-rail__head h4 { margin: 2px 0 6px; color: var(--text, #0f172a); font-size: 12px; }
 .workspace-revision-rail__label { width: 100%; margin: 10px 0 0; border-top: 1px solid var(--border, #e2e8f0); color: var(--muted, #64748b); font-size: 11px; font-weight: 800; padding-top: 10px; text-transform: uppercase; }
 .workspace-revision { border: 1px solid var(--border, #e2e8f0); background: #ffffff; color: var(--muted, #64748b); font-size: 11px; padding: 6px 8px; }
 .workspace-revision.is-active { border-color: var(--accent, #10b981); background: #ecfdf5; color: var(--accent-strong, #0f9d76); }
