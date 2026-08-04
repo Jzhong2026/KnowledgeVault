@@ -237,17 +237,37 @@ h2 {
   text-transform: uppercase;
 }
 
-.revision-list {
-  display: grid;
-  gap: 8px;
-}
-
 .revision-rail__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .revision-toggle { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font: 700 11px/1.2 inherit; padding: 3px; }
 .revision-toggle:hover { text-decoration: underline; }
 
-.revision-item-row { display: grid; gap: 4px; }
-.revision-compare { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font: 700 11px/1.2 inherit; padding: 3px; }
+.revision-list {
+  display: grid;
+  gap: 10px;
+}
+
+.revision-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.revision-item-row .revision-item {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.revision-compare {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: 700 11px/1.2 inherit;
+  padding: 3px 4px;
+}
+
 .revision-compare:hover { text-decoration: underline; }
 
 .revision-item {

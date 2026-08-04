@@ -1,29 +1,54 @@
-<section class="content-editor" aria-label="Edit document content">
-  <div class="content-editor__head">
-    <div>
-      <h3>Edit content</h3>
-      <p>Markdown preview updates as you type.</p>
+<div class="content-editor-backdrop" (click)="requestClose()">
+  <section
+    class="content-editor"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="content-editor-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="content-editor__head">
+      <div>
+        <h2 id="content-editor-title">Edit content</h2>
+        <p>Preview updates as you edit the Markdown source.</p>
+      </div>
+      <div class="content-editor__actions">
+        <button type="button" class="ghost" [disabled]="saving" (click)="requestClose()">Cancel</button>
+        <button type="button" class="primary" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Saving...' : 'Save content' }}
+        </button>
+        <button type="button" class="content-editor__close" [disabled]="saving" aria-label="Close editor" (click)="requestClose()">x</button>
+      </div>
     </div>
-    <div class="content-editor__actions">
-      <button type="button" class="ghost" [disabled]="saving" (click)="cancelEdit.emit()">Cancel</button>
-      <button type="button" class="primary" [disabled]="saving" (click)="save()">
-        {{ saving ? 'Saving…' : 'Save content' }}
-      </button>
-    </div>
-  </div>
 
-  <div class="content-editor__panes">
-    <label class="content-editor__pane">
-      <span>Markdown source</span>
-      <textarea [(ngModel)]="draft" [disabled]="saving" aria-label="Markdown source"></textarea>
-    </label>
-    <section class="content-editor__pane" aria-label="Markdown preview">
-      <span>Preview</span>
+    <div class="content-editor__panes" [style.--preview-width]="previewWidth() + '%'">
+      <section class="content-editor__pane content-editor__pane--preview" aria-label="Markdown preview">
+        <span>Preview</span>
+        <div
+          #previewEl
+          class="content-editor__preview markdown-body"
+          [innerHTML]="draft | markdownContent"
+          [appMermaidDiagrams]="draft"
+          (scroll)="onPreviewScroll()"
+        ></div>
+      </section>
       <div
-        class="content-editor__preview markdown-body"
-        [innerHTML]="draft | markdownContent"
-        [appMermaidDiagrams]="draft"
+        class="content-editor__divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize preview and editor panes"
+        (pointerdown)="onDividerPointerDown($event)"
       ></div>
-    </section>
-  </div>
-</section>
+      <label class="content-editor__pane content-editor__pane--source">
+        <span>Markdown source</span>
+        <textarea
+          #sourceEl
+          [(ngModel)]="draft"
+          (ngModelChange)="onDraftInput()"
+          (scroll)="onSourceScroll()"
+          [disabled]="saving"
+          aria-label="Markdown source"
+        ></textarea>
+      </label>
+    </div>
+  </section>
+</div>

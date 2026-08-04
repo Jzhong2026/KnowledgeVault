@@ -28,6 +28,7 @@ import {
 } from '../../../core/workspace/workspace.service';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dialog/revision-diff-dialog';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
@@ -74,6 +75,7 @@ export class WorkspacePage implements OnDestroy {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   readonly workspace = inject(WorkspaceService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly workspaceScope = (this.route.snapshot.data['scope'] as DocumentScope | undefined) ?? 'Personal';
   readonly isProjectScope = this.workspaceScope === 'Project';
@@ -1221,8 +1223,15 @@ export class WorkspacePage implements OnDestroy {
     URL.revokeObjectURL(url);
   }
 
-  deleteDocument(id: string): void {
-    if (!confirm('Archive this document? You can show archived items in browse mode.')) {
+  async deleteDocument(id: string): Promise<void> {
+    const ok = await this.confirm.confirm({
+      title: 'Archive document?',
+      message: 'This archives the document. You can show archived items in browse mode.',
+      confirmLabel: 'Archive',
+      cancelLabel: 'Cancel',
+      intent: 'danger',
+    });
+    if (!ok) {
       return;
     }
     this.saving.set(true);
