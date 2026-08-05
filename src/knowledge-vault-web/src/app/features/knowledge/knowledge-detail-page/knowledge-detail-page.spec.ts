@@ -73,7 +73,10 @@ describe('KnowledgeDetailPage', () => {
 
     expect(layout.firstElementChild?.classList.contains('article')).toBe(true);
     expect(layout.lastElementChild).toBe(rail);
-    expect(labels).toEqual(['Latest', '2', '1']);
+    expect(labels).toEqual(['Latest', '1']);
+    expect(
+      (rail.querySelector('.revision-compare') as HTMLButtonElement).getAttribute('aria-label'),
+    ).toBe('Compare latest revision with previous revision');
     expect(
       (fixture.nativeElement.querySelector('.detail-toolbar a') as HTMLAnchorElement).getAttribute(
         'href',
@@ -84,6 +87,78 @@ describe('KnowledgeDetailPage', () => {
     );
     expect(fixture.nativeElement.querySelector('.detail-page > .comments-panel')).not.toBeNull();
     expect(api.listDocumentComments).toHaveBeenCalledWith(item.id, 1, 20);
+  });
+
+  it('collapses the revision rail into an icon-only toggle', async () => {
+    const item: KnowledgeItem = {
+      id: 'document-id',
+      scope: 'Personal',
+      ownerUserId: 'owner-id',
+      ownerDisplayName: 'Owner',
+      documentType: 'General',
+      currentRevisionNumber: 3,
+      title: 'Document',
+      content: 'Current content',
+      status: 'Active',
+      tags: [],
+      createdAt: '2026-07-18T00:00:00Z',
+    };
+    const api = {
+      getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
+      listRevisions: vi.fn().mockReturnValue(
+        of({
+          items: [3, 2, 1].map((revisionNumber) => ({
+            id: `revision-${revisionNumber}`,
+            revisionNumber,
+            title: `Revision ${revisionNumber}`,
+            createdByUserId: 'owner-id',
+            createdByUserName: 'Owner',
+            createdAt: `2026-07-1${revisionNumber}T00:00:00Z`,
+          })),
+          page: 1,
+          pageSize: 20,
+          totalCount: 3,
+          totalPages: 1,
+        }),
+      ),
+      listDocumentComments: vi.fn().mockReturnValue(
+        of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }),
+      ),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeDetailPage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              data: { scope: 'Personal' },
+              paramMap: convertToParamMap({ id: item.id }),
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeDetailPage);
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.revision-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const layout = fixture.nativeElement.querySelector('.document-layout') as HTMLElement;
+    const rail = fixture.nativeElement.querySelector('.revision-rail') as HTMLElement;
+    const toggle = fixture.nativeElement.querySelector('.revision-toggle') as HTMLButtonElement;
+
+    expect(layout.classList.contains('document-layout--revisions-collapsed')).toBe(true);
+    expect(rail.classList.contains('revision-rail--collapsed')).toBe(true);
+    expect(fixture.nativeElement.querySelector('.revision-rail__head')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.revision-list')).toBeNull();
+    expect(toggle.getAttribute('aria-label')).toBe('Show revisions');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('redirects a legacy project document URL to the project document route', async () => {

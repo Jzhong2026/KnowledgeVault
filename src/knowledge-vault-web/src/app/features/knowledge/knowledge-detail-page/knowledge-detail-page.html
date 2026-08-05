@@ -63,7 +63,7 @@
   } @else if (error()) {
     <p class="alert">{{ error() }}</p>
   } @else if (item(); as knowledge) {
-    <div class="document-layout">
+    <div class="document-layout" [class.document-layout--revisions-collapsed]="revisionsCollapsed()">
       <article class="article">
         <header class="article-header">
           <div class="article-meta">
@@ -164,31 +164,65 @@
         }
       </article>
 
-      <aside class="revision-rail" aria-label="Document revisions">
-        <div class="revision-rail__head">
-          <h3>Revisions</h3>
-          <button type="button" class="revision-toggle" [attr.aria-expanded]="!revisionsCollapsed()" (click)="toggleRevisions()">
-            {{ revisionsCollapsed() ? 'Expand' : 'Collapse' }}
+      <aside class="revision-rail" [class.revision-rail--collapsed]="revisionsCollapsed()" aria-label="Document revisions">
+        @if (revisionsCollapsed()) {
+          <button
+            type="button"
+            class="revision-toggle"
+            [attr.aria-label]="'Show revisions'"
+            [attr.title]="'Show revisions'"
+            [attr.aria-expanded]="false"
+            (click)="toggleRevisions()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 6l6 6-6 6M4 4h16v16H4z"></path>
+            </svg>
           </button>
-        </div>
-        @if (!revisionsCollapsed()) {
-          <nav class="revision-list" aria-label="Choose document revision">
-          <div class="revision-item-row">
+        } @else {
+          <div class="revision-rail__head">
+            <h3>Revisions</h3>
             <button
               type="button"
-              class="revision-item revision-item--latest"
-              [class.is-active]="!viewingRevision()"
-              (click)="backToCurrent()"
+              class="revision-toggle"
+              [attr.aria-label]="'Hide revisions'"
+              [attr.title]="'Hide revisions'"
+              [attr.aria-expanded]="true"
+              (click)="toggleRevisions()"
             >
-              Latest
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 6l6 6-6 6M4 4h16v16H4z"></path>
+              </svg>
             </button>
-            @if (knowledge.currentRevisionNumber > 1) {
-              <button type="button" class="revision-compare" (click)="compareRevisionWithPrevious(knowledge.currentRevisionNumber)">Compare</button>
-            }
           </div>
-
-          @for (revision of revisions(); track revision.revisionNumber) {
+          <nav class="revision-list" aria-label="Choose document revision">
             <div class="revision-item-row">
+              <button
+                type="button"
+                class="revision-item revision-item--latest"
+                [class.is-active]="!viewingRevision()"
+                (click)="backToCurrent()"
+              >
+                Latest
+              </button>
+              @if (knowledge.currentRevisionNumber > 1) {
+                <button
+                  type="button"
+                  class="revision-compare"
+                  [attr.aria-label]="'Compare latest revision with previous revision'"
+                  [attr.title]="'Compare latest revision with previous revision'"
+                  (click)="compareRevisionWithPrevious(knowledge.currentRevisionNumber)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 5h6v14H4z"></path>
+                    <path d="M14 5h6v14h-6z"></path>
+                    <path d="M10 12h4"></path>
+                  </svg>
+                </button>
+              }
+            </div>
+
+            @for (revision of historicalRevisions(); track revision.revisionNumber) {
+              <div class="revision-item-row">
                 <button
                   type="button"
                   class="revision-item"
@@ -200,10 +234,22 @@
                   {{ revision.revisionNumber }}
                 </button>
                 @if (revision.revisionNumber > 1) {
-                  <button type="button" class="revision-compare" (click)="compareRevisionWithPrevious(revision.revisionNumber)">Compare</button>
+                  <button
+                    type="button"
+                    class="revision-compare"
+                    [attr.aria-label]="'Compare revision ' + revision.revisionNumber + ' with previous revision'"
+                    [attr.title]="'Compare revision ' + revision.revisionNumber + ' with previous revision'"
+                    (click)="compareRevisionWithPrevious(revision.revisionNumber)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 5h6v14H4z"></path>
+                      <path d="M14 5h6v14h-6z"></path>
+                      <path d="M10 12h4"></path>
+                    </svg>
+                  </button>
                 }
-            </div>
-          }
+              </div>
+            }
           </nav>
         }
       </aside>

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -74,6 +74,12 @@ export class KnowledgeDetailPage {
   readonly revisionComparison = signal<{ previous: Revision; selected: Revision } | null>(null);
   readonly revisionComparisonLoading = signal(false);
   readonly revisionsCollapsed = signal(false);
+  readonly historicalRevisions = computed(() => {
+    const currentRevisionNumber = this.item()?.currentRevisionNumber;
+    return this.revisions().filter(
+      (revision) => currentRevisionNumber === undefined || revision.revisionNumber < currentRevisionNumber,
+    );
+  });
 
   // ----- Inline editor state -----
   readonly editorOpen = signal(false);

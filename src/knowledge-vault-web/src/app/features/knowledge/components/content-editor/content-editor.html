@@ -28,7 +28,6 @@
           class="content-editor__preview markdown-body"
           [innerHTML]="draft | markdownContent"
           [appMermaidDiagrams]="draft"
-          (scroll)="onPreviewScroll()"
         ></div>
       </section>
       <div
@@ -43,7 +42,9 @@
         <textarea
           #sourceEl
           [(ngModel)]="draft"
-          (ngModelChange)="onDraftInput()"
+          (ngModelChange)="onDraftInput($event)"
+          (click)="syncPreviewToCaret()"
+          (keyup)="syncPreviewToCaret()"
           (scroll)="onSourceScroll()"
           [disabled]="saving"
           aria-label="Markdown source"

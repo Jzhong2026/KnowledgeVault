@@ -101,25 +101,49 @@ describe('ContentEditor', () => {
     // Just verify that scroll handlers don't throw and ignore state when the
     // panes haven't been laid out yet (jsdom can't simulate real scroll geometry).
     expect(() => sourceEl.dispatchEvent(new Event('scroll'))).not.toThrow();
-    expect(() => previewEl.dispatchEvent(new Event('scroll'))).not.toThrow();
   });
 
-  it('scrolls the preview to a proportional offset after an edit', async () => {
+  it('scrolls the preview near the caret after appending content at the end', async () => {
     await TestBed.configureTestingModule({ imports: [ContentEditor] }).compileComponents();
 
     const fixture = TestBed.createComponent(ContentEditor);
-    fixture.componentRef.setInput('content', 'a\nb\nc');
+    fixture.componentRef.setInput('content', 'line 1\nline 2\nline 3');
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    const previewEl = component['previewEl']?.nativeElement;
-    // Fake a tall preview so scrollTop can take a non-zero value.
+    const previewEl = component['previewEl']?.nativeElement as HTMLElement;
+    const sourceEl = component['sourceEl']?.nativeElement as HTMLTextAreaElement;
     Object.defineProperty(previewEl, 'scrollHeight', { configurable: true, value: 1000 });
     Object.defineProperty(previewEl, 'clientHeight', { configurable: true, value: 100 });
+    Object.defineProperty(sourceEl, 'selectionStart', { configurable: true, value: 0, writable: true });
 
-    component.draft = 'a\nb\nX';
-    component.onDraftInput();
-    // After scheduling, preview should have been moved toward the end (offset 5/6).
+    sourceEl.value = `${sourceEl.value}\nline 4 appended at the end`;
+    sourceEl.selectionStart = sourceEl.value.length;
+    component.onDraftInput(sourceEl.value);
+    await Promise.resolve();
+
+    expect(previewEl.scrollTop).toBeGreaterThan(0);
+  });
+
+  it('moves the preview near the caret when the user clicks lower in the source', async () => {
+    await TestBed.configureTestingModule({ imports: [ContentEditor] }).compileComponents();
+
+    const fixture = TestBed.createComponent(ContentEditor);
+    fixture.componentRef.setInput('content', 'one\ntwo\nthree\nfour\nfive');
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const previewEl = component['previewEl']?.nativeElement as HTMLElement;
+    const sourceEl = component['sourceEl']?.nativeElement as HTMLTextAreaElement;
+    Object.defineProperty(previewEl, 'scrollHeight', { configurable: true, value: 1600 });
+    Object.defineProperty(previewEl, 'clientHeight', { configurable: true, value: 200 });
+    Object.defineProperty(sourceEl, 'selectionStart', { configurable: true, value: 0, writable: true });
+
+    sourceEl.value = component.draft;
+    sourceEl.selectionStart = sourceEl.value.length - 2;
+    component.syncPreviewToCaret();
+    await Promise.resolve();
+
     expect(previewEl.scrollTop).toBeGreaterThan(0);
   });
 });

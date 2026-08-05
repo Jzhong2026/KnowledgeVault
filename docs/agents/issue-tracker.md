@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+GitHub Issues are available for this repo, but issue creation and issue updates are opt-in. By default, keep work in the chat and only use GitHub Issues when the user explicitly asks for that workflow.
 
 ## Conventions
 
@@ -27,7 +27,7 @@ GitHub shares one number space across issues and PRs, so a bare `#42` may be eit
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue.
+Only create a GitHub issue if the user explicitly asked for one in the current conversation.
 
 ## When a skill says "fetch the relevant ticket"
 

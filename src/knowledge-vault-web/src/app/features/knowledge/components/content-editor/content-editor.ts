@@ -37,9 +37,6 @@ export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('sourceEl') sourceEl?: ElementRef<HTMLTextAreaElement>;
 
   draft = '';
-  /** Last value before the current keystroke. Used to detect where the edit
-   *  occurred so we can scroll the preview to the matching location. */
-  private previousDraft = '';
   readonly previewWidth = signal(50);
 
   private readonly confirm = inject(ConfirmService);
@@ -47,21 +44,24 @@ export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
 
   /** Guards against feedback loops between the two panes' scroll handlers. */
   private syncingScroll = false;
+  /** Coalesces repeated edit events so preview scrolls once per render tick. */
+  private previewSyncQueued = false;
+  private pendingPreviewRatio: number | null = null;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['content']) {
       this.draft = this.content;
-      this.previousDraft = this.content;
     }
   }
 
   ngAfterViewInit(): void {
     // Reset preview scroll whenever a fresh document is loaded.
-    queueMicrotask(() => this.scrollPreviewTo(0));
+    this.queuePreviewScroll(0);
   }
 
   ngOnDestroy(): void {
-    // No subscriptions to dispose, but kept for symmetry / future cleanup.
+    this.previewSyncQueued = false;
+    this.pendingPreviewRatio = null;
   }
 
   save(): void {
@@ -89,25 +89,9 @@ export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
     this.cancelEdit.emit();
   }
 
-  onDraftInput(): void {
-    const next = this.draft;
-    const prev = this.previousDraft;
-    this.previousDraft = next;
-
-    if (next === prev) {
-      return;
-    }
-    const offset = this.firstChangeOffset(prev, next);
-    if (offset < 0) {
-      return;
-    }
-    this.scrollPreviewToOffset(offset, next.length || 1);
-  }
-
-  onPreviewScroll(): void {
-    // Preview doesn't directly drive the source — content has different
-    // lengths per line, so we only mirror source→preview (not preview→source)
-    // to avoid the two fighting each other.
+  onDraftInput(nextDraft: string): void {
+    this.draft = nextDraft;
+    this.queuePreviewSyncFromCaret();
   }
 
   onSourceScroll(): void {
@@ -129,6 +113,10 @@ export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
     // Release the guard on the next frame so the resulting `scroll` event
     // from the preview doesn't recursively re-trigger us.
     requestAnimationFrame(() => (this.syncingScroll = false));
+  }
+
+  syncPreviewToCaret(): void {
+    this.queuePreviewSyncFromCaret();
   }
 
   onDividerPointerDown(event: PointerEvent): void {
@@ -162,42 +150,49 @@ export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
     void this.requestClose();
   }
 
-  /**
-   * Return the index of the first character where `prev` and `next` differ,
-   * or `-1` when one is a prefix of the other (pure insertion / deletion at
-   * the tail). The caller treats `-1` as "nothing to scroll to".
-   */
-  private firstChangeOffset(prev: string, next: string): number {
-    const min = Math.min(prev.length, next.length);
-    for (let i = 0; i < min; i++) {
-      if (prev.charCodeAt(i) !== next.charCodeAt(i)) {
-        return i;
-      }
+  private queuePreviewSyncFromCaret(): void {
+    const textarea = this.sourceEl?.nativeElement;
+    if (!textarea) {
+      return;
     }
-    return -1;
+
+    const contentLength = Math.max(textarea.value.length, 1);
+    const caretOffset = Math.max(0, Math.min(textarea.selectionStart ?? contentLength, contentLength));
+    this.queuePreviewScroll(caretOffset / contentLength);
   }
 
-  /** Scroll the preview so the character at `offset` is roughly in view. */
-  private scrollPreviewToOffset(offset: number, total: number): void {
+  private queuePreviewScroll(ratio: number): void {
+    this.pendingPreviewRatio = Math.min(1, Math.max(0, ratio));
+    if (this.previewSyncQueued) {
+      return;
+    }
+
+    this.previewSyncQueued = true;
+    queueMicrotask(() => {
+      this.previewSyncQueued = false;
+      const nextRatio = this.pendingPreviewRatio;
+      this.pendingPreviewRatio = null;
+      if (nextRatio === null) {
+        return;
+      }
+
+      this.scrollPreviewToRatio(nextRatio);
+    });
+  }
+
+  private scrollPreviewToRatio(ratio: number): void {
     const preview = this.previewEl?.nativeElement;
     if (!preview) {
       return;
     }
-    const ratio = total === 0 ? 0 : Math.min(1, Math.max(0, offset / total));
+
     const max = preview.scrollHeight - preview.clientHeight;
     if (max <= 0) {
       return;
     }
+
     this.syncingScroll = true;
     preview.scrollTop = ratio * max;
     requestAnimationFrame(() => (this.syncingScroll = false));
-  }
-
-  private scrollPreviewTo(top: number): void {
-    const preview = this.previewEl?.nativeElement;
-    if (!preview) {
-      return;
-    }
-    preview.scrollTop = top;
   }
 }

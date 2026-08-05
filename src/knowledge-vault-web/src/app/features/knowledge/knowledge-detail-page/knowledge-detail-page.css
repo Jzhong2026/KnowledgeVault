@@ -92,9 +92,13 @@
 
 .document-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
+  grid-template-columns: minmax(0, 1fr) 188px;
   align-items: start;
   gap: 16px;
+}
+
+.document-layout--revisions-collapsed {
+  grid-template-columns: minmax(0, 1fr) 40px;
 }
 
 .article,
@@ -224,7 +228,15 @@ h2 {
   top: 18px;
   display: grid;
   gap: 12px;
-  padding: 14px 10px;
+  padding: 14px 12px;
+}
+
+.revision-rail--collapsed {
+  justify-items: end;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .revision-rail h3 {
@@ -233,13 +245,51 @@ h2 {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  text-align: center;
+  text-align: left;
   text-transform: uppercase;
 }
 
-.revision-rail__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.revision-toggle { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font: 700 11px/1.2 inherit; padding: 3px; }
-.revision-toggle:hover { text-decoration: underline; }
+.revision-rail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.revision-toggle {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid #d6e1e4;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #718793;
+  cursor: pointer;
+  padding: 0;
+  transition: 160ms ease;
+}
+
+.revision-toggle:hover {
+  border-color: #9bcfc0;
+  background: #eaf8f3;
+  color: var(--accent-strong);
+}
+
+.revision-toggle svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.revision-rail--collapsed .revision-toggle svg {
+  transform: rotate(180deg);
+}
 
 .revision-list {
   display: grid;
@@ -247,28 +297,43 @@ h2 {
 }
 
 .revision-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.revision-item-row .revision-item {
-  flex: 1 1 auto;
-  width: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .revision-compare {
-  flex: 0 0 auto;
-  border: 0;
-  background: transparent;
+  display: grid;
+  width: 100%;
+  min-height: 42px;
+  place-items: center;
+  border: 1px solid #d7e6e0;
+  border-radius: 8px;
+  background: #f6fbf9;
   color: var(--accent-strong);
   cursor: pointer;
-  font: 700 11px/1.2 inherit;
-  padding: 3px 4px;
+  padding: 0;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
 }
 
-.revision-compare:hover { text-decoration: underline; }
+.revision-compare svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.revision-compare:hover {
+  border-color: #9ecfbd;
+  background: #f0f8f5;
+}
 
 .revision-item {
   display: grid;

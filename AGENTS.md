@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues and PRDs are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+GitHub Issues remain available for this repository, but agents should only create or modify issues when the user explicitly asks. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 
