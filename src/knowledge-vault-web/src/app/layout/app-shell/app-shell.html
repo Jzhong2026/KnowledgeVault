@@ -27,7 +27,7 @@
   ></div>
   <div class="shell__body">
     <app-topbar />
-    <main class="shell__content">
+    <main class="shell__content" [class.shell__content--workspace]="isWorkspaceMode()">
       <router-outlet />
     </main>
   </div>

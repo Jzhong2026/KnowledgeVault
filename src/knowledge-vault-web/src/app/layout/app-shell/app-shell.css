@@ -29,6 +29,10 @@
   padding: 32px;
 }
 
+.shell__content--workspace {
+  padding: 16px;
+}
+
 /* Drag handle: 6px wide strip absolutely positioned on the right edge
    of the left panel column. Hidden in collapsed mode (no resizing
    applies). The visible affordance is just a thin neutral line that

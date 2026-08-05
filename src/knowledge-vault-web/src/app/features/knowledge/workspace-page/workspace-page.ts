@@ -2,7 +2,7 @@ import { Component, OnDestroy, computed, effect, inject, signal } from '@angular
 import { DatePipe, LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, forkJoin, of } from 'rxjs';
+import { Subscription, firstValueFrom, forkJoin, of } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -53,6 +53,53 @@ interface ProjectDocumentsPreference {
   lastBrowseFolderId: string | null;
 }
 
+interface DownloadFileHandle {
+  createWritable(): Promise<{
+    write(data: Blob): Promise<void>;
+    close(): Promise<void>;
+  }>;
+}
+
+interface DownloadDirectoryHandle {
+  getDirectoryHandle(name: string, options: { create: boolean }): Promise<DownloadDirectoryHandle>;
+  getFileHandle(name: string, options: { create: boolean }): Promise<DownloadFileHandle>;
+}
+
+interface SelectedDownloadDocument {
+  id: string;
+  title: string;
+  relativeDirectory: string[];
+}
+
+interface ImportedTextFile {
+  file: File;
+  relativeDirectory: string[];
+}
+
+interface ImportTarget {
+  file: ImportedTextFile;
+  folderId: string | null;
+  existingDocument?: KnowledgeItemSummary;
+}
+
+interface WebkitFileEntry {
+  isFile: true;
+  isDirectory: false;
+  name: string;
+  file(success: (file: File) => void, failure?: (error: DOMException) => void): void;
+}
+
+interface WebkitDirectoryEntry {
+  isFile: false;
+  isDirectory: true;
+  name: string;
+  createReader(): {
+    readEntries(success: (entries: WebkitEntry[]) => void, failure?: (error: DOMException) => void): void;
+  };
+}
+
+type WebkitEntry = WebkitFileEntry | WebkitDirectoryEntry;
+
 @Component({
   selector: 'app-workspace-page',
   imports: [
@@ -89,6 +136,14 @@ export class WorkspacePage implements OnDestroy {
   readonly folders = signal<FolderSummary[]>([]);
   readonly documents = signal<KnowledgeItemSummary[]>([]);
   readonly documentView = signal<'tile' | 'list'>('tile');
+  readonly selectedFolderIds = signal<ReadonlySet<string>>(new Set());
+  readonly selectedDocumentIds = signal<ReadonlySet<string>>(new Set());
+  readonly downloadingSelected = signal(false);
+  readonly fileDropActive = signal(false);
+  readonly importingFiles = signal(false);
+  readonly importProgress = signal<string | null>(null);
+  readonly importConflictOpen = signal(false);
+  readonly importConflictCount = signal(0);
   readonly projects = signal<ProjectSummary[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly tags = signal<Tag[]>([]);
@@ -112,6 +167,9 @@ export class WorkspacePage implements OnDestroy {
   readonly hasFollowedProjects = computed(() => this.projects().length > 0);
   readonly noFollowedProjects = computed(() => this.isProjectScope && this.projects().length === 0);
   readonly canCreate = computed(() => !this.isProjectScope || this.hasFollowedProjects());
+  readonly selectedItemCount = computed(() => this.selectedFolderIds().size + this.selectedDocumentIds().size);
+  readonly hasSelectedItems = computed(() => this.selectedItemCount() > 0);
+  private pendingImportTargets: ImportTarget[] = [];
 
   /** Display name of the currently selected project. Resolved id-based so a
    *  project rename elsewhere stays consistent. Null when no project is
@@ -337,6 +395,10 @@ export class WorkspacePage implements OnDestroy {
   }
 
   private loadContent(state: WorkspaceState | null, page: number, append: boolean): void {
+    if (!append) {
+      this.clearSelectedItems();
+    }
+
     if (this.isProjectScope && !this.projectId() && !state) {
       // Project scope with no project selected: clear everything and bail
       // so the empty state ("Pick a project") can render.
@@ -1060,6 +1122,69 @@ export class WorkspacePage implements OnDestroy {
     }
   }
 
+  isFolderSelected(folderId: string): boolean {
+    return this.selectedFolderIds().has(folderId);
+  }
+
+  isDocumentSelected(documentId: string): boolean {
+    return this.selectedDocumentIds().has(documentId);
+  }
+
+  setFolderSelected(folderId: string, selected: boolean): void {
+    this.selectedFolderIds.update((ids) => this.updateSelection(ids, folderId, selected));
+  }
+
+  setDocumentSelected(documentId: string, selected: boolean): void {
+    this.selectedDocumentIds.update((ids) => this.updateSelection(ids, documentId, selected));
+  }
+
+  stopSelectionInteraction(event: Event): void {
+    event.stopPropagation();
+  }
+
+  async downloadSelected(): Promise<void> {
+    const folderIds = [...this.selectedFolderIds()];
+    const documentIds = [...this.selectedDocumentIds()];
+    if ((folderIds.length === 0 && documentIds.length === 0) || this.downloadingSelected()) {
+      return;
+    }
+
+    const destination = await this.chooseDownloadDirectory();
+    if (destination === null) {
+      return;
+    }
+
+    this.downloadingSelected.set(true);
+    try {
+      const selectedDocuments = new Map<string, SelectedDownloadDocument>();
+      documentIds.forEach((documentId) => selectedDocuments.set(documentId, {
+        id: documentId,
+        title: this.findDocumentTitle(documentId) ?? 'document',
+        relativeDirectory: [],
+      }));
+      const folderDocuments = await this.collectFolderDocuments(folderIds);
+      folderDocuments.forEach((document, id) => {
+        if (!selectedDocuments.has(id)) {
+          selectedDocuments.set(id, document);
+        }
+      });
+
+      for (const document of selectedDocuments.values()) {
+        const blob = await firstValueFrom(this.api.downloadDocument(document.id));
+        if (destination) {
+          await this.writeSelectedDownload(destination, document, blob);
+        } else {
+          this.triggerBrowserDownload(blob, this.documentFileName(document.title));
+        }
+      }
+      this.clearSelectedItems();
+    } catch (err: unknown) {
+      this.error.set(getErrorMessage(err));
+    } finally {
+      this.downloadingSelected.set(false);
+    }
+  }
+
   isActiveDocumentFullscreenSupported(): boolean { return getDocumentContentKind(this.activeDocument()?.title) !== 'text'; }
 
   closeFullscreenDocument(): void {
@@ -1146,6 +1271,102 @@ export class WorkspacePage implements OnDestroy {
       next: (blob) => this.triggerBrowserDownload(blob, `${this.sanitizeFileName(name)}.zip`),
       error: (err: unknown) => this.error.set(getErrorMessage(err)),
     });
+  }
+
+  private updateSelection(ids: ReadonlySet<string>, id: string, selected: boolean): ReadonlySet<string> {
+    const updated = new Set(ids);
+    if (selected) {
+      updated.add(id);
+    } else {
+      updated.delete(id);
+    }
+    return updated;
+  }
+
+  private clearSelectedItems(): void {
+    this.selectedFolderIds.set(new Set());
+    this.selectedDocumentIds.set(new Set());
+  }
+
+  /** Expands selected folders to their descendant documents for the batch
+   * download action. The ordinary per-row folder action intentionally remains
+   * a ZIP download; batch selection instead delivers each document directly. */
+  private async collectFolderDocuments(folderIds: readonly string[]): Promise<ReadonlyMap<string, SelectedDownloadDocument>> {
+    const documents = new Map<string, SelectedDownloadDocument>();
+    const visitedFolderIds = new Set<string>();
+    const pendingFolders = folderIds.map((id) => ({
+      id,
+      relativeDirectory: [this.sanitizeFileName(this.findFolderName(id) ?? 'folder')],
+    }));
+
+    while (pendingFolders.length > 0) {
+      const folder = pendingFolders.pop()!;
+      if (visitedFolderIds.has(folder.id)) {
+        continue;
+      }
+      visitedFolderIds.add(folder.id);
+
+      const content = await firstValueFrom(this.api.listFolderContent({
+        scope: this.workspaceScope,
+        projectId: this.projectId(),
+        parentFolderId: folder.id,
+        includeArchived: true,
+      }));
+      content.documents.forEach((document) => {
+        if (!documents.has(document.id)) {
+          documents.set(document.id, {
+            id: document.id,
+            title: document.title,
+            relativeDirectory: folder.relativeDirectory,
+          });
+        }
+      });
+      content.folders.forEach((child) => pendingFolders.push({
+        id: child.id,
+        relativeDirectory: [...folder.relativeDirectory, this.sanitizeFileName(child.name)],
+      }));
+    }
+
+    return documents;
+  }
+
+  /** Uses Chrome/Edge's File System Access API when available. `undefined`
+   * intentionally means fall back to normal browser downloads; `null` means
+   * the user closed the directory picker and no download should start. */
+  private async chooseDownloadDirectory(): Promise<DownloadDirectoryHandle | null | undefined> {
+    const picker = (window as Window & {
+      showDirectoryPicker?: () => Promise<DownloadDirectoryHandle>;
+    }).showDirectoryPicker;
+    if (!picker) {
+      return undefined;
+    }
+
+    try {
+      return await picker.call(window);
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  private async writeSelectedDownload(
+    destination: DownloadDirectoryHandle,
+    document: SelectedDownloadDocument,
+    blob: Blob,
+  ): Promise<void> {
+    let directory = destination;
+    for (const segment of document.relativeDirectory) {
+      directory = await directory.getDirectoryHandle(segment, { create: true });
+    }
+
+    // `create: true` returns the existing handle when present. Opening the
+    // writable stream then replaces the file contents, as requested.
+    const file = await directory.getFileHandle(this.documentFileName(document.title), { create: true });
+    const writable = await file.createWritable();
+    await writable.write(blob);
+    await writable.close();
   }
 
   onBreadcrumbDragOver(event: DragEvent): void {

@@ -14,7 +14,9 @@ import { FolderTile } from '../folder-tile/folder-tile';
         <app-folder-tile
           [folder]="folder"
           [isCurrent]="folder.id === currentFolderId()"
+          [selected]="selectedFolderIds().has(folder.id)"
           (open)="openFolder.emit($event)"
+          (selectionChange)="folderSelectionChange.emit({ id: folder.id, selected: $event })"
           (download)="downloadFolder.emit($event)"
           (openWorkspace)="openWorkspace.emit($event)"
           (rename)="renameFolder.emit($event)"
@@ -26,7 +28,9 @@ import { FolderTile } from '../folder-tile/folder-tile';
       @for (document of documents(); track document.id) {
         <app-document-tile
           [document]="document"
+          [selected]="selectedDocumentIds().has(document.id)"
           (open)="openDocument.emit(document)"
+          (selectionChange)="documentSelectionChange.emit({ id: document.id, selected: $event })"
           (download)="downloadDocument.emit($event)"
           (delete)="deleteDocument.emit($event)"
           (restore)="restoreDocument.emit($event)"
@@ -38,15 +42,16 @@ import { FolderTile } from '../folder-tile/folder-tile';
     `
       .tile-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: 12px;
         align-content: start;
       }
       :host ::ng-deep .tile {
-        display: flex;
-        gap: 10px;
-        align-items: stretch;
-        padding: 10px;
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
         border: 1px solid var(--border, #e2e8f0);
         border-radius: 10px;
         background: #ffffff;
@@ -64,6 +69,10 @@ import { FolderTile } from '../folder-tile/folder-tile';
         border-color: var(--accent, #10b981);
         background: #f4fbf8;
       }
+      :host ::ng-deep .tile--selected {
+        border-color: var(--accent, #10b981);
+        background: #ecfdf5;
+      }
     `,
   ],
 })
@@ -71,12 +80,16 @@ export class TileGrid {
   readonly folders = input<FolderSummary[]>([]);
   readonly documents = input<KnowledgeItemSummary[]>([]);
   readonly currentFolderId = input<string | null>(null);
+  readonly selectedFolderIds = input<ReadonlySet<string>>(new Set());
+  readonly selectedDocumentIds = input<ReadonlySet<string>>(new Set());
   readonly openFolder = output<string>();
+  readonly folderSelectionChange = output<{ id: string; selected: boolean }>();
   readonly openWorkspace = output<string>();
   readonly renameFolder = output<string>();
   readonly deleteFolder = output<string>();
   readonly restoreFolder = output<string>();
   readonly openDocument = output<KnowledgeItemSummary>();
+  readonly documentSelectionChange = output<{ id: string; selected: boolean }>();
   readonly downloadDocument = output<string>();
   readonly downloadFolder = output<string>();
   readonly moveDocumentToFolder = output<{ documentId: string; folderId: string }>();

@@ -1,4 +1,4 @@
-<section class="workspace-page">
+<section class="workspace-page" [class.workspace-page--workspace]="workspace.isWorkspaceMode()">
   @if (workspace.isWorkspaceMode()) {
     <!-- Workspace mode: the folder tree lives in the AppShell's workspace-mode
          panel (left); this pane renders the document list of the selected
@@ -209,7 +209,7 @@
         @for (project of projects(); track project.id) {
           <option [value]="project.id">{{ project.name }}</option>
         }
-      </select>
+        </select>
       }
       <button
         type="button"
@@ -330,7 +330,20 @@
     />
   } @else {
     @if (!workspace.isWorkspaceMode()) {
-      <label class="show-archived"><input type="checkbox" [checked]="showArchived()" (change)="toggleShowArchived()" /> Show archived</label>
+      <div class="browse-selection-actions">
+        <label class="show-archived"><input type="checkbox" [checked]="showArchived()" (change)="toggleShowArchived()" /> Show archived</label>
+        <button
+          type="button"
+          class="ghost browse-selection-actions__download"
+          data-testid="download-selected"
+          [disabled]="!hasSelectedItems() || downloadingSelected()"
+          [attr.aria-label]="hasSelectedItems() ? 'Download ' + selectedItemCount() + ' selected items' : 'Select files or folders to download'"
+          title="Download selected"
+          (click)="downloadSelected()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m-4-4 4 4 4-4M5 19h14" /></svg>
+        </button>
+      </div>
     }
     @if (folders().length === 0 && documents().length === 0 && !hasMoreContent()) {
     <section class="browse-content browse-content--empty">
@@ -348,12 +361,16 @@
         [folders]="folders()"
         [documents]="documents()"
         [currentFolderId]="workspace.currentFolderId()"
+        [selectedFolderIds]="selectedFolderIds()"
+        [selectedDocumentIds]="selectedDocumentIds()"
         (openFolder)="openFolder($event)"
+        (folderSelectionChange)="setFolderSelected($event.id, $event.selected)"
         (openWorkspace)="openWorkspace($event)"
         (renameFolder)="openRenameFolder($event)"
         (deleteFolder)="confirmDeleteFolder($event)"
         (restoreFolder)="restoreFolder($event)"
         (openDocument)="openDocument($event)"
+        (documentSelectionChange)="setDocumentSelected($event.id, $event.selected)"
         (downloadDocument)="downloadDocument($event)"
         (downloadFolder)="downloadFolder($event)"
         (moveDocumentToFolder)="moveDocumentToFolder($event.documentId, $event.folderId)"
@@ -367,6 +384,7 @@
               class="document-list__row document-list__row--folder"
               role="listitem"
               [class.is-drop-target]="explorerDropTargetId() === folder.id"
+              [class.is-selected]="isFolderSelected(folder.id)"
               (click)="openFolder(folder.id)"
               (dragover)="onExplorerFolderDragOver($event)"
               (dragenter)="onExplorerFolderDragEnter($event, folder.id)"
@@ -374,6 +392,9 @@
               (drop)="onExplorerFolderDrop($event, folder.id)"
             >
               <div class="document-list__title">
+                <label class="document-list__selection" (pointerdown)="stopSelectionInteraction($event)" (click)="stopSelectionInteraction($event)">
+                  <input type="checkbox" draggable="false" [checked]="isFolderSelected(folder.id)" (click)="stopSelectionInteraction($event)" (change)="setFolderSelected(folder.id, $any($event.target).checked)" [attr.aria-label]="'Select folder ' + folder.name" />
+                </label>
                 <span class="document-list__icon document-list__icon--folder" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 10h18" /></svg>
                 </span>
@@ -396,8 +417,11 @@
             </article>
           }
           @for (document of documents(); track document.id) {
-            <article class="document-list__row" role="listitem" draggable="true" (dragstart)="onDocumentListDragStart($event, document.id)" (click)="openDocument(document)">
+            <article class="document-list__row" role="listitem" draggable="true" [class.is-selected]="isDocumentSelected(document.id)" (dragstart)="onDocumentListDragStart($event, document.id)" (click)="openDocument(document)">
               <div class="document-list__title">
+                <label class="document-list__selection" (pointerdown)="stopSelectionInteraction($event)" (click)="stopSelectionInteraction($event)">
+                  <input type="checkbox" draggable="false" [checked]="isDocumentSelected(document.id)" (click)="stopSelectionInteraction($event)" (change)="setDocumentSelected(document.id, $any($event.target).checked)" [attr.aria-label]="'Select document ' + document.title" />
+                </label>
                 <span class="document-list__icon document-list__icon--document" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z" /><path d="M15 2v6h5M9 13h6M9 17h4" /></svg>
                 </span>

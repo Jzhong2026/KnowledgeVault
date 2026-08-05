@@ -9,12 +9,16 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       class="tile tile--folder"
       [class.tile--current]="isCurrent()"
       [class.tile--drop-target]="isDropActive()"
+      [class.tile--selected]="selected()"
       (click)="open.emit(folder().id)"
       (dragover)="onDragOver($event)"
       (dragenter)="onDragEnter($event)"
       (dragleave)="onDragLeave($event)"
       (drop)="onDrop($event)"
     >
+      <label class="tile__selection" (pointerdown)="stopSelectionInteraction($event)" (click)="stopSelectionInteraction($event)">
+        <input type="checkbox" [checked]="selected()" (click)="stopSelectionInteraction($event)" (change)="onSelectionChange($event)" [attr.aria-label]="'Select folder ' + folder().name" />
+      </label>
       <div class="tile__icon tile__icon--folder" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -84,6 +88,21 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         place-items: center;
         border-radius: 8px;
       }
+      .tile__selection {
+        display: grid;
+        width: 24px;
+        height: 34px;
+        flex: 0 0 auto;
+        place-items: center;
+        cursor: pointer;
+      }
+      .tile__selection input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--accent, #10b981);
+        cursor: pointer;
+      }
       .tile__icon--folder {
         background: #fef3c7;
         color: #b45309;
@@ -125,18 +144,20 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       }
       .tile__actions {
         display: flex;
+        grid-column: 1 / -1;
+        justify-content: flex-end;
         gap: 4px;
-        flex: 0 0 auto;
-        max-width: 0;
+        width: 100%;
+        max-height: 0;
         overflow: hidden;
         opacity: 0;
         transition:
-          max-width 140ms ease,
+          max-height 140ms ease,
           opacity 120ms ease;
       }
       .tile--folder:hover .tile__actions,
       .tile--folder:focus-within .tile__actions {
-        max-width: 150px;
+        max-height: 30px;
         opacity: 1;
       }
       .tile__action {
@@ -174,7 +195,9 @@ import { FolderSummary } from '../../../../core/models/folder.models';
 export class FolderTile {
   readonly folder = input.required<FolderSummary>();
   readonly isCurrent = input(false);
+  readonly selected = input(false);
   readonly open = output<string>();
+  readonly selectionChange = output<boolean>();
   readonly download = output<string>();
   readonly openWorkspace = output<string>();
   readonly rename = output<string>();
@@ -184,6 +207,15 @@ export class FolderTile {
 
   private dragCounter = 0;
   readonly isDropActive = signal(false);
+
+  stopSelectionInteraction(event: Event): void {
+    event.stopPropagation();
+  }
+
+  onSelectionChange(event: Event): void {
+    event.stopPropagation();
+    this.selectionChange.emit((event.target as HTMLInputElement).checked);
+  }
 
   onDragOver(event: DragEvent): void {
     if (!event.dataTransfer) {

@@ -8,10 +8,14 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
     <article
       class="tile tile--document"
       draggable="true"
+      [class.tile--selected]="selected()"
       (click)="open.emit(document().id)"
       (dragstart)="onDragStart($event)"
       (dragend)="dragEnd.emit()"
     >
+      <label class="tile__selection" (pointerdown)="stopSelectionInteraction($event)" (click)="stopSelectionInteraction($event)">
+        <input type="checkbox" draggable="false" [checked]="selected()" (click)="stopSelectionInteraction($event)" (change)="onSelectionChange($event)" [attr.aria-label]="'Select document ' + document().title" />
+      </label>
       <div class="tile__icon tile__icon--document" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M6 2h9l5 5v15H6z" />
@@ -58,6 +62,21 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
         flex: 0 0 auto;
         place-items: center;
         border-radius: 8px;
+      }
+      .tile__selection {
+        display: grid;
+        width: 24px;
+        height: 34px;
+        flex: 0 0 auto;
+        place-items: center;
+        cursor: pointer;
+      }
+      .tile__selection input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: var(--accent, #10b981);
+        cursor: pointer;
       }
       .tile__icon--document {
         background: #dbeafe;
@@ -116,18 +135,20 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
       }
       .tile__actions {
         display: flex;
+        grid-column: 1 / -1;
+        justify-content: flex-end;
         gap: 4px;
-        flex: 0 0 auto;
-        max-width: 0;
+        width: 100%;
+        max-height: 0;
         overflow: hidden;
         opacity: 0;
         transition:
-          max-width 140ms ease,
+          max-height 140ms ease,
           opacity 120ms ease;
       }
       .tile--document:hover .tile__actions,
       .tile--document:focus-within .tile__actions {
-        max-width: 80px;
+        max-height: 30px;
         opacity: 1;
       }
       .tile__action {
@@ -164,7 +185,9 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
 })
 export class DocumentTile {
   readonly document = input.required<KnowledgeItemSummary>();
+  readonly selected = input(false);
   readonly open = output<string>();
+  readonly selectionChange = output<boolean>();
   readonly download = output<string>();
   readonly delete = output<string>();
   readonly restore = output<string>();
@@ -176,6 +199,15 @@ export class DocumentTile {
     if (!raw) return '';
     return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   });
+
+  stopSelectionInteraction(event: Event): void {
+    event.stopPropagation();
+  }
+
+  onSelectionChange(event: Event): void {
+    event.stopPropagation();
+    this.selectionChange.emit((event.target as HTMLInputElement).checked);
+  }
 
   onDragStart(event: DragEvent): void {
     const id = this.document().id;

@@ -10,6 +10,56 @@
   min-height: calc(100vh - 64px);
 }
 
+/* The app shell already provides a page frame. Pull the normal browse page
+   into it slightly so document lists and tiles do not carry a second wide
+   band of whitespace. */
+.workspace-page:not(.workspace-page--workspace) {
+  gap: 16px;
+  margin: -16px;
+  padding: 16px 18px 24px;
+}
+
+/* Workspace has its own app-shell panel and document canvas. Use a tighter
+   * frame than the normal browse page so the working area starts closer to
+   * the sidebar and top bar. */
+.workspace-page--workspace {
+  gap: 12px;
+  padding: 12px;
+}
+
+.workspace-page--workspace .workspace-pane {
+  min-height: calc(100vh - 112px);
+  border-radius: 10px;
+}
+
+.workspace-page--workspace .workspace-pane__toolbar {
+  padding: 8px 12px;
+}
+
+.workspace-page--workspace .workspace-tab {
+  padding: 8px 12px;
+}
+
+.workspace-page--workspace .workspace-shell__pane {
+  padding: 16px 18px;
+}
+
+.workspace-page--workspace .workspace-doc {
+  gap: 12px;
+}
+
+.workspace-page--workspace .workspace-document-layout {
+  gap: 16px;
+}
+
+.workspace-page--workspace .workspace-revision-rail {
+  padding-left: 14px;
+}
+
+.workspace-page--workspace .workspace-doc__head {
+  padding-bottom: 10px;
+}
+
 .show-archived {
   display: inline-flex;
   align-items: center;
@@ -17,6 +67,39 @@
   color: var(--muted, #64748b);
   font-size: 13px;
   font-weight: 700;
+}
+
+.browse-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.browse-selection-actions__download {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+}
+
+.browse-selection-actions__download svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.browse-selection-actions__download:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.browse-selection-actions__download:not(:disabled) {
+  cursor: pointer;
 }
 
 .page-heading {
@@ -345,9 +428,14 @@ button:disabled {
 
 .document-list__row {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(84px, auto)) minmax(105px, auto) auto;
+  /* Every row shares these tracks. Content-sized columns previously shifted
+     metadata whenever folder and document action sets had different widths. */
+  grid-template-columns: minmax(240px, 1fr) 110px 120px 105px 125px 300px;
   align-items: center;
   gap: 14px;
+}
+
+.document-list__row {
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 10px;
   cursor: pointer;
@@ -359,6 +447,11 @@ button:disabled {
 .document-list__row:hover {
   border-color: var(--accent, #10b981);
   background: #f8fffc;
+}
+
+.document-list__row.is-selected {
+  border-color: var(--accent, #10b981);
+  background: #ecfdf5;
 }
 
 .document-list__row--folder {
@@ -381,6 +474,28 @@ button:disabled {
   gap: 10px;
   min-width: 0;
   color: var(--text, #0f172a);
+}
+
+.document-list__selection {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.document-list__selection:hover {
+  background: #e6f7f0;
+}
+
+.document-list__selection input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent, #10b981);
+  cursor: pointer;
 }
 
 .document-list__copy {
@@ -427,7 +542,11 @@ button:disabled {
 
 .document-list__title small { color: var(--muted, #64748b); }
 
-.document-list__actions { display: flex; gap: 6px; }
+.document-list__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
 .document-list__actions button { padding: 6px 9px; font-size: 11px; }
 
 /* Load more row: appends more folders/documents without leaving the page.
