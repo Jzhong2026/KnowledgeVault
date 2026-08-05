@@ -253,10 +253,15 @@ export class KnowledgeDetailPage {
     };
 
     this.api.updateKnowledgeItem(item.id, payload).subscribe({
-      next: () => {
+      next: (updated) => {
         this.contentEditorOpen.set(false);
-        this.fullscreenDocumentOpen.set(false);
-        this.loadItem(item.id);
+        // Keep the full-screen reader mounted after a save. The update
+        // response is already the latest item, so a navigation-style reload
+        // (which previously dismissed the reader) is unnecessary.
+        this.item.set(updated);
+        this.viewingRevision.set(null);
+        this.loadRevisions(item.id);
+        this.loadComments(item.id);
       },
       error: (error) => this.error.set(getErrorMessage(error)),
       complete: () => this.contentEditorSaving.set(false),

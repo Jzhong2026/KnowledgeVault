@@ -68,8 +68,14 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['content']) {
+      const draftBeforeRefresh = this.draft;
       this.draft = this.content;
       this.lines = this.displayContent().split('\n');
+      // A successful save returns the submitted content through the parent.
+      // Stay in the full-screen workspace, but return it to read-only mode.
+      if (this.editing() && this.content === draftBeforeRefresh) {
+        this.editing.set(false);
+      }
     }
     if (changes['startEditing'] && this.startEditing && this.canEdit) this.beginEdit();
   }
@@ -90,9 +96,25 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
     this.saveContent.emit(this.draft);
   }
 
+  async cancelEdit(): Promise<void> {
+    if (this.saving) return;
+    if (this.hasUnsavedChanges()) {
+      const discard = await this.confirm.confirm({
+        title: 'Discard changes?',
+        message: 'You have unsaved content edits. Cancelling will lose them.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        intent: 'danger',
+      });
+      if (!discard) return;
+    }
+    this.draft = this.displayContent();
+    this.editing.set(false);
+  }
+
   async requestClose(): Promise<void> {
     if (this.saving) return;
-    if (this.editing() && this.draft !== this.content) {
+    if (this.editing() && this.hasUnsavedChanges()) {
       const discard = await this.confirm.confirm({
         title: 'Discard changes?',
         message: 'You have unsaved content edits. Closing will lose them.',
@@ -103,6 +125,10 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
       if (!discard) return;
     }
     this.closeWorkspace.emit();
+  }
+
+  private hasUnsavedChanges(): boolean {
+    return this.draft !== this.displayContent();
   }
 
   onSourceScroll(): void {

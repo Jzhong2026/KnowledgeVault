@@ -7,7 +7,10 @@
         <button type="button" [class.is-active]="theme() === 'dark'" (click)="setTheme('dark')">Dark</button>
       </div>
       @if (canEdit && !editing()) { <button type="button" class="fullscreen-document__edit" (click)="beginEdit()">Edit</button> }
-      @if (editing()) { <button type="button" class="fullscreen-document__save" [disabled]="saving" (click)="save()">{{ saving ? 'Saving...' : 'Save' }}</button> }
+      @if (editing()) {
+        <button type="button" class="fullscreen-document__cancel" [disabled]="saving" (click)="cancelEdit()">Cancel</button>
+        <button type="button" class="fullscreen-document__save" [disabled]="saving" (click)="save()">{{ saving ? 'Saving...' : 'Save' }}</button>
+      }
       <button type="button" class="fullscreen-document__close" [disabled]="saving" (click)="requestClose()">Close</button>
     </div>
   </header>

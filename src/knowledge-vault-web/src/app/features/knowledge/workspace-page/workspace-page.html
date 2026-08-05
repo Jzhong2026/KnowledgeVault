@@ -346,7 +346,14 @@
       </div>
     }
     @if (folders().length === 0 && documents().length === 0 && !hasMoreContent()) {
-    <section class="browse-content browse-content--empty">
+    <section
+      class="browse-content browse-content--empty"
+      [class.is-file-drop-target]="fileDropActive()"
+      (dragover)="onFileDragOver($event)"
+      (dragenter)="onFileDragEnter($event)"
+      (dragleave)="onFileDragLeave($event)"
+      (drop)="onFileDrop($event)"
+    >
       <app-empty-state
         [title]="workspace.isWorkspaceMode() ? 'This folder is empty' : 'No documents yet'"
         [message]="workspace.isWorkspaceMode()
@@ -355,7 +362,19 @@
       />
     </section>
     } @else {
-    <section class="browse-content">
+    <section
+      class="browse-content"
+      [class.is-file-drop-target]="fileDropActive()"
+      (dragover)="onFileDragOver($event)"
+      (dragenter)="onFileDragEnter($event)"
+      (dragleave)="onFileDragLeave($event)"
+      (drop)="onFileDrop($event)"
+    >
+      @if (fileDropActive()) {
+        <div class="browse-content__file-drop" aria-hidden="true">
+          Drop text files or folders to import
+        </div>
+      }
       @if (documentView() === 'tile') {
       <app-tile-grid
         [folders]="folders()"
@@ -561,6 +580,27 @@
         </div>
       </div>
     </div>
+  }
+
+  @if (importConflictOpen()) {
+    <div class="dialog-backdrop" (click)="cancelImportConflicts()">
+      <div class="dialog import-conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="import-conflict-title" (click)="$event.stopPropagation()">
+        <h3 id="import-conflict-title">Duplicate files found</h3>
+        <p class="dialog__message">
+          {{ importConflictCount() }} file{{ importConflictCount() === 1 ? '' : 's' }} already exist in the target folder structure.
+          Existing folders will be merged to preserve the imported hierarchy.
+        </p>
+        <div class="dialog__actions">
+          <button type="button" class="ghost" (click)="cancelImportConflicts()">Cancel</button>
+          <button type="button" class="ghost" (click)="resolveImportConflicts(false)">Ignore duplicates</button>
+          <button type="button" class="primary" (click)="resolveImportConflicts(true)">Overwrite files</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (importingFiles() || importProgress()) {
+    <p class="workspace-import-status" role="status">{{ importProgress() ?? 'Importing files…' }}</p>
   }
 
   @if (renameFolderOpen()) {

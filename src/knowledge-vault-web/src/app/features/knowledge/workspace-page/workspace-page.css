@@ -404,6 +404,7 @@ button:disabled {
    vertical space below the page heading/breadcrumb — see
    .workspace-page { min-height } below. */
 .browse-content {
+  position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border, #e2e8f0);
@@ -414,10 +415,47 @@ button:disabled {
   min-height: 100%;
 }
 
+.browse-content.is-file-drop-target {
+  border-color: var(--accent, #10b981);
+  background: #f0fdf8;
+  box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+
+.browse-content__file-drop {
+  position: absolute;
+  z-index: 2;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent, #10b981);
+  border-radius: 10px;
+  background: rgba(240, 253, 248, 0.94);
+  color: var(--accent-strong, #0f9d76);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
 .browse-content--empty {
   display: grid;
   place-items: center;
   min-height: 240px;
+}
+
+.workspace-import-status {
+  position: fixed;
+  z-index: 20;
+  right: 24px;
+  bottom: 24px;
+  margin: 0;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  background: #ecfdf5;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  color: #047857;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
 }
 
 .document-list {

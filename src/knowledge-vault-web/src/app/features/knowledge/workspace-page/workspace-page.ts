@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { DatePipe, LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -18,7 +18,7 @@ import {
   SaveDocumentRequest,
   Tag,
 } from '../../../core/models/knowledge.models';
-import { FolderSummary, FolderTreeNode } from '../../../core/models/folder.models';
+import { FolderContent, FolderContentPage, FolderSummary, FolderTreeNode } from '../../../core/models/folder.models';
 import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.models';
 import {
   BreadcrumbNode,
@@ -78,7 +78,6 @@ interface ImportedTextFile {
 
 interface ImportTarget {
   file: ImportedTextFile;
-  folderId: string | null;
   existingDocument?: KnowledgeItemSummary;
 }
 
@@ -1223,9 +1222,17 @@ export class WorkspacePage implements OnDestroy {
     };
 
     this.api.updateKnowledgeItem(item.id, payload).subscribe({
-      next: () => {
+      next: (updated) => {
         this.activeDocumentContentEditorOpen.set(false);
-        this.loadActiveDocument(item.id);
+        // Do not use loadActiveDocument here: that is the tab-navigation
+        // refresh path and deliberately closes the full-screen workspace.
+        // The update endpoint already returns the complete latest document.
+        this.activeDocument.set(updated);
+        this.activeDocumentRevision.set(null);
+        this.api.listRevisions(item.id).subscribe({
+          next: (result) => this.activeDocumentRevisions.set(result.items),
+          error: () => this.activeDocumentRevisions.set([]),
+        });
         this.loadContent(this.workspace.current(), 1, false);
       },
       error: (err: unknown) => this.activeDocumentError.set(getErrorMessage(err)),
@@ -1367,6 +1374,312 @@ export class WorkspacePage implements OnDestroy {
     const writable = await file.createWritable();
     await writable.write(blob);
     await writable.close();
+  }
+
+  onFileDragOver(event: DragEvent): void {
+    if (!this.hasExternalFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'copy';
+  }
+
+  onFileDragEnter(event: DragEvent): void {
+    if (!this.hasExternalFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.fileDropActive.set(true);
+  }
+
+  onFileDragLeave(event: DragEvent): void {
+    if (event.currentTarget === event.target) {
+      this.fileDropActive.set(false);
+    }
+  }
+
+  async onFileDrop(event: DragEvent): Promise<void> {
+    if (!this.hasExternalFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.fileDropActive.set(false);
+    await this.importDroppedFiles(event.dataTransfer!);
+  }
+
+  /** The browser otherwise treats a file dropped just outside a tile/card as
+   * a navigation request and replaces the application with file:/// content. */
+  @HostListener('window:dragover', ['$event'])
+  onWindowFileDragOver(event: DragEvent): void {
+    if (this.hasExternalFiles(event)) {
+      event.preventDefault();
+    }
+  }
+
+  @HostListener('window:drop', ['$event'])
+  async onWindowFileDrop(event: DragEvent): Promise<void> {
+    if (!this.hasExternalFiles(event) || event.defaultPrevented) {
+      return;
+    }
+    event.preventDefault();
+    this.fileDropActive.set(false);
+    await this.importDroppedFiles(event.dataTransfer!);
+  }
+
+  private async importDroppedFiles(dataTransfer: DataTransfer): Promise<void> {
+    if (!this.canCreate() || this.importingFiles()) {
+      return;
+    }
+
+    try {
+      const files = await this.readDroppedTextFiles(dataTransfer);
+      if (files.length === 0) {
+        this.error.set('Drop text files such as .md, .txt, .json, .csv, or a folder containing them.');
+        return;
+      }
+
+      const designCategory = this.categories().find((category) =>
+        !category.isArchived && category.name.trim().toLocaleLowerCase() === 'design');
+      if (!designCategory) {
+        this.error.set('The Design category is required before files can be imported.');
+        return;
+      }
+
+      this.importingFiles.set(true);
+      this.importProgress.set('Checking existing folders and documents…');
+      const targets = await this.prepareImportTargets(files);
+      this.pendingImportTargets = targets;
+      const conflicts = targets.filter((target) => target.existingDocument).length;
+      if (conflicts > 0) {
+        this.importConflictCount.set(conflicts);
+        this.importConflictOpen.set(true);
+        this.importingFiles.set(false);
+        this.importProgress.set(null);
+        return;
+      }
+
+      await this.executeImport(targets, false, designCategory.id);
+    } catch (err: unknown) {
+      this.error.set(getErrorMessage(err));
+      this.importingFiles.set(false);
+      this.importProgress.set(null);
+    }
+  }
+
+  async resolveImportConflicts(overwrite: boolean): Promise<void> {
+    const designCategory = this.categories().find((category) =>
+      !category.isArchived && category.name.trim().toLocaleLowerCase() === 'design');
+    this.importConflictOpen.set(false);
+    if (!designCategory) {
+      this.error.set('The Design category is required before files can be imported.');
+      return;
+    }
+    await this.executeImport(this.pendingImportTargets, overwrite, designCategory.id);
+  }
+
+  cancelImportConflicts(): void {
+    this.importConflictOpen.set(false);
+    this.pendingImportTargets = [];
+  }
+
+  private hasExternalFiles(event: DragEvent): boolean {
+    return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+  }
+
+  private async readDroppedTextFiles(dataTransfer: DataTransfer): Promise<ImportedTextFile[]> {
+    const possibleEntries: Array<WebkitEntry | null> = Array.from(dataTransfer.items ?? [])
+      .map((item): WebkitEntry | null =>
+        ((item as DataTransferItem & { webkitGetAsEntry?: () => unknown }).webkitGetAsEntry?.() as WebkitEntry | null) ?? null);
+    const entries = possibleEntries.filter((entry): entry is WebkitEntry => entry !== null);
+
+    const files = entries.length > 0
+      ? (await Promise.all(entries.map((entry) => this.readWebkitEntry(entry, [])))).flat()
+      : Array.from(dataTransfer.files).map((file) => ({ file, relativeDirectory: [] }));
+
+    return files.filter(({ file }) => this.isImportableTextFile(file));
+  }
+
+  private async readWebkitEntry(entry: WebkitEntry, parentPath: string[]): Promise<ImportedTextFile[]> {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
+      return [{ file, relativeDirectory: parentPath }];
+    }
+
+    const children = await this.readWebkitDirectory(entry);
+    const path = [...parentPath, entry.name];
+    return (await Promise.all(children.map((child) => this.readWebkitEntry(child, path)))).flat();
+  }
+
+  private async readWebkitDirectory(entry: WebkitDirectoryEntry): Promise<WebkitEntry[]> {
+    const reader = entry.createReader();
+    const entries: WebkitEntry[] = [];
+    while (true) {
+      const page = await new Promise<WebkitEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+      if (page.length === 0) {
+        return entries;
+      }
+      entries.push(...page);
+    }
+  }
+
+  private isImportableTextFile(file: File): boolean {
+    if (file.size > 5 * 1024 * 1024) {
+      return false;
+    }
+    if (file.type.startsWith('text/') || file.type === 'application/json') {
+      return true;
+    }
+    return new Set(['csv', 'html', 'htm', 'json', 'log', 'md', 'markdown', 'txt', 'xml', 'yaml', 'yml'])
+      .has(file.name.split('.').pop()?.toLocaleLowerCase() ?? '');
+  }
+
+  private async prepareImportTargets(files: ImportedTextFile[]): Promise<ImportTarget[]> {
+    const rootFolderId = this.workspace.current()
+      ? this.workspace.currentFolderId()
+      : this.browseFolderId();
+    const folderCache = new Map<string, { id: string | null; content: FolderContent | FolderContentPage }>();
+    const getContent = async (folderId: string | null) => {
+      const key = folderId ?? '__root__';
+      const cached = folderCache.get(key);
+      if (cached) {
+        return cached;
+      }
+      const content = await firstValueFrom(this.api.listFolderContent({
+        scope: this.workspaceScope,
+        projectId: this.projectId(),
+        parentFolderId: folderId,
+      }));
+      const value = { id: folderId, content };
+      folderCache.set(key, value);
+      return value;
+    };
+
+    const targets: ImportTarget[] = [];
+    for (const file of files) {
+      let parentId = rootFolderId;
+      let content = (await getContent(parentId)).content;
+      for (const segment of file.relativeDirectory) {
+        const folder = content.folders.find((candidate) =>
+          candidate.name.localeCompare(segment, undefined, { sensitivity: 'accent' }) === 0);
+        if (!folder) {
+          parentId = null;
+          break;
+        }
+        parentId = folder.id;
+        content = (await getContent(parentId)).content;
+      }
+      const existingDocument = parentId === null
+        ? undefined
+        : content.documents.find((document) =>
+          document.title.localeCompare(file.file.name, undefined, { sensitivity: 'accent' }) === 0);
+      targets.push({ file, existingDocument });
+    }
+    return targets;
+  }
+
+  private async executeImport(targets: ImportTarget[], overwrite: boolean, designCategoryId: string): Promise<void> {
+    this.importingFiles.set(true);
+    this.error.set(null);
+    const folderIds = new Map<string, string | null>();
+    const rootFolderId = this.workspace.current()
+      ? this.workspace.currentFolderId()
+      : this.browseFolderId();
+    folderIds.set('', rootFolderId);
+    let imported = 0;
+    let ignored = 0;
+
+    try {
+      for (const target of targets) {
+        this.importProgress.set(`Importing ${imported + ignored + 1} of ${targets.length}…`);
+        if (target.existingDocument && !overwrite) {
+          ignored++;
+          continue;
+        }
+
+        let parentId = rootFolderId;
+        const path: string[] = [];
+        for (const segment of target.file.relativeDirectory) {
+          path.push(segment);
+          const key = path.join('\u0000');
+          const cached = folderIds.get(key);
+          if (cached !== undefined) {
+            parentId = cached;
+            continue;
+          }
+          const existingContent = await firstValueFrom(this.api.listFolderContent({
+            scope: this.workspaceScope,
+            projectId: this.projectId(),
+            parentFolderId: parentId,
+          }));
+          const existingFolder = existingContent.folders.find((folder) =>
+            folder.name.localeCompare(segment, undefined, { sensitivity: 'accent' }) === 0);
+          if (existingFolder) {
+            parentId = existingFolder.id;
+          } else {
+            const created = await firstValueFrom(this.api.createFolder({
+              scope: this.workspaceScope,
+              projectId: this.isProjectScope ? this.projectId() : null,
+              parentFolderId: parentId,
+              name: segment,
+            }));
+            parentId = created.id;
+          }
+          folderIds.set(key, parentId);
+        }
+
+        const content = await target.file.file.text();
+        if (target.existingDocument && overwrite) {
+          const existing = await firstValueFrom(this.api.getKnowledgeItem(target.existingDocument.id));
+          await firstValueFrom(this.api.updateKnowledgeItem(existing.id, {
+            scope: existing.scope,
+            projectId: existing.projectId ?? null,
+            topicId: existing.topicId ?? null,
+            documentType: existing.documentType,
+            title: target.file.file.name,
+            content,
+            summary: existing.summary ?? null,
+            sourceUrl: existing.sourceUrl ?? null,
+            linkDisplayText: existing.linkDisplayText ?? null,
+            linkUrl: existing.linkUrl ?? null,
+            changeNote: 'Replaced by local file import.',
+            categoryId: designCategoryId,
+            status: 'Active',
+            tagIds: existing.tags.map((tag) => tag.id),
+            tagNames: [],
+            folderId: parentId,
+            expectedRevisionNumber: existing.currentRevisionNumber,
+          }));
+        } else {
+          await firstValueFrom(this.api.createKnowledgeItem({
+            scope: this.workspaceScope,
+            projectId: this.isProjectScope ? this.projectId() : null,
+            topicId: null,
+            documentType: 'General',
+            title: target.file.file.name,
+            content,
+            summary: null,
+            sourceUrl: null,
+            linkDisplayText: null,
+            linkUrl: null,
+            changeNote: 'Imported from local file.',
+            categoryId: designCategoryId,
+            status: 'Active',
+            tagIds: [],
+            tagNames: [],
+            folderId: parentId,
+          }));
+        }
+        imported++;
+      }
+      this.importProgress.set(`Imported ${imported} file${imported === 1 ? '' : 's'}${ignored ? `; ignored ${ignored} duplicate${ignored === 1 ? '' : 's'}` : ''}.`);
+      this.pendingImportTargets = [];
+      this.loadContent(this.workspace.current(), 1, false);
+    } catch (err: unknown) {
+      this.error.set(`Import stopped after ${imported} file${imported === 1 ? '' : 's'}: ${getErrorMessage(err)}`);
+    } finally {
+      this.importingFiles.set(false);
+    }
   }
 
   onBreadcrumbDragOver(event: DragEvent): void {
@@ -1671,12 +1984,14 @@ export class WorkspacePage implements OnDestroy {
     }
   }
 
-  private loadActiveDocument(documentId: string): void {
+  private loadActiveDocument(documentId: string, preserveFullscreen = false): void {
     this.activeDocumentLoading.set(true);
     this.activeDocumentError.set(null);
     this.activeDocumentRevision.set(null);
     this.activeDocumentContentEditorOpen.set(false);
-    this.fullscreenDocumentOpen.set(false);
+    if (!preserveFullscreen) {
+      this.fullscreenDocumentOpen.set(false);
+    }
     this.activeDocumentRevisions.set([]);
     this.resetActiveDocumentComments();
     this.api.getKnowledgeItem(documentId).subscribe({
