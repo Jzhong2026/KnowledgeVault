@@ -34,7 +34,9 @@ import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-dia
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
 import { ContentEditor } from '../components/content-editor/content-editor';
+import { FullscreenDocumentWorkspace } from '../components/fullscreen-document-workspace/fullscreen-document-workspace';
 import { TileGrid } from '../components/tile-grid/tile-grid';
+import { getDocumentContentKind } from '../../../shared/utils/document-content-kind';
 
 /** Page size used for the workspace "Load more" UI. Each click reveals
  *  this many more folders AND this many more documents. Backend clamps the
@@ -59,6 +61,7 @@ interface ProjectDocumentsPreference {
     EmptyState,
     KnowledgeEditor,
     ContentEditor,
+    FullscreenDocumentWorkspace,
     TileGrid,
     MarkdownContentPipe,
     MermaidDiagramsDirective,
@@ -203,6 +206,13 @@ export class WorkspacePage implements OnDestroy {
   readonly activeDocumentRevisionsCollapsed = signal(false);
   readonly activeDocumentContentEditorOpen = signal(false);
   readonly activeDocumentContentEditorSaving = signal(false);
+  /** The regular Workspace surface remains a rendered Markdown reading view.
+   *  This flag opens the focused source/preview workspace shown on demand. */
+  readonly fullscreenDocumentOpen = signal(false);
+  readonly fullscreenDocumentStartsEditing = signal(false);
+  readonly activeDocumentContent = computed(() =>
+    this.activeDocumentRevision()?.content || this.activeDocument()?.content || '',
+  );
   readonly workspaceContextMenu = signal<WorkspaceContextMenuRequest | null>(null);
 
   private readonly sub = new Subscription();
@@ -1041,11 +1051,20 @@ export class WorkspacePage implements OnDestroy {
     this.editorOpen.set(true);
   }
 
-  openActiveDocumentContentEditor(): void {
-    if (!this.activeDocument() || this.activeDocumentRevision()) {
-      return;
+  openActiveDocumentContentEditor(): void { this.openFullscreenDocument(true); }
+
+  openFullscreenDocument(startEditing = false): void {
+    if (this.activeDocument() && getDocumentContentKind(this.activeDocument()?.title) !== 'text') {
+      this.fullscreenDocumentOpen.set(true);
+      this.fullscreenDocumentStartsEditing.set(startEditing);
     }
-    this.activeDocumentContentEditorOpen.set(true);
+  }
+
+  isActiveDocumentFullscreenSupported(): boolean { return getDocumentContentKind(this.activeDocument()?.title) !== 'text'; }
+
+  closeFullscreenDocument(): void {
+    this.fullscreenDocumentOpen.set(false);
+    this.fullscreenDocumentStartsEditing.set(false);
   }
 
   closeActiveDocumentContentEditor(): void {
@@ -1436,6 +1455,7 @@ export class WorkspacePage implements OnDestroy {
     this.activeDocumentError.set(null);
     this.activeDocumentRevision.set(null);
     this.activeDocumentContentEditorOpen.set(false);
+    this.fullscreenDocumentOpen.set(false);
     this.activeDocumentRevisions.set([]);
     this.resetActiveDocumentComments();
     this.api.getKnowledgeItem(documentId).subscribe({

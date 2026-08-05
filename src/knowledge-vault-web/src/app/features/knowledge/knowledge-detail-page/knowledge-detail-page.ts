@@ -24,6 +24,8 @@ import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-dia
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
 import { ContentEditor } from '../components/content-editor/content-editor';
+import { getDocumentContentKind } from '../../../shared/utils/document-content-kind';
+import { FullscreenDocumentWorkspace } from '../components/fullscreen-document-workspace/fullscreen-document-workspace';
 
 @Component({
   selector: 'app-knowledge-detail-page',
@@ -32,6 +34,7 @@ import { ContentEditor } from '../components/content-editor/content-editor';
     FormsModule,
     KnowledgeEditor,
     ContentEditor,
+    FullscreenDocumentWorkspace,
     LoadingIndicator,
     MarkdownContentPipe,
     MermaidDiagramsDirective,
@@ -91,6 +94,9 @@ export class KnowledgeDetailPage {
   readonly editorTopics = signal<ProjectTopic[]>([]);
   readonly contentEditorOpen = signal(false);
   readonly contentEditorSaving = signal(false);
+  readonly fullscreenDocumentOpen = signal(false);
+  readonly fullscreenDocumentStartsEditing = signal(false);
+  readonly displayedContent = computed(() => this.viewingRevision()?.content ?? this.item()?.content ?? '');
   private currentItemId: string | null = null;
 
   constructor() {
@@ -200,15 +206,24 @@ export class KnowledgeDetailPage {
     this.revisionsCollapsed.update((collapsed) => !collapsed);
   }
 
-  openContentEditor(): void {
-    if (!this.item() || this.viewingRevision()) {
-      return;
-    }
-    this.contentEditorOpen.set(true);
-  }
+  openContentEditor(): void { this.openFullscreenDocument(true); }
 
   closeContentEditor(): void {
     this.contentEditorOpen.set(false);
+  }
+
+  openFullscreenDocument(startEditing = false): void {
+    if (this.item() && getDocumentContentKind(this.item()?.title) !== 'text') {
+      this.fullscreenDocumentOpen.set(true);
+      this.fullscreenDocumentStartsEditing.set(startEditing);
+    }
+  }
+
+  isFullscreenSupported(): boolean { return getDocumentContentKind(this.item()?.title) !== 'text'; }
+
+  closeFullscreenDocument(): void {
+    this.fullscreenDocumentOpen.set(false);
+    this.fullscreenDocumentStartsEditing.set(false);
   }
 
   saveContent(content: string): void {
@@ -240,6 +255,7 @@ export class KnowledgeDetailPage {
     this.api.updateKnowledgeItem(item.id, payload).subscribe({
       next: () => {
         this.contentEditorOpen.set(false);
+        this.fullscreenDocumentOpen.set(false);
         this.loadItem(item.id);
       },
       error: (error) => this.error.set(getErrorMessage(error)),

@@ -1,0 +1,26 @@
+<section class="fullscreen-document" [class.fullscreen-document--dark]="theme() === 'dark'" role="dialog" aria-modal="true" [attr.aria-label]="title + ' full-screen document view'">
+  <header class="fullscreen-document__topbar">
+    <div class="fullscreen-document__identity"><strong>{{ title }}</strong><span>{{ revisionLabel }}</span></div>
+    <div class="fullscreen-document__actions">
+      <div class="fullscreen-document__theme" aria-label="Color theme">
+        <button type="button" [class.is-active]="theme() === 'light'" (click)="setTheme('light')">Light</button>
+        <button type="button" [class.is-active]="theme() === 'dark'" (click)="setTheme('dark')">Dark</button>
+      </div>
+      @if (canEdit && !editing()) { <button type="button" class="fullscreen-document__edit" (click)="beginEdit()">Edit</button> }
+      @if (editing()) { <button type="button" class="fullscreen-document__save" [disabled]="saving" (click)="save()">{{ saving ? 'Saving...' : 'Save' }}</button> }
+      <button type="button" class="fullscreen-document__close" [disabled]="saving" (click)="requestClose()">Close</button>
+    </div>
+  </header>
+  <div class="fullscreen-document__modebar"><span>{{ contentKind === 'json' ? 'Formatted JSON' : 'Markdown source' }}</span><span>{{ contentKind === 'json' ? 'JSON view' : 'Live preview' }}</span></div>
+  <div class="fullscreen-document__panes" [style.--source-width]="sourceWidth() + '%'">
+    @if (editing()) {
+      <textarea #sourceEditorEl class="fullscreen-document__editor" [(ngModel)]="draft" (scroll)="onSourceScroll()" [disabled]="saving" aria-label="Markdown source"></textarea>
+    } @else {
+      <div #sourceViewEl class="fullscreen-document__source" (scroll)="onSourceScroll()" aria-label="Markdown source">
+        @for (line of lines; track $index) { <div class="fullscreen-document__source-line"><span>{{ $index + 1 }}</span><code>{{ line || ' ' }}</code></div> }
+      </div>
+    }
+    <div class="fullscreen-document__divider" role="separator" aria-orientation="vertical" (pointerdown)="onDividerPointerDown($event)"></div>
+    @if (contentKind === 'json') { <pre #previewEl class="fullscreen-document__preview" (scroll)="onPreviewScroll()">{{ editing() ? draft : displayContent() }}</pre> } @else { <div #previewEl class="fullscreen-document__preview markdown-body" (scroll)="onPreviewScroll()" [innerHTML]="(editing() ? draft : content) | markdownContent" [appMermaidDiagrams]="editing() ? draft : content"></div> }
+  </div>
+</section>

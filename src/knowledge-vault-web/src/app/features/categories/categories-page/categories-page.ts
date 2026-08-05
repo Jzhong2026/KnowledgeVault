@@ -46,10 +46,6 @@ export class CategoriesPage {
   }
 
   edit(category: Category): void {
-    if (category.isSystem) {
-      return;
-    }
-
     this.selected.set(category);
     this.form.reset({
       name: category.name,

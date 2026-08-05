@@ -46,12 +46,10 @@
                 <div class="workspace-doc__heading-row">
                   <h3 class="workspace-doc__title">{{ doc.title }}</h3>
                   <div class="workspace-doc__actions">
+                    @if (isActiveDocumentFullscreenSupported()) { <button type="button" class="ghost workspace-doc__edit" aria-label="Open full-screen source and preview" (click)="openFullscreenDocument()">Full screen</button> }
                     <button type="button" class="ghost workspace-doc__edit" (click)="copyActiveDocumentContent()">Copy</button>
                     @if (doc.documentType !== 'ProjectMemory') {
                       <button type="button" class="ghost workspace-doc__edit" [disabled]="saving()" (click)="editActiveDocument()">Edit</button>
-                      @if (!activeDocumentRevision()) {
-                        <button type="button" class="ghost workspace-doc__edit" (click)="openActiveDocumentContentEditor()">Edit content</button>
-                      }
                     }
                     @if (copyMessage()) {
                       <span class="workspace-doc__copy-message" role="status">{{ copyMessage() }}</span>
@@ -80,8 +78,8 @@
               } @else {
                 <div
                   class="workspace-doc__body markdown-body"
-                  [innerHTML]="(activeDocumentRevision()?.content || doc.content) | markdownContent"
-                  [appMermaidDiagrams]="activeDocumentRevision()?.content || doc.content"
+                  [innerHTML]="activeDocumentContent() | markdownContent"
+                  [appMermaidDiagrams]="activeDocumentContent()"
                 ></div>
               }
             </article>
@@ -176,6 +174,20 @@
         }
       </div>
     </div>
+
+    @if (fullscreenDocumentOpen() && activeDocument(); as fullscreenDoc) {
+      <app-fullscreen-document-workspace
+        [title]="fullscreenDoc.title"
+        [content]="activeDocumentContent()"
+        [contentKind]="fullscreenDoc.title.toLowerCase().endsWith('.json') ? 'json' : 'markdown'"
+        [revisionLabel]="activeDocumentRevision() ? 'Revision ' + activeDocumentRevision()?.revisionNumber : 'Latest'"
+        [canEdit]="fullscreenDoc.documentType !== 'ProjectMemory' && !activeDocumentRevision()"
+        [startEditing]="fullscreenDocumentStartsEditing()"
+        [saving]="activeDocumentContentEditorSaving()"
+        (closeWorkspace)="closeFullscreenDocument()"
+        (saveContent)="saveActiveDocumentContent($event)"
+      />
+    }
   } @else {
   <div class="page-heading">
     <div class="page-heading__text">

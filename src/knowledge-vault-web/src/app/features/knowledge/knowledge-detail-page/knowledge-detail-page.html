@@ -3,6 +3,7 @@
     <a [routerLink]="documentListRoute">{{ documentListLabel }}</a>
     <div class="detail-toolbar__actions">
       @if (item()) {
+        @if (isFullscreenSupported()) { <button type="button" class="copy-button" (click)="openFullscreenDocument()">Full screen</button> }
         @if (item()?.documentType !== 'ProjectMemory') {
           <button
             type="button"
@@ -16,9 +17,6 @@
             </svg>
             Edit
           </button>
-          @if (!viewingRevision()) {
-            <button type="button" class="copy-button" (click)="openContentEditor()">Edit content</button>
-          }
         }
         <button
           type="button"
@@ -368,5 +366,19 @@
     (closeDialog)="closeEditor()"
     (saveItem)="saveEdit($event)"
     (deleteItem)="deleteFromEditor()"
+  />
+}
+
+@if (fullscreenDocumentOpen() && item(); as fullscreenItem) {
+  <app-fullscreen-document-workspace
+    [title]="viewingRevision()?.title || fullscreenItem.title"
+    [content]="displayedContent()"
+    [contentKind]="fullscreenItem.title.toLowerCase().endsWith('.json') ? 'json' : 'markdown'"
+    [revisionLabel]="viewingRevision() ? 'Revision ' + viewingRevision()?.revisionNumber : 'Latest'"
+    [canEdit]="fullscreenItem.documentType !== 'ProjectMemory' && !viewingRevision()"
+    [startEditing]="fullscreenDocumentStartsEditing()"
+    [saving]="contentEditorSaving()"
+    (closeWorkspace)="closeFullscreenDocument()"
+    (saveContent)="saveContent($event)"
   />
 }

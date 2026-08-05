@@ -70,7 +70,6 @@ public sealed class CategoryProvider(
         currentUserContext.RequireUserId();
         var category = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
-        EnsureNotSystem(category);
         var name = RequestText.Require(request.Name, "Name", 128);
         await EnsureNameAvailableAsync(name, id, cancellationToken);
 
@@ -126,7 +125,7 @@ public sealed class CategoryProvider(
     {
         if (category.IsSystem)
         {
-            throw new ValidationException("System categories cannot be edited or deleted.");
+            throw new ValidationException("System categories cannot be deleted.");
         }
     }
 }
