@@ -14,7 +14,7 @@ namespace KnowledgeVault.Providers.AI;
 /// On any LLM failure, the router returns <see cref="IntentKind.GeneralQuestion"/>
 /// so the caller can still serve an answer via vector RAG.
 /// </summary>
-public sealed partial class IntentRouter : IIntentRouter
+public sealed class IntentRouter : IIntentRouter
 {
     private readonly ILLMProvider _llm;
     private readonly LlmOptions _options;

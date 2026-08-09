@@ -57,12 +57,15 @@ public sealed class ChatController(
     [HttpPost("admin/reindex")]
     public async Task<ActionResult<ReindexStatus>> Reindex(CancellationToken cancellationToken)
     {
-        if (reindex.GetStatusAsync(cancellationToken).Result.IsRunning)
+        var status = await reindex.GetStatusAsync(cancellationToken);
+        if (status.IsRunning)
         {
-            return Conflict(await reindex.GetStatusAsync(cancellationToken));
+            return Conflict(status);
         }
         // Fire-and-forget the actual work; the status endpoint reports progress.
-        _ = Task.Run(() => reindex.ReindexAllAsync(cancellationToken));
+        // Use CancellationToken.None so the background work survives after the
+        // HTTP response is sent and the request's aborted token fires.
+        _ = Task.Run(() => reindex.ReindexAllAsync(CancellationToken.None));
         return Accepted(await reindex.GetStatusAsync(cancellationToken));
     }
 
@@ -72,6 +75,14 @@ public sealed class ChatController(
         var projectsResult = await projects.ListAsync(
             new ProjectQuery(Search: null, IncludeArchived: false, FollowingOnly: true, Page: 1, PageSize: 100), ct);
         var allowed = projectsResult.Items.Select(p => p.Id).ToArray();
-        return new RetrievalScope(userId, projectId, allowed);
+
+        // Guard against cross-project data leakage: if the caller specifies a
+        // projectId they are not a member of, fall back to their full allowed
+        // set instead of searching inside the unauthorised project.
+        var effectiveProjectId = projectId.HasValue && allowed.Contains(projectId.Value)
+            ? projectId
+            : null;
+
+        return new RetrievalScope(userId, effectiveProjectId, allowed);
     }
 }

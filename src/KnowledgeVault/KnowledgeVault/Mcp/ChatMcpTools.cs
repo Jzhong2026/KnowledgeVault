@@ -32,8 +32,16 @@ public sealed class ChatMcpTools(
                 cancellationToken);
             var allowed = projectsResult.Items.Select(p => p.Id).ToArray();
             var parsedProjectId = McpArguments.OptionalGuid(projectId, nameof(projectId));
-            var scope = new RetrievalScope(currentUser.UserId, parsedProjectId, allowed);
-            var answer = await chat.AskAsync(new ChatRequest(message, parsedProjectId, null), scope, cancellationToken);
+
+            // Guard against cross-project data leakage: if the caller specifies
+            // a projectId they are not a member of, fall back to their full
+            // allowed set instead of searching inside the unauthorised project.
+            var effectiveProjectId = parsedProjectId.HasValue && allowed.Contains(parsedProjectId.Value)
+                ? parsedProjectId
+                : null;
+
+            var scope = new RetrievalScope(currentUser.UserId, effectiveProjectId, allowed);
+            var answer = await chat.AskAsync(new ChatRequest(message, effectiveProjectId, null), scope, cancellationToken);
             return McpJson.Serialize(answer);
         });
     }
@@ -42,7 +50,7 @@ public sealed class ChatMcpTools(
     [Description("Trigger a full reindex of the chatbot's knowledge base. Walks every document, revision, review, comment, and accepted memory candidate and rebuilds the vector store. Returns the reindex status.")]
     public Task<string> ReindexKnowledgeVault(CancellationToken cancellationToken = default)
     {
-        return ExecuteReadAsync(async services =>
+        return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
         {
             var reindex = services.GetRequiredService<IReindexService>();
             var status = await reindex.ReindexAllAsync(cancellationToken);

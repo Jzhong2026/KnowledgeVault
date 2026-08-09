@@ -138,20 +138,29 @@ public sealed class ChromaVectorStore : IVectorStore
         }
         var raw = await resp.Content.ReadFromJsonAsync<ChromaQueryResponse>(JsonOpts, cancellationToken);
         if (raw?.Ids is null || raw.Ids.Count == 0) return Array.Empty<VectorSearchResult>();
-        var results = new List<VectorSearchResult>(raw.Ids.Count);
-        for (var i = 0; i < raw.Ids.Count; i++)
+
+        // Chroma returns nested arrays (one inner list per query embedding).
+        // We always send exactly one embedding, so unwrap the first element.
+        var ids = raw.Ids[0];
+        if (ids.Count == 0) return Array.Empty<VectorSearchResult>();
+        var docs = raw.Documents is { Count: > 0 } ? raw.Documents[0] : new List<string?>();
+        var dists = raw.Distances is { Count: > 0 } ? raw.Distances[0] : new List<double>();
+        var metas = raw.Metadatas is { Count: > 0 } ? raw.Metadatas[0] : new List<JsonElement?>();
+
+        var results = new List<VectorSearchResult>(ids.Count);
+        for (var i = 0; i < ids.Count; i++)
         {
-            var id = raw.Ids[i];
-            var doc = raw.Documents is { Count: > 0 } ? raw.Documents[i] : string.Empty;
-            var score = raw.Distances is { Count: > 0 } ? raw.Distances[i] : 0d;
-            var meta = raw.Metadatas is { Count: > 0 } && raw.Metadatas[i] is { } m
+            var id = ids[i];
+            var doc = i < docs.Count ? (docs[i] ?? string.Empty) : string.Empty;
+            var score = i < dists.Count ? dists[i] : 0d;
+            var meta = i < metas.Count && metas[i] is { } m
                 ? ParseMetadata(m) : new Dictionary<string, string>();
             var src = Enum.TryParse<VectorSourceType>(meta.GetValueOrDefault("source", "Document"), out var s) ? s : VectorSourceType.Document;
             var projectId = Guid.TryParse(meta.GetValueOrDefault("project_id"), out var pid) ? pid : (Guid?)null;
             var ownerId = Guid.TryParse(meta.GetValueOrDefault("owner_user_id"), out var oid) ? oid : (Guid?)null;
             results.Add(new VectorSearchResult(
                 id, src, meta.GetValueOrDefault("source_id", string.Empty),
-                projectId, ownerId, doc ?? string.Empty, meta, score));
+                projectId, ownerId, doc, meta, score));
         }
         return results;
     }
@@ -243,23 +252,17 @@ public sealed class ChromaVectorStore : IVectorStore
         };
     }
 
-    private static Dictionary<string, object>? ToDict(object anon)
-    {
-        var json = JsonSerializer.Serialize(anon, JsonOpts);
-        return JsonSerializer.Deserialize<Dictionary<string, object>>(json, JsonOpts);
-    }
-
     // --- Chroma response DTOs (private) ---
 
     private sealed class ChromaQueryResponse
     {
         [JsonPropertyName("ids")]
-        public List<string>? Ids { get; set; }
+        public List<List<string>>? Ids { get; set; }
         [JsonPropertyName("documents")]
-        public List<string?>? Documents { get; set; }
+        public List<List<string?>>? Documents { get; set; }
         [JsonPropertyName("distances")]
-        public List<double>? Distances { get; set; }
+        public List<List<double>>? Distances { get; set; }
         [JsonPropertyName("metadatas")]
-        public List<JsonElement?>? Metadatas { get; set; }
+        public List<List<JsonElement?>>? Metadatas { get; set; }
     }
 }

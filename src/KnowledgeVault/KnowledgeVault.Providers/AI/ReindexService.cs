@@ -273,12 +273,9 @@ public sealed class ReindexService : IReindexService
             var slice = chunks.Skip(i).Take(batch).ToArray();
             var texts = slice.Select(c => c.Text).ToArray();
             var embeddings = await _embedder.EmbedBatchAsync(texts, ct);
-            for (var j = 0; j < slice.Length; j++)
-            {
-                var replaced = slice[j] with { Embedding = embeddings[j] };
-                chunks[i + j] = replaced;
-            }
-            await _vector.UpsertAsync(slice.Select((c, idx) => c with { Embedding = embeddings[idx] }).ToArray(), ct);
+            await _vector.UpsertAsync(
+                slice.Select((c, idx) => c with { Embedding = embeddings[idx] }).ToArray(),
+                ct);
         }
     }
 

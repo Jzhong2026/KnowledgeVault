@@ -51,9 +51,12 @@ public sealed class OpenAiCompatibleLlmProvider : ILLMProvider
         double? temperature = null,
         CancellationToken cancellationToken = default)
     {
-        var req = BuildRequest(messages, _options.ChatModel, temperature, stream: false);
         using var resp = await _pipeline.ExecuteAsync(async ct =>
-            await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, ct), cancellationToken);
+        {
+            // HttpRequestMessage is single-use; rebuild on each retry attempt.
+            var request = BuildRequest(messages, _options.ChatModel, temperature, stream: false);
+            return await _http.SendAsync(request, HttpCompletionOption.ResponseContentRead, ct);
+        }, cancellationToken);
         await EnsureSuccessAsync(resp, cancellationToken);
         var payload = await resp.Content.ReadFromJsonAsync<ChatCompletionResponse>(cancellationToken: cancellationToken);
         return payload?.Choices?.FirstOrDefault()?.Message?.Content ?? string.Empty;
@@ -64,9 +67,11 @@ public sealed class OpenAiCompatibleLlmProvider : ILLMProvider
         double? temperature = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var req = BuildRequest(messages, _options.ChatModel, temperature, stream: true);
         using var resp = await _pipeline.ExecuteAsync(async ct =>
-            await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct), cancellationToken);
+        {
+            var request = BuildRequest(messages, _options.ChatModel, temperature, stream: true);
+            return await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        }, cancellationToken);
         await EnsureSuccessAsync(resp, cancellationToken);
         await using var stream = await resp.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
@@ -98,9 +103,11 @@ public sealed class OpenAiCompatibleLlmProvider : ILLMProvider
         double? temperature = null,
         CancellationToken cancellationToken = default)
     {
-        var req = BuildRequest(messages, model, temperature, stream: false);
         using var resp = await _pipeline.ExecuteAsync(async ct =>
-            await _http.SendAsync(req, HttpCompletionOption.ResponseContentRead, ct), cancellationToken);
+        {
+            var request = BuildRequest(messages, model, temperature, stream: false);
+            return await _http.SendAsync(request, HttpCompletionOption.ResponseContentRead, ct);
+        }, cancellationToken);
         await EnsureSuccessAsync(resp, cancellationToken);
         var payload = await resp.Content.ReadFromJsonAsync<ChatCompletionResponse>(cancellationToken: cancellationToken);
         return payload?.Choices?.FirstOrDefault()?.Message?.Content ?? string.Empty;
