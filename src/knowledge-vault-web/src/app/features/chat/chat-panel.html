@@ -1,0 +1,49 @@
+<button class="chat-fab" type="button" (click)="toggle()" aria-label="Open chat">
+  <span aria-hidden="true">💬</span>
+</button>
+
+@if (isOpen()) {
+  <section class="chat-drawer" role="dialog" aria-label="Knowledge base chat">
+    <header class="chat-header">
+      <h2>Ask the knowledge base</h2>
+      <div class="chat-header-actions">
+        <button type="button" class="chat-icon-btn" (click)="clear()" title="Clear conversation">🗑</button>
+        <button type="button" class="chat-icon-btn" (click)="close()" title="Close">✕</button>
+      </div>
+    </header>
+    <div class="chat-body" #scrollHost>
+      @if (!hasMessages()) {
+        <p class="chat-empty">Try: "find the plan for the auth refactor story" or "show pending reviews for the API doc".</p>
+      }
+      @for (msg of messages(); track $index) {
+        <div class="chat-msg" [class.chat-msg-user]="msg.role === 'user'" [class.chat-msg-assistant]="msg.role === 'assistant'">
+          <div class="chat-bubble">{{ msg.text || '…' }}</div>
+          @if (msg.citations && msg.citations.length > 0) {
+            <ul class="chat-citations">
+              @for (c of msg.citations; track $index) {
+                <li>
+                  <span class="chat-citation-source">{{ c.source }}</span>
+                  <span class="chat-citation-title">{{ c.title }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+      @if (error(); as err) {
+        <p class="chat-error">{{ err }}</p>
+      }
+    </div>
+    <form class="chat-input-row" (submit)="$event.preventDefault(); send()">
+      <input
+        type="text"
+        class="chat-input"
+        [ngModel]="input()"
+        (ngModelChange)="input.set($event)"
+        [disabled]="isStreaming()"
+        placeholder="Ask a question…"
+        autocomplete="off" />
+      <button type="submit" class="chat-send" [disabled]="isStreaming() || !input().trim()">Send</button>
+    </form>
+  </section>
+}

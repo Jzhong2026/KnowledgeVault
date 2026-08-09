@@ -1,5 +1,8 @@
 using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Security;
+using KnowledgeVault.Infrastructure.AI;
+using KnowledgeVault.Infrastructure.Text;
+using KnowledgeVault.Providers.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KnowledgeVault.Providers.DependencyInjection;
@@ -30,6 +33,15 @@ public static class ProviderServiceCollectionExtensions
         services.AddScoped<IDocumentReviewProvider, DocumentReviewProvider>();
         services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
         services.AddSingleton<ILookupProvider, LookupProvider>();
+
+        // Chatbot pipeline. The vector store and the LLM/embedding providers
+        // are registered as singletons at the composition root in Program.cs
+        // because they wrap a single HttpClient each; everything here is scoped.
+        services.AddSingleton<MarkdownChunker>();
+        services.AddScoped<IIntentRouter, IntentRouter>();
+        services.AddScoped<IRetriever, Retriever>();
+        services.AddScoped<IReindexService, ReindexService>();
+        services.AddScoped<IChatService, ChatService>();
 
         return services;
     }

@@ -5,6 +5,7 @@ import { WorkspaceService } from '../../core/workspace/workspace.service';
 import { Sidebar } from '../sidebar/sidebar';
 import { Topbar } from '../topbar/topbar';
 import { WorkspaceMode } from '../workspace/workspace-mode/workspace-mode';
+import { ChatPanel } from '../../features/chat/chat-panel';
 
 /** Storage key for the user's preferred sidebar width. Persisting across
  *  sessions so users don't have to re-drag every time. */
@@ -19,7 +20,7 @@ const SIDEBAR_WIDTH_DEFAULT = 264;
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, Sidebar, Topbar, WorkspaceMode],
+  imports: [RouterOutlet, Sidebar, Topbar, WorkspaceMode, ChatPanel],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.css',
 })
