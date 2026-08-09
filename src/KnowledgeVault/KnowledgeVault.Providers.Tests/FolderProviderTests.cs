@@ -94,10 +94,22 @@ public sealed class FolderProviderTests : IAsyncLifetime
         _db.KnowledgeItems.Add(nonEmptyDoc);
         await _db.SaveChangesAsync();
 
-        await Folders().DeleteAsync(folderId, CancellationToken.None);
+        await Folders().ArchiveAsync(folderId, CancellationToken.None);
 
         Assert.True((await _db.Folders.SingleAsync()).IsArchived);
         Assert.Equal(KnowledgeItemStatus.Archived, (await _db.KnowledgeItems.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Empty_folder_can_be_deleted()
+    {
+        var folderId = Guid.NewGuid();
+        _db.Folders.Add(Seed.Folder(folderId, "F", DocumentScope.Personal, _userId, null));
+        await _db.SaveChangesAsync();
+
+        await Folders().DeleteAsync(folderId, CancellationToken.None);
+
+        Assert.True((await _db.Folders.SingleAsync()).IsArchived);
     }
 
     [Fact]

@@ -190,4 +190,24 @@ public sealed class DocumentMcpTools(
             return McpJson.Serialize(updated);
         });
     }
+
+    [McpServerTool]
+    [Description("Move a document into a different folder. Pass a null folderId to move the document to the workspace root (no folder).")]
+    public Task<string> MoveDocument(
+        [Description("Document id (Guid)")] string documentId,
+        [Description("Target folder id (Guid), or null/empty to move to the root")] string? folderId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
+        {
+            var provider = services.GetRequiredService<IDocumentProvider>();
+            var id = McpArguments.Guid(documentId, nameof(documentId));
+            await provider.MoveDocumentAsync(
+                id,
+                McpArguments.OptionalGuid(folderId, nameof(folderId)),
+                cancellationToken);
+            var current = await provider.GetForMcpAsync(id, cancellationToken);
+            return McpJson.Serialize(current);
+        });
+    }
 }
