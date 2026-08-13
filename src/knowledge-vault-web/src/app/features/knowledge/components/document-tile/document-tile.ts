@@ -29,6 +29,9 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
           <span class="tile__status-dot" [class]="'tile__status-dot--' + statusKey()"></span>
           <span class="tile__status-label">{{ statusLabel() }}</span>
         </div>
+        <div class="tile__creator" [title]="document().ownerDisplayName">
+          Creator: {{ document().ownerDisplayName }}
+        </div>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
         <button type="button" class="tile__action" title="Download" (click)="download.emit(document().id)">
@@ -132,6 +135,14 @@ import { KnowledgeItemSummary } from '../../../../core/models/knowledge.models';
       }
       .tile__status-dot--review {
         background: #6366f1;
+      }
+      .tile__creator {
+        margin-top: 2px;
+        overflow: hidden;
+        color: var(--muted, #64748b);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .tile__actions {
         display: flex;

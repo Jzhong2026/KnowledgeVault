@@ -22,6 +22,8 @@ public sealed class FoldersController(
         [FromQuery] Guid? projectId,
         [FromQuery] Guid? parentFolderId,
         [FromQuery] Guid? rootFolderId,
+        [FromQuery] string? search,
+        [FromQuery] Guid? ownerUserId,
         [FromQuery] bool includeArchived,
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
@@ -35,10 +37,11 @@ public sealed class FoldersController(
         {
             var paged = await folderProvider.GetContentPagedAsync(
                 scope, projectId, parentFolderId, rootFolderId, includeArchived,
+                search, ownerUserId,
                 page.Value, pageSize ?? 20, cancellationToken);
             return Ok(paged);
         }
-        var content = await folderProvider.GetContentAsync(scope, projectId, parentFolderId, rootFolderId, includeArchived, cancellationToken);
+        var content = await folderProvider.GetContentAsync(scope, projectId, parentFolderId, rootFolderId, includeArchived, search, ownerUserId, cancellationToken);
         return Ok(content);
     }
 
@@ -81,6 +84,8 @@ public sealed class FoldersController(
                 current.FolderId,
                 null,
                 true,
+                null,
+                null,
                 cancellationToken);
 
             foreach (var documentSummary in content.Documents)

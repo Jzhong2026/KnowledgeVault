@@ -183,6 +183,8 @@ export class ApiClient {
     projectId?: string | null;
     parentFolderId?: string | null;
     rootFolderId?: string | null;
+    search?: string | null;
+    ownerUserId?: string | null;
     page?: number;
     pageSize?: number;
     includeArchived?: boolean;
@@ -196,6 +198,12 @@ export class ApiClient {
     }
     if (query.rootFolderId) {
       params = params.set('rootFolderId', query.rootFolderId);
+    }
+    if (query.search) {
+      params = params.set('search', query.search);
+    }
+    if (query.ownerUserId) {
+      params = params.set('ownerUserId', query.ownerUserId);
     }
     if (query.page !== undefined) {
       params = params.set('page', query.page);

@@ -200,6 +200,19 @@
         <button type="button" [class.is-active]="documentView() === 'tile'" (click)="setDocumentView('tile')">Tiles</button>
         <button type="button" [class.is-active]="documentView() === 'list'" (click)="setDocumentView('list')">List</button>
       </div>
+      @if (isBrowseRoot()) {
+        <div class="root-name-filter">
+          <input
+            type="search"
+            aria-label="Filter folders and documents by name"
+            placeholder="Filter by name"
+            [ngModel]="rootNameFilter()"
+            (ngModelChange)="rootNameFilter.set($event)"
+            (keyup.enter)="applyRootNameFilter()"
+          />
+          <button type="button" class="ghost" (click)="applyRootNameFilter()">Filter</button>
+        </div>
+      }
       @if (isProjectScope && !browseFolderId()) {
         <select
           aria-label="Filter by project"
@@ -209,6 +222,18 @@
         @for (project of projects(); track project.id) {
           <option [value]="project.id">{{ project.name }}</option>
         }
+        </select>
+      }
+      @if (showCreatorFilter()) {
+        <select
+          aria-label="Filter by creator"
+          [ngModel]="creatorUserId() ?? ''"
+          (ngModelChange)="onCreatorFilterChange($event)"
+        >
+          <option value="">All creators</option>
+          @for (creator of creatorOptions(); track creator.id) {
+            <option [value]="creator.id">{{ creator.displayName }}</option>
+          }
         </select>
       }
       <button
@@ -421,6 +446,7 @@
               </div>
               <span>Folder</span>
               <span>{{ folder.documentCount }} documents</span>
+              <span aria-hidden="true">—</span>
               <span>{{ folder.childFolderCount }} folders</span>
               <span>{{ folder.isArchived ? 'Archived' : 'Active' }}</span>
               <div class="document-list__actions" (click)="$event.stopPropagation()">
@@ -448,6 +474,7 @@
               </div>
               <span>{{ document.documentType }}</span>
               <span>{{ document.status }}</span>
+              <span class="document-list__creator" [title]="document.ownerDisplayName">{{ document.ownerDisplayName }}</span>
               <span>Rev {{ document.currentRevisionNumber }}</span>
               <time [attr.datetime]="document.updatedAt || document.createdAt">{{ document.updatedAt || document.createdAt | date: 'mediumDate' }}</time>
               <div class="document-list__actions" (click)="$event.stopPropagation()">

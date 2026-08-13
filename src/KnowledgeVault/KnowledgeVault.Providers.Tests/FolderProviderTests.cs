@@ -116,6 +116,61 @@ public sealed class FolderProviderTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Paged_project_root_filters_documents_by_creator()
+    {
+        var projectId = Guid.NewGuid();
+        var myDocumentId = Guid.NewGuid();
+        var otherDocumentId = Guid.NewGuid();
+        _db.Projects.Add(Seed.Project(projectId, "P", _otherId));
+        _db.ProjectMembers.Add(Seed.Member(projectId, _userId, ProjectRole.Editor));
+        _db.KnowledgeItems.AddRange(
+            Seed.Document(myDocumentId, _userId, DocumentScope.Project, projectId, 1),
+            Seed.Document(otherDocumentId, _otherId, DocumentScope.Project, projectId, 1));
+        await _db.SaveChangesAsync();
+
+        var content = await Folders().GetContentPagedAsync(
+            DocumentScope.Project, projectId, null, null, false, null, _otherId, 1, 20, CancellationToken.None);
+
+        var document = Assert.Single(content.Documents);
+        Assert.Equal(otherDocumentId, document.Id);
+        Assert.Equal("other", document.OwnerDisplayName);
+        Assert.Equal(1, content.TotalDocumentCount);
+    }
+
+    [Fact]
+    public async Task Paged_root_name_filter_matches_folder_names_and_document_titles()
+    {
+        var matchingFolderId = Guid.NewGuid();
+        _db.Folders.AddRange(
+            Seed.Folder(matchingFolderId, "Match folder", DocumentScope.Personal, _userId, null),
+            Seed.Folder(Guid.NewGuid(), "Other folder", DocumentScope.Personal, _userId, null));
+
+        var matchingDocument = Seed.Document(Guid.NewGuid(), _userId, DocumentScope.Personal, null, 1);
+        var otherDocument = Seed.Document(Guid.NewGuid(), _userId, DocumentScope.Personal, null, 1);
+        _db.KnowledgeItems.AddRange(matchingDocument, otherDocument);
+        await _db.SaveChangesAsync();
+
+        var matchingRevision = Seed.Revision(Guid.NewGuid(), matchingDocument.Id, 1, _userId);
+        matchingRevision.Title = "Match document";
+        var otherRevision = Seed.Revision(Guid.NewGuid(), otherDocument.Id, 1, _userId);
+        otherRevision.Title = "Other document";
+        _db.KnowledgeItemRevisions.AddRange(matchingRevision, otherRevision);
+        await _db.SaveChangesAsync();
+
+        matchingDocument.CurrentRevisionId = matchingRevision.Id;
+        otherDocument.CurrentRevisionId = otherRevision.Id;
+        await _db.SaveChangesAsync();
+
+        var content = await Folders().GetContentPagedAsync(
+            DocumentScope.Personal, null, null, null, false, "Match", null, 1, 20, CancellationToken.None);
+
+        Assert.Equal(matchingFolderId, Assert.Single(content.Folders).Id);
+        Assert.Equal(matchingDocument.Id, Assert.Single(content.Documents).Id);
+        Assert.Equal(1, content.TotalFolderCount);
+        Assert.Equal(1, content.TotalDocumentCount);
+    }
+
+    [Fact]
     public async Task Tree_rooted_at_root_includes_direct_child_in_children()
     {
         var rootId = Guid.NewGuid();

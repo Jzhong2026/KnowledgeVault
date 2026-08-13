@@ -168,16 +168,18 @@
   color: var(--accent-strong, #0f9d76);
 }
 
-.page-actions select {
+.page-actions select,
+.root-name-filter input {
   min-height: 42px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 8px;
-  background: #ffffff;
   color: var(--text, #0f172a);
   font: inherit;
   font-size: 14px;
   padding: 0 12px;
 }
+
+.page-actions select { background: #ffffff; }
 
 .alert {
   margin: 0;
@@ -415,6 +417,21 @@ button:disabled {
   min-height: 100%;
 }
 
+.root-name-filter {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.root-name-filter input {
+  width: 190px;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+}
+
+.root-name-filter button {
+  border-radius: 0 8px 8px 0;
+}
+
 .browse-content.is-file-drop-target {
   border-color: var(--accent, #10b981);
   background: #f0fdf8;
@@ -468,7 +485,7 @@ button:disabled {
   display: grid;
   /* Every row shares these tracks. Content-sized columns previously shifted
      metadata whenever folder and document action sets had different widths. */
-  grid-template-columns: minmax(240px, 1fr) 110px 120px 105px 125px 300px;
+  grid-template-columns: minmax(220px, 1fr) 100px 100px 120px 90px 115px 260px;
   align-items: center;
   gap: 14px;
 }
@@ -579,6 +596,12 @@ button:disabled {
 }
 
 .document-list__title small { color: var(--muted, #64748b); }
+
+.document-list__creator {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .document-list__actions {
   display: flex;

@@ -11,6 +11,8 @@ public interface IFolderProvider
         Guid? parentFolderId,
         Guid? rootFolderId,
         bool includeArchived,
+        string? search,
+        Guid? ownerUserId,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -26,6 +28,8 @@ public interface IFolderProvider
         Guid? parentFolderId,
         Guid? rootFolderId,
         bool includeArchived,
+        string? search,
+        Guid? ownerUserId,
         int page,
         int pageSize,
         CancellationToken cancellationToken);

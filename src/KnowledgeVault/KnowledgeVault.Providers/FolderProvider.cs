@@ -29,7 +29,7 @@ public sealed class FolderProvider(
     public Task<FolderContentDto> GetContentAsync(
         DocumentScope? scope, Guid? projectId, Guid? parentFolderId, Guid? rootFolderId,
         CancellationToken cancellationToken) =>
-        GetContentAsync(scope, projectId, parentFolderId, rootFolderId, false, cancellationToken);
+        GetContentAsync(scope, projectId, parentFolderId, rootFolderId, false, null, null, cancellationToken);
 
     public async Task<FolderContentDto> GetContentAsync(
         DocumentScope? scope,
@@ -37,6 +37,8 @@ public sealed class FolderProvider(
         Guid? parentFolderId,
         Guid? rootFolderId,
         bool includeArchived,
+        string? search,
+        Guid? ownerUserId,
         CancellationToken cancellationToken)
     {
         var userId = currentUserContext.RequireUserId();
@@ -55,16 +57,36 @@ public sealed class FolderProvider(
         // tile grid does not need a client-side fallback. Folders and
         // documents are ordered separately because they live in different
         // tables and EF cannot mix them into a single ORDER BY.
-        var folders = await QueryAccessibleFolders(userId, scope, projectId)
+        search = RequestText.Optional(search, "search", 200);
+
+        var foldersQuery = QueryAccessibleFolders(userId, scope, projectId)
             .Where(f => includeArchived || !f.IsArchived)
-            .Where(f => f.ParentFolderId == parentFolderId)
+            .Where(f => f.ParentFolderId == parentFolderId);
+        if (search is not null)
+        {
+            foldersQuery = foldersQuery.Where(f => f.Name.Contains(search));
+        }
+
+        var folders = await foldersQuery
             .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.Name)
             .ToListAsync(cancellationToken);
 
-        var documents = await QueryAccessibleDocuments(userId, scope, projectId)
+        var documentsQuery = QueryAccessibleDocuments(userId, scope, projectId)
             .Where(x => x.Status != KnowledgeItemStatus.Deleted && (includeArchived || x.Status != KnowledgeItemStatus.Archived))
-            .Where(x => x.FolderId == parentFolderId)
+            .Where(x => x.FolderId == parentFolderId);
+
+        if (ownerUserId.HasValue)
+        {
+            documentsQuery = documentsQuery.Where(x => x.OwnerUserId == ownerUserId.Value);
+        }
+        if (search is not null)
+        {
+            documentsQuery = documentsQuery.Where(x =>
+                x.CurrentRevision != null && x.CurrentRevision.Title.Contains(search));
+        }
+
+        var documents = await documentsQuery
             .Include(x => x.OwnerUser)
             .Include(x => x.Project)
             .Include(x => x.Topic)
@@ -105,6 +127,8 @@ public sealed class FolderProvider(
         Guid? parentFolderId,
         Guid? rootFolderId,
         bool includeArchived,
+        string? search,
+        Guid? ownerUserId,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -112,6 +136,7 @@ public sealed class FolderProvider(
         var userId = currentUserContext.RequireUserId();
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
+        search = RequestText.Optional(search, "search", 200);
 
         if (rootFolderId.HasValue)
         {
@@ -125,12 +150,16 @@ public sealed class FolderProvider(
         // Folders page: ordered by CreatedAt DESC, name as tie-breaker.
         var foldersQuery = QueryAccessibleFolders(userId, scope, projectId)
             .Where(f => includeArchived || !f.IsArchived)
-            .Where(f => f.ParentFolderId == parentFolderId)
-            .OrderByDescending(f => f.CreatedAt)
-            .ThenBy(f => f.Name);
+            .Where(f => f.ParentFolderId == parentFolderId);
+        if (search is not null)
+        {
+            foldersQuery = foldersQuery.Where(f => f.Name.Contains(search));
+        }
 
         var totalFolderCount = await foldersQuery.CountAsync(cancellationToken);
         var folders = await foldersQuery
+            .OrderByDescending(f => f.CreatedAt)
+            .ThenBy(f => f.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -139,6 +168,16 @@ public sealed class FolderProvider(
         var documentsQuery = QueryAccessibleDocuments(userId, scope, projectId)
             .Where(x => x.Status != KnowledgeItemStatus.Deleted && (includeArchived || x.Status != KnowledgeItemStatus.Archived))
             .Where(x => x.FolderId == parentFolderId);
+
+        if (ownerUserId.HasValue)
+        {
+            documentsQuery = documentsQuery.Where(x => x.OwnerUserId == ownerUserId.Value);
+        }
+        if (search is not null)
+        {
+            documentsQuery = documentsQuery.Where(x =>
+                x.CurrentRevision != null && x.CurrentRevision.Title.Contains(search));
+        }
 
         var totalDocumentCount = await documentsQuery.CountAsync(cancellationToken);
         var documents = await documentsQuery

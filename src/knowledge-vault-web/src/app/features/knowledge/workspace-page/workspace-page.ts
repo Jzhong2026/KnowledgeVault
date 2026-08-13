@@ -11,6 +11,7 @@ import {
   Category,
   Comment,
   DocumentScope,
+  DocumentOwner,
   KnowledgeItem,
   KnowledgeItemSummary,
   Revision,
@@ -134,6 +135,10 @@ export class WorkspacePage implements OnDestroy {
   readonly error = signal<string | null>(null);
   readonly folders = signal<FolderSummary[]>([]);
   readonly documents = signal<KnowledgeItemSummary[]>([]);
+  readonly rootNameFilter = signal('');
+  readonly appliedRootNameFilter = signal('');
+  readonly creatorOptions = signal<DocumentOwner[]>([]);
+  readonly creatorUserId = signal<string | null>(null);
   readonly documentView = signal<'tile' | 'list'>('tile');
   readonly selectedFolderIds = signal<ReadonlySet<string>>(new Set());
   readonly selectedDocumentIds = signal<ReadonlySet<string>>(new Set());
@@ -166,6 +171,10 @@ export class WorkspacePage implements OnDestroy {
   readonly hasFollowedProjects = computed(() => this.projects().length > 0);
   readonly noFollowedProjects = computed(() => this.isProjectScope && this.projects().length === 0);
   readonly canCreate = computed(() => !this.isProjectScope || this.hasFollowedProjects());
+  readonly isBrowseRoot = computed(() => !this.workspace.isWorkspaceMode() && !this.browseFolderId());
+  readonly showCreatorFilter = computed(() =>
+    this.isProjectScope && !!this.projectId() && this.isBrowseRoot(),
+  );
   readonly selectedItemCount = computed(() => this.selectedFolderIds().size + this.selectedDocumentIds().size);
   readonly hasSelectedItems = computed(() => this.selectedItemCount() > 0);
   private pendingImportTargets: ImportTarget[] = [];
@@ -330,6 +339,37 @@ export class WorkspacePage implements OnDestroy {
       this.loadContent(state, 1, /*append*/ false);
     });
 
+    effect((onCleanup) => {
+      const projectId = this.projectId();
+      if (!this.isBrowseRoot()) {
+        this.rootNameFilter.set('');
+        this.appliedRootNameFilter.set('');
+      }
+      if (!this.showCreatorFilter() || !projectId) {
+        this.creatorOptions.set([]);
+        this.creatorUserId.set(null);
+        return;
+      }
+
+      const subscription = this.api.listDocumentOwners(projectId).subscribe({
+        next: (owners) => {
+          const currentUserId = this.auth.currentUser()?.id;
+          this.creatorOptions.set([...owners].sort((left, right) => {
+            if (currentUserId) {
+              if (left.id === currentUserId) return -1;
+              if (right.id === currentUserId) return 1;
+            }
+            return left.displayName.localeCompare(right.displayName);
+          }));
+          if (this.creatorUserId() && !owners.some((owner) => owner.id === this.creatorUserId())) {
+            this.creatorUserId.set(null);
+          }
+        },
+        error: () => this.creatorOptions.set([]),
+      });
+      onCleanup(() => subscription.unsubscribe());
+    });
+
     // Whenever the active tab changes, fetch the corresponding document.
     effect(() => {
       const tab = this.workspace.activeTab();
@@ -429,6 +469,8 @@ export class WorkspacePage implements OnDestroy {
       projectId: this.projectId() ?? null,
       parentFolderId,
       rootFolderId,
+      search: this.isBrowseRoot() ? this.appliedRootNameFilter() : null,
+      ownerUserId: this.showCreatorFilter() ? this.creatorUserId() : null,
       page,
       pageSize: FOLDER_CONTENT_PAGE_SIZE,
       includeArchived: inWorkspace || this.showArchived(),
@@ -842,6 +884,7 @@ export class WorkspacePage implements OnDestroy {
 
   onProjectChange(projectId: string): void {
     this.preferenceResolved = true;
+    this.creatorUserId.set(null);
     this.resetBrowseBreadcrumb();
     void this.router.navigate([], {
       relativeTo: this.route,
@@ -1119,6 +1162,14 @@ export class WorkspacePage implements OnDestroy {
       this.fullscreenDocumentOpen.set(true);
       this.fullscreenDocumentStartsEditing.set(startEditing);
     }
+  }
+
+  onCreatorFilterChange(ownerUserId: string): void {
+    this.creatorUserId.set(ownerUserId || null);
+  }
+
+  applyRootNameFilter(): void {
+    this.appliedRootNameFilter.set(this.rootNameFilter().trim());
   }
 
   isFolderSelected(folderId: string): boolean {
