@@ -51,11 +51,7 @@
 
     <div class="article-body">
       @if (hasContent()) {
-        <div
-          class="markdown-body markdown-body--wide"
-          [innerHTML]="item.content | markdownContent"
-          [appMermaidDiagrams]="item.content"
-        ></div>
+        <app-document-content-viewer [title]="item.title" [content]="item.content" [wide]="true" />
       } @else {
         <p class="empty-content">No content has been added yet.</p>
       }

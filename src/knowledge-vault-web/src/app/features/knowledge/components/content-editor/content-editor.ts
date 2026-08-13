@@ -19,6 +19,12 @@ import { FormsModule } from '@angular/forms';
 import { MermaidDiagramsDirective } from '../../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../../shared/pipes/markdown-content.pipe';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm-dialog';
+import {
+  DocumentContentKind,
+  formatJsonContent,
+  getDocumentPreviewLabel,
+  getDocumentSourceLabel,
+} from '../../../../shared/utils/document-content-kind';
 
 @Component({
   selector: 'app-content-editor',
@@ -28,6 +34,7 @@ import { ConfirmService } from '../../../../shared/components/confirm-dialog/con
 })
 export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
   @Input() content = '';
+  @Input() contentKind: DocumentContentKind = 'markdown';
   @Input() saving = false;
 
   @Output() cancelEdit = new EventEmitter<void>();
@@ -66,6 +73,18 @@ export class ContentEditor implements OnChanges, AfterViewInit, OnDestroy {
 
   save(): void {
     this.saveContent.emit(this.draft);
+  }
+
+  previewContent(): string {
+    return this.contentKind === 'json' ? formatJsonContent(this.draft) : this.draft;
+  }
+
+  previewLabel(): string {
+    return getDocumentPreviewLabel(this.contentKind, 'editor');
+  }
+
+  sourceLabel(): string {
+    return getDocumentSourceLabel(this.contentKind);
   }
 
   async requestClose(): Promise<void> {

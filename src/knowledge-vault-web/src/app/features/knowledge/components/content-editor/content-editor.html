@@ -9,7 +9,7 @@
     <div class="content-editor__head">
       <div>
         <h2 id="content-editor-title">Edit content</h2>
-        <p>Preview updates as you edit the Markdown source.</p>
+        <p>Preview updates as you edit the {{ contentKind === 'markdown' ? 'Markdown' : contentKind === 'json' ? 'JSON' : 'plain text' }} source.</p>
       </div>
       <div class="content-editor__actions">
         <button type="button" class="ghost" [disabled]="saving" (click)="requestClose()">Cancel</button>
@@ -21,14 +21,18 @@
     </div>
 
     <div class="content-editor__panes" [style.--preview-width]="previewWidth() + '%'">
-      <section class="content-editor__pane content-editor__pane--preview" aria-label="Markdown preview">
+      <section class="content-editor__pane content-editor__pane--preview" [attr.aria-label]="previewLabel()">
         <span>Preview</span>
-        <div
-          #previewEl
-          class="content-editor__preview markdown-body"
-          [innerHTML]="draft | markdownContent"
-          [appMermaidDiagrams]="draft"
-        ></div>
+        @if (contentKind === 'markdown') {
+          <div
+            #previewEl
+            class="content-editor__preview markdown-body"
+            [innerHTML]="draft | markdownContent"
+            [appMermaidDiagrams]="draft"
+          ></div>
+        } @else {
+          <pre #previewEl class="content-editor__preview content-editor__preview--plain">{{ previewContent() }}</pre>
+        }
       </section>
       <div
         class="content-editor__divider"
@@ -38,7 +42,7 @@
         (pointerdown)="onDividerPointerDown($event)"
       ></div>
       <label class="content-editor__pane content-editor__pane--source">
-        <span>Markdown source</span>
+        <span>{{ sourceLabel() }}</span>
         <textarea
           #sourceEl
           [(ngModel)]="draft"
@@ -47,7 +51,7 @@
           (keyup)="syncPreviewToCaret()"
           (scroll)="onSourceScroll()"
           [disabled]="saving"
-          aria-label="Markdown source"
+          [attr.aria-label]="sourceLabel()"
         ></textarea>
       </label>
     </div>

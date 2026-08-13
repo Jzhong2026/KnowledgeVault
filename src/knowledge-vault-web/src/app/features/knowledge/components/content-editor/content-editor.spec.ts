@@ -25,6 +25,36 @@ describe('ContentEditor', () => {
     expect(fixture.nativeElement.querySelector('.content-editor__preview h1')?.textContent).toBe('Updated');
   });
 
+  it('renders plain text without interpreting Markdown syntax', async () => {
+    await TestBed.configureTestingModule({ imports: [ContentEditor] }).compileComponents();
+
+    const fixture = TestBed.createComponent(ContentEditor);
+    fixture.componentRef.setInput('content', '# Literal text\n  indented');
+    fixture.componentRef.setInput('contentKind', 'text');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.content-editor__preview h1')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.content-editor__preview')?.textContent)
+      .toBe('# Literal text\n  indented');
+  });
+
+  it('formats JSON in the preview but emits the original draft on save', async () => {
+    await TestBed.configureTestingModule({ imports: [ContentEditor] }).compileComponents();
+
+    const fixture = TestBed.createComponent(ContentEditor);
+    const content = '{"name":"vault"}';
+    fixture.componentRef.setInput('content', content);
+    fixture.componentRef.setInput('contentKind', 'json');
+    fixture.detectChanges();
+    const saved = vi.fn();
+    fixture.componentInstance.saveContent.subscribe(saved);
+
+    expect(fixture.nativeElement.querySelector('.content-editor__preview')?.textContent)
+      .toContain('\n  "name": "vault"');
+    fixture.componentInstance.save();
+    expect(saved).toHaveBeenCalledWith(content);
+  });
+
   it('asks via ConfirmService before discarding changed content', async () => {
     await TestBed.configureTestingModule({
       imports: [ContentEditor, ConfirmDialogHost],

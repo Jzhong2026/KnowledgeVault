@@ -17,7 +17,12 @@ import { FormsModule } from '@angular/forms';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm-dialog';
 import { MermaidDiagramsDirective } from '../../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../../shared/pipes/markdown-content.pipe';
-import { DocumentContentKind, formatJsonContent } from '../../../../shared/utils/document-content-kind';
+import {
+  DocumentContentKind,
+  formatJsonContent,
+  getDocumentPreviewLabel,
+  getDocumentSourceLabel,
+} from '../../../../shared/utils/document-content-kind';
 
 @Component({
   selector: 'app-fullscreen-document-workspace',
@@ -70,7 +75,7 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
     if (changes['content']) {
       const draftBeforeRefresh = this.draft;
       this.draft = this.content;
-      this.lines = this.displayContent().split('\n');
+      this.lines = this.content.split('\n');
       // A successful save returns the submitted content through the parent.
       // Stay in the full-screen workspace, but return it to read-only mode.
       if (this.editing() && this.content === draftBeforeRefresh) {
@@ -84,15 +89,12 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
 
   beginEdit(): void {
     if (!this.canEdit || this.saving) return;
-    this.draft = this.displayContent();
+    this.draft = this.content;
     this.editing.set(true);
   }
 
   save(): void {
     if (this.saving) return;
-    if (this.contentKind === 'json') {
-      try { this.draft = JSON.stringify(JSON.parse(this.draft), null, 2); } catch { return; }
-    }
     this.saveContent.emit(this.draft);
   }
 
@@ -108,7 +110,7 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
       });
       if (!discard) return;
     }
-    this.draft = this.displayContent();
+    this.draft = this.content;
     this.editing.set(false);
   }
 
@@ -128,7 +130,7 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
   }
 
   private hasUnsavedChanges(): boolean {
-    return this.draft !== this.displayContent();
+    return this.draft !== this.content;
   }
 
   onSourceScroll(): void {
@@ -172,5 +174,14 @@ export class FullscreenDocumentWorkspace implements OnChanges, OnInit, OnDestroy
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
 
-  displayContent(): string { return this.contentKind === 'json' ? formatJsonContent(this.content) : this.content; }
+  previewContent(): string {
+    const value = this.editing() ? this.draft : this.content;
+    return this.contentKind === 'json' ? formatJsonContent(value) : value;
+  }
+  sourceLabel(): string {
+    return getDocumentSourceLabel(this.contentKind);
+  }
+  previewLabel(): string {
+    return getDocumentPreviewLabel(this.contentKind, 'fullscreen');
+  }
 }

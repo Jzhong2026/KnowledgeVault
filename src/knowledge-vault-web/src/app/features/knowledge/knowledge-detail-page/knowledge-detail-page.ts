@@ -20,6 +20,7 @@ import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.mode
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { StatusPill } from '../../../shared/components/status-pill/status-pill';
 import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dialog/revision-diff-dialog';
+import { DocumentContentViewer } from '../../../shared/components/document-content-viewer/document-content-viewer';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
@@ -34,6 +35,7 @@ import { FullscreenDocumentWorkspace } from '../components/fullscreen-document-w
     FormsModule,
     KnowledgeEditor,
     ContentEditor,
+    DocumentContentViewer,
     FullscreenDocumentWorkspace,
     LoadingIndicator,
     MarkdownContentPipe,
@@ -52,6 +54,7 @@ export class KnowledgeDetailPage {
   private readonly api = inject(ApiClient);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  readonly getDocumentContentKind = getDocumentContentKind;
 
   readonly item = signal<KnowledgeItem | null>(null);
   readonly loading = signal(true);
@@ -213,13 +216,17 @@ export class KnowledgeDetailPage {
   }
 
   openFullscreenDocument(startEditing = false): void {
-    if (this.item() && getDocumentContentKind(this.item()?.title) !== 'text') {
+    if (this.item()) {
       this.fullscreenDocumentOpen.set(true);
       this.fullscreenDocumentStartsEditing.set(startEditing);
     }
   }
 
-  isFullscreenSupported(): boolean { return getDocumentContentKind(this.item()?.title) !== 'text'; }
+  isFullscreenSupported(): boolean { return !!this.item(); }
+
+  displayedContentTitle(): string {
+    return this.viewingRevision()?.title ?? this.item()?.title ?? '';
+  }
 
   closeFullscreenDocument(): void {
     this.fullscreenDocumentOpen.set(false);

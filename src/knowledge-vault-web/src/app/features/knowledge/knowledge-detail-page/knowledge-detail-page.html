@@ -112,16 +112,17 @@
           @if (contentEditorOpen()) {
             <app-content-editor
               [content]="knowledge.content"
+              [contentKind]="getDocumentContentKind(knowledge.title)"
               [saving]="contentEditorSaving()"
               (cancelEdit)="closeContentEditor()"
               (saveContent)="saveContent($event)"
             />
-          } @else if (hasContent(viewingRevision()?.content || knowledge.content)) {
-            <div
-              class="markdown-body markdown-body--wide"
-              [innerHTML]="viewingRevision()?.content || knowledge.content | markdownContent"
-              [appMermaidDiagrams]="viewingRevision()?.content || knowledge.content"
-            ></div>
+          } @else if (hasContent(viewingRevision()?.content ?? knowledge.content)) {
+            <app-document-content-viewer
+              [title]="displayedContentTitle()"
+              [content]="viewingRevision()?.content ?? knowledge.content"
+              [wide]="true"
+            />
           } @else {
             <p class="empty-content">No content has been added yet.</p>
           }
@@ -371,9 +372,9 @@
 
 @if (fullscreenDocumentOpen() && item(); as fullscreenItem) {
   <app-fullscreen-document-workspace
-    [title]="viewingRevision()?.title || fullscreenItem.title"
+    [title]="displayedContentTitle()"
     [content]="displayedContent()"
-    [contentKind]="fullscreenItem.title.toLowerCase().endsWith('.json') ? 'json' : 'markdown'"
+    [contentKind]="getDocumentContentKind(displayedContentTitle())"
     [revisionLabel]="viewingRevision() ? 'Revision ' + viewingRevision()?.revisionNumber : 'Latest'"
     [canEdit]="fullscreenItem.documentType !== 'ProjectMemory' && !viewingRevision()"
     [startEditing]="fullscreenDocumentStartsEditing()"

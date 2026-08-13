@@ -14,16 +14,16 @@
       <button type="button" class="fullscreen-document__close" [disabled]="saving" (click)="requestClose()">Close</button>
     </div>
   </header>
-  <div class="fullscreen-document__modebar"><span>{{ contentKind === 'json' ? 'Formatted JSON' : 'Markdown source' }}</span><span>{{ contentKind === 'json' ? 'JSON view' : 'Live preview' }}</span></div>
+  <div class="fullscreen-document__modebar"><span>{{ sourceLabel() }}</span><span>{{ previewLabel() }}</span></div>
   <div class="fullscreen-document__panes" [style.--source-width]="sourceWidth() + '%'">
     @if (editing()) {
-      <textarea #sourceEditorEl class="fullscreen-document__editor" [(ngModel)]="draft" (scroll)="onSourceScroll()" [disabled]="saving" aria-label="Markdown source"></textarea>
+      <textarea #sourceEditorEl class="fullscreen-document__editor" [(ngModel)]="draft" (scroll)="onSourceScroll()" [disabled]="saving" [attr.aria-label]="sourceLabel()"></textarea>
     } @else {
-      <div #sourceViewEl class="fullscreen-document__source" (scroll)="onSourceScroll()" aria-label="Markdown source">
+      <div #sourceViewEl class="fullscreen-document__source" (scroll)="onSourceScroll()" [attr.aria-label]="sourceLabel()">
         @for (line of lines; track $index) { <div class="fullscreen-document__source-line"><span>{{ $index + 1 }}</span><code>{{ line || ' ' }}</code></div> }
       </div>
     }
     <div class="fullscreen-document__divider" role="separator" aria-orientation="vertical" (pointerdown)="onDividerPointerDown($event)"></div>
-    @if (contentKind === 'json') { <pre #previewEl class="fullscreen-document__preview" (scroll)="onPreviewScroll()">{{ editing() ? draft : displayContent() }}</pre> } @else { <div #previewEl class="fullscreen-document__preview markdown-body" (scroll)="onPreviewScroll()" [innerHTML]="(editing() ? draft : content) | markdownContent" [appMermaidDiagrams]="editing() ? draft : content"></div> }
+    @if (contentKind === 'markdown') { <div #previewEl class="fullscreen-document__preview markdown-body" (scroll)="onPreviewScroll()" [innerHTML]="(editing() ? draft : content) | markdownContent" [appMermaidDiagrams]="editing() ? draft : content"></div> } @else { <pre #previewEl class="fullscreen-document__preview fullscreen-document__preview--plain" (scroll)="onPreviewScroll()">{{ previewContent() }}</pre> }
   </div>
 </section>

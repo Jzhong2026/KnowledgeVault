@@ -31,6 +31,7 @@ import { LoadingIndicator } from '../../../shared/components/loading-indicator/l
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dialog/revision-diff-dialog';
+import { DocumentContentViewer } from '../../../shared/components/document-content-viewer/document-content-viewer';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
@@ -106,6 +107,7 @@ type WebkitEntry = WebkitFileEntry | WebkitDirectoryEntry;
     FormsModule,
     LoadingIndicator,
     EmptyState,
+    DocumentContentViewer,
     KnowledgeEditor,
     ContentEditor,
     FullscreenDocumentWorkspace,
@@ -126,6 +128,7 @@ export class WorkspacePage implements OnDestroy {
   private readonly auth = inject(AuthService);
   readonly workspace = inject(WorkspaceService);
   private readonly confirm = inject(ConfirmService);
+  readonly getDocumentContentKind = getDocumentContentKind;
 
   readonly workspaceScope = (this.route.snapshot.data['scope'] as DocumentScope | undefined) ?? 'Personal';
   readonly isProjectScope = this.workspaceScope === 'Project';
@@ -277,7 +280,7 @@ export class WorkspacePage implements OnDestroy {
   readonly fullscreenDocumentOpen = signal(false);
   readonly fullscreenDocumentStartsEditing = signal(false);
   readonly activeDocumentContent = computed(() =>
-    this.activeDocumentRevision()?.content || this.activeDocument()?.content || '',
+    this.activeDocumentRevision()?.content ?? this.activeDocument()?.content ?? '',
   );
   readonly workspaceContextMenu = signal<WorkspaceContextMenuRequest | null>(null);
 
@@ -1158,7 +1161,7 @@ export class WorkspacePage implements OnDestroy {
   openActiveDocumentContentEditor(): void { this.openFullscreenDocument(true); }
 
   openFullscreenDocument(startEditing = false): void {
-    if (this.activeDocument() && getDocumentContentKind(this.activeDocument()?.title) !== 'text') {
+    if (this.activeDocument()) {
       this.fullscreenDocumentOpen.set(true);
       this.fullscreenDocumentStartsEditing.set(startEditing);
     }
@@ -1235,7 +1238,11 @@ export class WorkspacePage implements OnDestroy {
     }
   }
 
-  isActiveDocumentFullscreenSupported(): boolean { return getDocumentContentKind(this.activeDocument()?.title) !== 'text'; }
+  isActiveDocumentFullscreenSupported(): boolean { return !!this.activeDocument(); }
+
+  activeDocumentContentTitle(): string {
+    return this.activeDocumentRevision()?.title ?? this.activeDocument()?.title ?? '';
+  }
 
   closeFullscreenDocument(): void {
     this.fullscreenDocumentOpen.set(false);

@@ -71,16 +71,17 @@
               @if (activeDocumentContentEditorOpen()) {
                 <app-content-editor
                   [content]="doc.content"
+                  [contentKind]="getDocumentContentKind(doc.title)"
                   [saving]="activeDocumentContentEditorSaving()"
                   (cancelEdit)="closeActiveDocumentContentEditor()"
                   (saveContent)="saveActiveDocumentContent($event)"
                 />
               } @else {
-                <div
-                  class="workspace-doc__body markdown-body"
-                  [innerHTML]="activeDocumentContent() | markdownContent"
-                  [appMermaidDiagrams]="activeDocumentContent()"
-                ></div>
+                <app-document-content-viewer
+                  class="workspace-doc__body"
+                  [title]="activeDocumentContentTitle()"
+                  [content]="activeDocumentContent()"
+                />
               }
             </article>
             <aside class="workspace-revision-rail" aria-label="Document revisions">
@@ -177,9 +178,9 @@
 
     @if (fullscreenDocumentOpen() && activeDocument(); as fullscreenDoc) {
       <app-fullscreen-document-workspace
-        [title]="fullscreenDoc.title"
+        [title]="activeDocumentContentTitle()"
         [content]="activeDocumentContent()"
-        [contentKind]="fullscreenDoc.title.toLowerCase().endsWith('.json') ? 'json' : 'markdown'"
+        [contentKind]="getDocumentContentKind(activeDocumentContentTitle())"
         [revisionLabel]="activeDocumentRevision() ? 'Revision ' + activeDocumentRevision()?.revisionNumber : 'Latest'"
         [canEdit]="fullscreenDoc.documentType !== 'ProjectMemory' && !activeDocumentRevision()"
         [startEditing]="fullscreenDocumentStartsEditing()"

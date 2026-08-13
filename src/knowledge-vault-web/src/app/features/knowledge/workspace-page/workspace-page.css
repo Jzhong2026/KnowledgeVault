@@ -902,12 +902,6 @@ button:disabled {
   color: #cbd5e1;
 }
 
-.workspace-doc__body {
-  color: var(--text, #0f172a);
-  font-size: 15px;
-  line-height: 1.65;
-}
-
 .workspace-comments { display: grid; gap: 14px; border-top: 1px solid var(--border, #e2e8f0); padding-top: 20px; }
 .workspace-comments__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .workspace-comments__header h4, .workspace-comments__header p, .workspace-comments__empty { margin: 0; }
