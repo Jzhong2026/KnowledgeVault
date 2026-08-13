@@ -7,6 +7,7 @@ using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
 using KnowledgeVault.DataAccess.DependencyInjection;
+using KnowledgeVault.Infrastructure.AI;
 using KnowledgeVault.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication;
 using KnowledgeVault.Infrastructure.DependencyInjection;
@@ -64,15 +65,64 @@ builder.Services.AddKnowledgeVaultInfrastructure(builder.Configuration);
 builder.Services.AddKnowledgeVaultDataAccess(builder.Configuration);
 builder.Services.AddKnowledgeVaultProviders();
 builder.Services.AddScoped<McpRequestAuthorizer>();
+
+// Chatbot wiring. LLM, embedding, and ChromaDB all speak HTTP, so we use
+// typed HttpClient instances with named options to keep connection pooling
+// sane and to allow per-service auth headers / base addresses.
+builder.Services.AddOptions<LlmOptions>()
+    .Bind(builder.Configuration.GetSection(LlmOptions.SectionName))
+    .ValidateDataAnnotations();
+builder.Services.AddOptions<VectorStoreOptions>()
+    .Bind(builder.Configuration.GetSection(VectorStoreOptions.SectionName))
+    .ValidateDataAnnotations();
+builder.Services.AddHttpClient<ILLMProvider, OpenAiCompatibleLlmProvider>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LlmOptions>>().Value;
+        client.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(opts.ChatTimeoutSeconds, 30));
+        if (!string.IsNullOrEmpty(opts.ApiKey))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ApiKey);
+        }
+    });
+builder.Services.AddHttpClient<IEmbeddingProvider, OpenAiCompatibleEmbeddingProvider>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LlmOptions>>().Value;
+        client.BaseAddress = new Uri(opts.BaseUrl.TrimEnd('/') + "/");
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(opts.EmbeddingTimeoutSeconds, 30));
+        if (!string.IsNullOrEmpty(opts.ApiKey))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ApiKey);
+        }
+    });
+builder.Services.AddHttpClient<IVectorStore, ChromaVectorStore>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<VectorStoreOptions>>().Value;
+        client.BaseAddress = new Uri(opts.Endpoint.TrimEnd('/') + "/");
+        client.Timeout = TimeSpan.FromSeconds(30);
+        if (!string.IsNullOrEmpty(opts.ApiKey))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ApiKey);
+        }
+    });
+
 builder.Services.AddMcpServer()
     .WithHttpTransport()
     .WithTools<ProjectMcpTools>()
     .WithTools<CategoryMcpTools>()
     .WithTools<DocumentMcpTools>()
+    .WithTools<FolderMcpTools>()
     .WithTools<RevisionMcpTools>()
     .WithTools<CommentMcpTools>()
     .WithTools<DocumentReviewMcpTools>()
     .WithTools<ProjectMemoryMcpTools>()
+    .WithTools<ChatMcpTools>()
     .WithResources<KnowledgeVaultMcpResources>()
     .WithPrompts<KnowledgeVaultMcpPrompts>();
 

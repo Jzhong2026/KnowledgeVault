@@ -12,9 +12,32 @@ services:
       - ConnectionStrings__KnowledgeVaultDb=Data Source=/app/data/knowledge-vault.db
       - Jwt__SigningKey=KnowledgeVault-Docker-Prod-Key-ChangeInRealDeploy!
       - Database__AutoMigrate=true
+      # Chatbot wiring. Replace with your own OpenAI-compatible base URL
+      # and API key. LLM__BaseUrl and VectorStore__Endpoint already default
+      # to API gateway and the chromadb service below.
+      - Llm__BaseUrl=${KV_LLM_BASE_URL:-https://api.openai.com/v1}
+      - Llm__ApiKey=${KV_LLM_API_KEY}
+      - Llm__ChatModel=${KV_LLM_CHAT_MODEL:-gpt-4o-mini}
+      - Llm__EmbeddingModel=${KV_LLM_EMBEDDING_MODEL:-text-embedding-3-small}
+      - VectorStore__Endpoint=http://chromadb:8000
+    depends_on:
+      - chromadb
     volumes:
       - kv-data:/app/data
       - kv-logs:/app/logs
+    restart: unless-stopped
+
+  chromadb:
+    image: chromadb/chroma:0.5.20
+    container_name: kv-chromadb
+    ports:
+      - "18000:8000"
+    volumes:
+      - kv-chroma:/chroma/chroma
+    environment:
+      - IS_PERSISTED=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=False
     restart: unless-stopped
 
   frontend:
@@ -31,3 +54,4 @@ services:
 volumes:
   kv-data:
   kv-logs:
+  kv-chroma:

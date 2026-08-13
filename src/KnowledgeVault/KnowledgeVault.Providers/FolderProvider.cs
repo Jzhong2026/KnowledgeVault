@@ -583,7 +583,31 @@ public sealed class FolderProvider(
         return false;
     }
 
-    public Task DeleteAsync(Guid id, CancellationToken cancellationToken) => ArchiveAsync(id, cancellationToken);
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = currentUserContext.RequireUserId();
+        var folder = await EnsureFolderAccessibleAsync(id, userId, cancellationToken);
+        await EnsureCanEditFolderAsync(folder, userId, cancellationToken);
+
+        // Block deletion when the folder still has child folders or non-deleted
+        // documents. Callers must move or remove the contents first, or use
+        // ArchiveAsync for a recursive soft-delete.
+        var hasChildren = await dbContext.Folders
+            .AnyAsync(f => f.ParentFolderId == id, cancellationToken);
+        if (hasChildren)
+        {
+            throw new ConflictException("Cannot delete a folder that still contains subfolders. Remove or move them first.");
+        }
+
+        var hasDocuments = await dbContext.KnowledgeItems
+            .AnyAsync(x => x.FolderId == id && x.Status != KnowledgeItemStatus.Deleted, cancellationToken);
+        if (hasDocuments)
+        {
+            throw new ConflictException("Cannot delete a folder that still contains documents. Remove or move them first.");
+        }
+
+        await ArchiveAsync(id, cancellationToken);
+    }
 
     private async Task<HashSet<Guid>> GetDescendantFolderIdsAsync(Guid rootFolderId, CancellationToken cancellationToken)
     {
