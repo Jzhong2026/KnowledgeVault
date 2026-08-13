@@ -447,7 +447,7 @@
               </div>
               <span>Folder</span>
               <span>{{ folder.documentCount }} documents</span>
-              <span aria-hidden="true">—</span>
+              <span class="document-list__creator" [title]="folder.creatorDisplayName || 'Unknown'">{{ folder.creatorDisplayName || 'Unknown' }}</span>
               <span>{{ folder.childFolderCount }} folders</span>
               <span>{{ folder.isArchived ? 'Archived' : 'Active' }}</span>
               <div class="document-list__actions" (click)="$event.stopPropagation()">

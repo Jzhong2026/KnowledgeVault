@@ -54,19 +54,31 @@ public sealed class DocumentProvider(
     public async Task<IReadOnlyList<DocumentOwnerDto>> ListOwnersAsync(Guid? projectId, CancellationToken cancellationToken)
     {
         var userId = currentUserContext.RequireUserId();
-        var query = projectAccess.FilterAccessibleDocuments(
+        var documentOwnerIds = projectAccess.FilterAccessibleDocuments(
             dbContext.KnowledgeItems.AsNoTracking(),
             userId,
             DocumentScope.Project,
-            projectId);
+            projectId)
+            .Select(x => x.OwnerUserId);
+        var folderCreatorIds = projectAccess.FilterAccessibleFolders(
+                dbContext.Folders.AsNoTracking(),
+                userId,
+                DocumentScope.Project,
+                projectId)
+            .Where(x => x.CreatedByUserId.HasValue)
+            .Select(x => x.CreatedByUserId!.Value);
+        var creatorIds = documentOwnerIds.Concat(folderCreatorIds).Distinct();
 
-        return await query
-            .Select(x => new DocumentOwnerDto(
-                x.OwnerUserId,
-                x.OwnerUser != null ? (x.OwnerUser.Nickname ?? x.OwnerUser.UserName) : string.Empty))
+        var owners = await dbContext.Users
+            .AsNoTracking()
+            .Where(x => creatorIds.Contains(x.Id))
+            .Select(x => new DocumentOwnerDto(x.Id, x.Nickname ?? x.UserName))
             .Distinct()
-            .OrderBy(x => x.DisplayName)
             .ToListAsync(cancellationToken);
+
+        // Sorting the constructed DTO inside the EF query was not translatable
+        // and made the endpoint return HTTP 500, leaving the dropdown empty.
+        return owners.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public async Task<ProjectDocumentStatsDto> GetProjectDocumentStatsAsync(

@@ -10,6 +10,8 @@ export interface FolderSummary {
   scope: DocumentScope;
   childFolderCount: number;
   documentCount: number;
+  creatorUserId?: string | null;
+  creatorDisplayName: string;
   isArchived: boolean;
 }
 

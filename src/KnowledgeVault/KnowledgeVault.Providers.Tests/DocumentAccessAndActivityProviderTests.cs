@@ -113,6 +113,37 @@ public sealed class DocumentAccessAndActivityProviderTests : IAsyncLifetime
         Assert.Equal(1, stats.TagCount);
     }
 
+    [Fact]
+    public async Task Owners_combines_accessible_document_and_folder_creators_without_query_translation_failure()
+    {
+        var provider = TestProviders.Documents(_dbContext, _currentUser, _clock);
+        _dbContext.Folders.Add(new Folder
+        {
+            Name = "Current user's folder",
+            NormalizedName = "CURRENT USER'S FOLDER",
+            Scope = DocumentScope.Project,
+            ProjectId = _followedProjectId,
+            CreatedByUserId = _currentUserId,
+            CreatedAt = _clock.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var owners = await provider.ListOwnersAsync(_followedProjectId, CancellationToken.None);
+
+        Assert.Collection(
+            owners,
+            owner =>
+            {
+                Assert.Equal(_currentUserId, owner.Id);
+                Assert.Equal("current", owner.DisplayName);
+            },
+            owner =>
+            {
+                Assert.Equal(_otherUserId, owner.Id);
+                Assert.Equal("other", owner.DisplayName);
+            });
+    }
+
     private async Task SeedAsync()
     {
         var currentUser = CreateUser(_currentUserId, "current");

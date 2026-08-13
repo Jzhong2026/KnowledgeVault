@@ -32,6 +32,9 @@ import { FolderSummary } from '../../../../core/models/folder.models';
         } @else {
           <div class="tile__status tile__status--placeholder" aria-hidden="true"></div>
         }
+        <div class="tile__creator" [title]="folder().creatorDisplayName || 'Unknown'">
+          Creator: {{ folder().creatorDisplayName || 'Unknown' }}
+        </div>
       </div>
       <div class="tile__actions" (click)="$event.stopPropagation()">
         <button
@@ -141,6 +144,14 @@ import { FolderSummary } from '../../../../core/models/folder.models';
       }
       .tile__status--placeholder {
         min-height: 14px;
+      }
+      .tile__creator {
+        margin-top: 3px;
+        color: var(--muted, #64748b);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .tile__actions {
         display: flex;

@@ -58,16 +58,22 @@ public sealed class FolderProvider(
         // documents are ordered separately because they live in different
         // tables and EF cannot mix them into a single ORDER BY.
         search = RequestText.Optional(search, "search", 200);
+        var normalizedSearch = search is null ? null : TextNormalizer.NormalizeName(search);
 
         var foldersQuery = QueryAccessibleFolders(userId, scope, projectId)
             .Where(f => includeArchived || !f.IsArchived)
             .Where(f => f.ParentFolderId == parentFolderId);
-        if (search is not null)
+        if (ownerUserId.HasValue)
         {
-            foldersQuery = foldersQuery.Where(f => f.Name.Contains(search));
+            foldersQuery = foldersQuery.Where(f => f.CreatedByUserId == ownerUserId.Value);
+        }
+        if (normalizedSearch is not null)
+        {
+            foldersQuery = foldersQuery.Where(f => f.Name.ToUpper().Contains(normalizedSearch));
         }
 
         var folders = await foldersQuery
+            .Include(f => f.CreatedByUser)
             .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.Name)
             .ToListAsync(cancellationToken);
@@ -80,10 +86,10 @@ public sealed class FolderProvider(
         {
             documentsQuery = documentsQuery.Where(x => x.OwnerUserId == ownerUserId.Value);
         }
-        if (search is not null)
+        if (normalizedSearch is not null)
         {
             documentsQuery = documentsQuery.Where(x =>
-                x.CurrentRevision != null && x.CurrentRevision.Title.Contains(search));
+                x.CurrentRevision != null && x.CurrentRevision.Title.ToUpper().Contains(normalizedSearch));
         }
 
         var documents = await documentsQuery
@@ -115,7 +121,8 @@ public sealed class FolderProvider(
             childCounts.TryGetValue(f.Id, out var cc);
             docCounts.TryGetValue(f.Id, out var dc);
             return new FolderSummaryDto(
-                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc, f.IsArchived);
+                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc,
+                f.CreatedByUserId, DtoMapper.GetDisplayName(f.CreatedByUser), f.IsArchived);
         }).ToArray();
 
         return new FolderContentDto(folderDtos, documents.Select(x => x.ToSummaryDto()).ToArray());
@@ -137,6 +144,7 @@ public sealed class FolderProvider(
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
         search = RequestText.Optional(search, "search", 200);
+        var normalizedSearch = search is null ? null : TextNormalizer.NormalizeName(search);
 
         if (rootFolderId.HasValue)
         {
@@ -151,13 +159,18 @@ public sealed class FolderProvider(
         var foldersQuery = QueryAccessibleFolders(userId, scope, projectId)
             .Where(f => includeArchived || !f.IsArchived)
             .Where(f => f.ParentFolderId == parentFolderId);
-        if (search is not null)
+        if (ownerUserId.HasValue)
         {
-            foldersQuery = foldersQuery.Where(f => f.Name.Contains(search));
+            foldersQuery = foldersQuery.Where(f => f.CreatedByUserId == ownerUserId.Value);
+        }
+        if (normalizedSearch is not null)
+        {
+            foldersQuery = foldersQuery.Where(f => f.Name.ToUpper().Contains(normalizedSearch));
         }
 
         var totalFolderCount = await foldersQuery.CountAsync(cancellationToken);
         var folders = await foldersQuery
+            .Include(f => f.CreatedByUser)
             .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.Name)
             .Skip((page - 1) * pageSize)
@@ -173,10 +186,10 @@ public sealed class FolderProvider(
         {
             documentsQuery = documentsQuery.Where(x => x.OwnerUserId == ownerUserId.Value);
         }
-        if (search is not null)
+        if (normalizedSearch is not null)
         {
             documentsQuery = documentsQuery.Where(x =>
-                x.CurrentRevision != null && x.CurrentRevision.Title.Contains(search));
+                x.CurrentRevision != null && x.CurrentRevision.Title.ToUpper().Contains(normalizedSearch));
         }
 
         var totalDocumentCount = await documentsQuery.CountAsync(cancellationToken);
@@ -212,7 +225,8 @@ public sealed class FolderProvider(
             childCounts.TryGetValue(f.Id, out var cc);
             docCounts.TryGetValue(f.Id, out var dc);
             return new FolderSummaryDto(
-                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc, f.IsArchived);
+                f.Id, f.Name, f.Description, f.SortOrder, f.ParentFolderId, f.ProjectId, f.Scope, cc, dc,
+                f.CreatedByUserId, DtoMapper.GetDisplayName(f.CreatedByUser), f.IsArchived);
         }).ToArray();
 
         return new FolderContentPagedDto(
@@ -288,7 +302,8 @@ public sealed class FolderProvider(
 
         return new FolderSummaryDto(
             folder.Id, folder.Name, folder.Description, folder.SortOrder,
-            folder.ParentFolderId, folder.ProjectId, folder.Scope, childCount, docCount, folder.IsArchived);
+            folder.ParentFolderId, folder.ProjectId, folder.Scope, childCount, docCount,
+            folder.CreatedByUserId, DtoMapper.GetDisplayName(folder.CreatedByUser), folder.IsArchived);
     }
 
     public async Task<FolderSummaryDto> CreateAsync(CreateFolderRequest request, CancellationToken cancellationToken)
@@ -350,6 +365,7 @@ public sealed class FolderProvider(
             Scope = request.Scope,
             ProjectId = request.Scope == DocumentScope.Project ? request.ProjectId : null,
             OwnerUserId = ownerUserId,
+            CreatedByUserId = userId,
             ParentFolderId = request.ParentFolderId,
             Name = name,
             NormalizedName = normalized,
@@ -360,10 +376,12 @@ public sealed class FolderProvider(
 
         dbContext.Folders.Add(folder);
         await dbContext.SaveChangesAsync(cancellationToken);
+        var creator = await dbContext.Users.AsNoTracking().FirstAsync(x => x.Id == userId, cancellationToken);
 
         return new FolderSummaryDto(
             folder.Id, folder.Name, folder.Description, folder.SortOrder,
-            folder.ParentFolderId, folder.ProjectId, folder.Scope, 0, 0, folder.IsArchived);
+            folder.ParentFolderId, folder.ProjectId, folder.Scope, 0, 0,
+            folder.CreatedByUserId, DtoMapper.GetDisplayName(creator), folder.IsArchived);
     }
 
     public async Task<FolderSummaryDto> UpdateAsync(Guid id, UpdateFolderRequest request, CancellationToken cancellationToken)
@@ -454,7 +472,8 @@ public sealed class FolderProvider(
 
         return new FolderSummaryDto(
             tracked.Id, tracked.Name, tracked.Description, tracked.SortOrder,
-            tracked.ParentFolderId, tracked.ProjectId, tracked.Scope, childCount, docCount, tracked.IsArchived);
+            tracked.ParentFolderId, tracked.ProjectId, tracked.Scope, childCount, docCount,
+            folder.CreatedByUserId, DtoMapper.GetDisplayName(folder.CreatedByUser), tracked.IsArchived);
     }
 
     public async Task ArchiveAsync(Guid id, CancellationToken cancellationToken)
@@ -664,6 +683,7 @@ public sealed class FolderProvider(
     private async Task<Folder> EnsureFolderAccessibleAsync(Guid folderId, Guid userId, CancellationToken cancellationToken)
     {
         var folder = await dbContext.Folders.AsNoTracking()
+            .Include(f => f.CreatedByUser)
             .FirstOrDefaultAsync(f => f.Id == folderId, cancellationToken)
             ?? throw new NotFoundException("Folder was not found.");
 

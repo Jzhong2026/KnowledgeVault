@@ -91,6 +91,7 @@ internal static class Seed
         NormalizedName = name.ToUpperInvariant(),
         Scope = scope,
         OwnerUserId = ownerUserId,
+        CreatedByUserId = ownerUserId,
         ProjectId = projectId,
         ParentFolderId = parentFolderId,
         CreatedAt = Fixed,

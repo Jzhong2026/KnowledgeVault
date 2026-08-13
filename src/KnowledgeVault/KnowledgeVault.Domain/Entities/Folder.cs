@@ -9,6 +9,10 @@ public sealed class Folder : AuditableEntity
     // Personal scope: creator/owner. Project scope: null (governed by project membership).
     public Guid? OwnerUserId { get; set; }
 
+    // Older project folders may be null because creator identity was not
+    // persisted before this field existed.
+    public Guid? CreatedByUserId { get; set; }
+
     public Guid? ProjectId { get; set; }
 
     public Guid? ParentFolderId { get; set; }
@@ -26,6 +30,8 @@ public sealed class Folder : AuditableEntity
     public DateTimeOffset? ArchivedAt { get; set; }
 
     public Project? Project { get; set; }
+
+    public User? CreatedByUser { get; set; }
 
     public Folder? ParentFolder { get; set; }
 

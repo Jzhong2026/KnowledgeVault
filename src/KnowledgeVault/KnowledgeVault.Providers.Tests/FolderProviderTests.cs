@@ -150,7 +150,7 @@ public sealed class FolderProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Paged_root_name_filter_matches_folder_names_and_document_titles()
+    public async Task Paged_root_name_filter_matches_folder_names_and_document_titles_case_insensitively()
     {
         var matchingFolderId = Guid.NewGuid();
         _db.Folders.AddRange(
@@ -174,12 +174,35 @@ public sealed class FolderProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         var content = await Folders().GetContentPagedAsync(
-            DocumentScope.Personal, null, null, null, false, "Match", null, 1, 20, CancellationToken.None);
+            DocumentScope.Personal, null, null, null, false, "mAtCh", null, 1, 20, CancellationToken.None);
 
         Assert.Equal(matchingFolderId, Assert.Single(content.Folders).Id);
         Assert.Equal(matchingDocument.Id, Assert.Single(content.Documents).Id);
         Assert.Equal(1, content.TotalFolderCount);
         Assert.Equal(1, content.TotalDocumentCount);
+    }
+
+    [Fact]
+    public async Task Paged_project_root_creator_filter_applies_to_folders_and_documents()
+    {
+        var projectId = Guid.NewGuid();
+        var matchingFolder = Seed.Folder(Guid.NewGuid(), "Mine", DocumentScope.Project, null, projectId);
+        matchingFolder.CreatedByUserId = _userId;
+        var otherFolder = Seed.Folder(Guid.NewGuid(), "Other", DocumentScope.Project, null, projectId);
+        otherFolder.CreatedByUserId = _otherId;
+        var matchingDocument = Seed.Document(Guid.NewGuid(), _userId, DocumentScope.Project, projectId, 1);
+        var otherDocument = Seed.Document(Guid.NewGuid(), _otherId, DocumentScope.Project, projectId, 1);
+        _db.Projects.Add(Seed.Project(projectId, "P", _otherId));
+        _db.ProjectMembers.Add(Seed.Member(projectId, _userId, ProjectRole.Editor));
+        _db.AddRange(matchingFolder, otherFolder, matchingDocument, otherDocument);
+        await _db.SaveChangesAsync();
+
+        var content = await Folders().GetContentPagedAsync(
+            DocumentScope.Project, projectId, null, null, false, null, _userId, 1, 20, CancellationToken.None);
+
+        Assert.Equal(matchingFolder.Id, Assert.Single(content.Folders).Id);
+        Assert.Equal("owner", content.Folders[0].CreatorDisplayName);
+        Assert.Equal(matchingDocument.Id, Assert.Single(content.Documents).Id);
     }
 
     [Fact]

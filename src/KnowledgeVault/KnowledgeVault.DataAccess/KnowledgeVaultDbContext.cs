@@ -310,6 +310,7 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
                 .HasFilter("\"Scope\" = 0 AND \"OwnerUserId\" IS NOT NULL");
             builder.HasIndex(x => x.ParentFolderId).HasDatabaseName("IX_Folders_ParentFolderId");
             builder.HasIndex(x => x.ProjectId).HasDatabaseName("IX_Folders_ProjectId");
+            builder.HasIndex(x => x.CreatedByUserId).HasDatabaseName("IX_Folders_CreatedByUserId");
             builder.HasOne(x => x.Project)
                 .WithMany()
                 .HasForeignKey(x => x.ProjectId)
@@ -317,6 +318,10 @@ public sealed class KnowledgeVaultDbContext(DbContextOptions<KnowledgeVaultDbCon
             builder.HasOne(x => x.ParentFolder)
                 .WithMany(x => x.ChildFolders)
                 .HasForeignKey(x => x.ParentFolderId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasOne(x => x.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.CreatedByUserId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
 

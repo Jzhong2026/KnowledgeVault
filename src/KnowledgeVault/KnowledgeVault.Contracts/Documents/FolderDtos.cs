@@ -12,6 +12,8 @@ public sealed record FolderSummaryDto(
     DocumentScope Scope,
     int ChildFolderCount,
     int DocumentCount,
+    Guid? CreatorUserId,
+    string CreatorDisplayName,
     bool IsArchived);
 
 public sealed record FolderTreeNodeDto(

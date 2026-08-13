@@ -10,6 +10,6 @@ public sealed class JwtOptions
 
     public string SigningKey { get; set; } = "development-only-change-this-signing-key";
 
-    // Two weeks of persistent login by default.
-    public int ExpirationMinutes { get; set; } = 14 * 24 * 60;
+    // Ninety days of persistent login by default.
+    public int ExpirationMinutes { get; set; } = 90 * 24 * 60;
 }
