@@ -1,6 +1,8 @@
 import { isPlatformBrowser } from '@angular/common';
 import { Directive, ElementRef, inject, Input, OnDestroy, PLATFORM_ID } from '@angular/core';
 
+import { createMermaidDiagramToolbar } from './mermaid-fullscreen';
+
 let diagramId = 0;
 let mermaidModule: Promise<typeof import('mermaid')> | undefined;
 
@@ -55,7 +57,15 @@ export class MermaidDiagramsDirective implements OnDestroy {
           return;
         }
 
-        diagram.innerHTML = svg;
+        const stage = document.createElement('div');
+        stage.className = 'mermaid-stage';
+        stage.innerHTML = svg;
+
+        // Runtime-injected only; the Markdown source stays untouched.
+        const toolbar = createMermaidDiagramToolbar(svg, source, diagramId);
+
+        diagram.innerHTML = '';
+        diagram.append(stage, toolbar);
         diagram.setAttribute('role', 'img');
         diagram.setAttribute('aria-label', 'Mermaid diagram');
         bindFunctions?.(diagram);
