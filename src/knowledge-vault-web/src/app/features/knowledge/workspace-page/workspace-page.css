@@ -751,6 +751,46 @@ button:disabled {
   color: var(--text, #0f172a);
 }
 
+/* Copy-document-id affordance. Hidden until the tab is hovered so the tab
+   keeps its footprint, but reachable by keyboard (tabindex + :focus-visible). */
+.workspace-tab__copy {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  opacity: 0;
+  padding: 0;
+  transition:
+    opacity 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.workspace-tab:hover .workspace-tab__copy,
+.workspace-tab__copy:focus-visible {
+  opacity: 1;
+}
+
+.workspace-tab__copy:hover {
+  background: #cbd5e1;
+  color: var(--accent-strong, #0f9d76);
+}
+
+.workspace-tab__copy svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .workspace-shell__pane {
   flex: 1;
   overflow-y: auto;
@@ -883,11 +923,72 @@ button:disabled {
   padding-bottom: 14px;
 }
 
+.workspace-doc__heading {
+  min-width: 0;
+}
+
 .workspace-doc__title {
   margin: 0 0 6px;
   color: var(--text, #0f172a);
   font-size: 22px;
   font-weight: 800;
+}
+
+/* Always-visible document id strip. The workspace view keeps the id out of the
+   URL, so this is the only place the raw GUID is legible; clicking it copies. */
+.workspace-doc__id {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin-bottom: 8px;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 7px;
+  background: #f8fafc;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  padding: 4px 9px 4px 8px;
+  font-size: 12px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.workspace-doc__id:hover {
+  border-style: solid;
+  border-color: var(--accent, #10b981);
+  background: var(--accent-soft, #dff8ed);
+  color: var(--accent-strong, #0f9d76);
+}
+
+.workspace-doc__id-label {
+  flex: 0 0 auto;
+  opacity: 0.72;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.workspace-doc__id-value {
+  overflow: hidden;
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+  font-size: 11.5px;
+  letter-spacing: -0.2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-doc__id svg {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .workspace-doc__meta {

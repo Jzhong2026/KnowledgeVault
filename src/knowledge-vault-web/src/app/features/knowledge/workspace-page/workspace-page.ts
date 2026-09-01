@@ -1311,6 +1311,23 @@ export class WorkspacePage implements OnDestroy {
     await this.copyContent(content);
   }
 
+  /**
+   * Copy the raw document id (a GUID) to the clipboard. The workspace view
+   * keeps the id out of the URL, so the tab copy-id icon and the document
+   * header id strip use this to let users hand the identifier to external
+   * tooling (for example an MCP server) without leaving the workspace.
+   */
+  async copyDocumentId(event: Event, documentId: string): Promise<void> {
+    event.stopPropagation();
+    this.copyMessage.set(null);
+    if (await this.copyText(documentId)) {
+      this.copyMessage.set('Document id copied');
+      return;
+    }
+
+    this.error.set('Unable to access the clipboard. Please copy the id manually.');
+  }
+
   moveDocumentToFolder(documentId: string, folderId: string | null): void {
     this.saving.set(true);
     this.api.moveDocument(documentId, folderId).subscribe({

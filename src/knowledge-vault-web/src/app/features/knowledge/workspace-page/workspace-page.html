@@ -24,6 +24,22 @@
           >
             <span class="workspace-tab__title">{{ tab.title }}</span>
             <span
+              class="workspace-tab__copy"
+              role="button"
+              tabindex="0"
+              aria-label="Copy document id"
+              title="Copy document id"
+              data-testid="tab-copy-document-id"
+              (click)="copyDocumentId($event, tab.documentId)"
+              (keydown.enter)="copyDocumentId($event, tab.documentId)"
+              (keydown.space)="copyDocumentId($event, tab.documentId)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 8h11v11H8z"></path>
+                <path d="M5 16H4V5h11v1"></path>
+              </svg>
+            </span>
+            <span
               class="workspace-tab__close"
               role="button"
               aria-label="Close tab"
@@ -44,7 +60,24 @@
             <article class="workspace-doc">
               <header class="workspace-doc__head">
                 <div class="workspace-doc__heading-row">
-                  <h3 class="workspace-doc__title">{{ doc.title }}</h3>
+                  <div class="workspace-doc__heading">
+                    <h3 class="workspace-doc__title">{{ doc.title }}</h3>
+                    <button
+                      type="button"
+                      class="workspace-doc__id"
+                      title="Click to copy the document id"
+                      aria-label="Copy document id"
+                      data-testid="active-document-id"
+                      (click)="copyDocumentId($event, doc.id)"
+                    >
+                      <span class="workspace-doc__id-label">ID</span>
+                      <span class="workspace-doc__id-value">{{ doc.id }}</span>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M8 8h11v11H8z"></path>
+                        <path d="M5 16H4V5h11v1"></path>
+                      </svg>
+                    </button>
+                  </div>
                   <div class="workspace-doc__actions">
                     @if (isActiveDocumentFullscreenSupported()) { <button type="button" class="ghost workspace-doc__edit" aria-label="Open full-screen source and preview" (click)="openFullscreenDocument()">Full screen</button> }
                     <button type="button" class="ghost workspace-doc__edit" (click)="copyActiveDocumentContent()">Copy</button>
