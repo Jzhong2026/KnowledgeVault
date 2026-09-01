@@ -1032,7 +1032,10 @@ export class WorkspacePage implements OnDestroy {
       return;
     }
     const route = this.workspaceScope === 'Project' ? '/project-documents/detail' : '/knowledge/detail';
-    void this.router.navigate([route, id], { replaceUrl: true });
+    const queryParams = this.workspaceScope === 'Project'
+      ? { projectId: this.projectId(), browseFolderId: this.browseFolderId() }
+      : undefined;
+    void this.router.navigate([route, id], { replaceUrl: true, ...(queryParams ? { queryParams } : {}) });
   }
 
   /** Open a folder from the explorer list (workspace mode) — equivalent to

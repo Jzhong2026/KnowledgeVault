@@ -1,6 +1,36 @@
 <section class="detail-page">
   <div class="detail-toolbar">
-    <a [routerLink]="documentListRoute">{{ documentListLabel }}</a>
+    @if (workspaceScope === 'Project' && item(); as knowledge) {
+      <nav
+        class="document-breadcrumb"
+        aria-label="Document location"
+        data-testid="document-breadcrumb"
+      >
+        <a [routerLink]="documentListRoute">Project Documents</a>
+        @if (knowledge.projectId) {
+          @if (documentProjectName(); as projectName) {
+            <span class="document-breadcrumb__separator" aria-hidden="true">/</span>
+            <a
+              [routerLink]="documentListRoute"
+              [queryParams]="{ projectId: knowledge.projectId }"
+            >{{ projectName }}</a>
+          }
+        }
+        @for (folder of documentBreadcrumb(); track folder.id) {
+          <span class="document-breadcrumb__separator" aria-hidden="true">/</span>
+          <a
+            [routerLink]="documentListRoute"
+            [queryParams]="{ projectId: knowledge.projectId, browseFolderId: folder.id }"
+          >{{ folder.name }}</a>
+        }
+        <span class="document-breadcrumb__separator" aria-hidden="true">/</span>
+        <span class="document-breadcrumb__current" [title]="knowledge.title">
+          {{ knowledge.title }}
+        </span>
+      </nav>
+    } @else {
+      <a [routerLink]="documentListRoute">{{ documentListLabel }}</a>
+    }
     <div class="detail-toolbar__actions">
       @if (item()) {
         @if (isFullscreenSupported()) { <button type="button" class="copy-button" (click)="openFullscreenDocument()">Full screen</button> }

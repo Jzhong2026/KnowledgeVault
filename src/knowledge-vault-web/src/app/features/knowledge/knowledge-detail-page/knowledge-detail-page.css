@@ -21,6 +21,42 @@
   text-decoration: underline;
 }
 
+.document-breadcrumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px 6px;
+  overflow: hidden;
+  color: var(--muted, #64748b);
+  font-size: 13px;
+}
+
+.document-breadcrumb a {
+  flex: none;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.document-breadcrumb a:hover {
+  background: rgba(15, 157, 118, 0.1);
+}
+
+.document-breadcrumb__separator {
+  flex: none;
+  color: var(--muted, #94a3b8);
+  font-weight: 400;
+  user-select: none;
+}
+
+.document-breadcrumb__current {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text, #0f172a);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .detail-toolbar__actions {
   display: inline-flex;
   align-items: center;

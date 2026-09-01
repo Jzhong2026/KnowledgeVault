@@ -12,6 +12,118 @@ import {
 import { KnowledgeDetailPage } from './knowledge-detail-page';
 
 describe('KnowledgeDetailPage', () => {
+  it('renders a project and folder breadcrumb that returns to the selected folder', async () => {
+    const item: KnowledgeItem = {
+      id: 'document-id',
+      scope: 'Project',
+      projectId: 'project-id',
+      ownerUserId: 'owner-id',
+      ownerDisplayName: 'Owner',
+      documentType: 'General',
+      currentRevisionNumber: 1,
+      title: 'Voice guide',
+      content: 'Current content',
+      status: 'Active',
+      tags: [],
+      createdAt: '2026-09-01T00:00:00Z',
+    };
+    const folders = {
+      'voice-folder-id': {
+        id: 'voice-folder-id',
+        name: 'Voice',
+        parentFolderId: 'guides-folder-id',
+        projectId: 'project-id',
+        scope: 'Project' as const,
+        sortOrder: 0,
+        childFolderCount: 0,
+        documentCount: 1,
+        creatorDisplayName: 'Owner',
+        isArchived: false,
+      },
+      'guides-folder-id': {
+        id: 'guides-folder-id',
+        name: 'Guides',
+        parentFolderId: null,
+        projectId: 'project-id',
+        scope: 'Project' as const,
+        sortOrder: 0,
+        childFolderCount: 1,
+        documentCount: 0,
+        creatorDisplayName: 'Owner',
+        isArchived: false,
+      },
+    };
+    const api = {
+      getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
+      getProject: vi.fn().mockReturnValue(
+        of({
+          id: 'project-id',
+          name: 'Atlas',
+          ownerUserId: 'owner-id',
+          isArchived: false,
+          currentUserRole: 'Owner',
+          isFollowing: true,
+          members: [],
+          createdAt: '2026-09-01T00:00:00Z',
+        }),
+      ),
+      getFolder: vi.fn((id: keyof typeof folders) => of(folders[id])),
+      listRevisions: vi
+        .fn()
+        .mockReturnValue(of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })),
+      listDocumentComments: vi
+        .fn()
+        .mockReturnValue(of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [KnowledgeDetailPage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              data: { scope: 'Project' },
+              paramMap: convertToParamMap({ id: item.id }),
+              queryParamMap: convertToParamMap({
+                projectId: item.projectId,
+                browseFolderId: 'voice-folder-id',
+              }),
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(KnowledgeDetailPage);
+    fixture.detectChanges();
+
+    const breadcrumb = fixture.nativeElement.querySelector(
+      '[data-testid="document-breadcrumb"]',
+    ) as HTMLElement;
+    const labels = Array.from(breadcrumb.querySelectorAll('a, span')).map((node) =>
+      node.textContent?.trim(),
+    );
+    const links = Array.from(breadcrumb.querySelectorAll('a')) as HTMLAnchorElement[];
+
+    expect(labels).toEqual([
+      'Project Documents',
+      '/',
+      'Atlas',
+      '/',
+      'Guides',
+      '/',
+      'Voice',
+      '/',
+      'Voice guide',
+    ]);
+    expect(links.at(-1)?.getAttribute('href')).toBe(
+      '/project-documents?projectId=project-id&browseFolderId=voice-folder-id',
+    );
+  });
+
   it('places revisions in a right rail and comments in a full-width row', async () => {
     const item: KnowledgeItem = {
       id: 'document-id',
@@ -37,6 +149,18 @@ describe('KnowledgeDetailPage', () => {
     }));
     const api = {
       getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
+      getProject: vi.fn().mockReturnValue(
+        of({
+          id: 'project-id',
+          name: 'Project',
+          ownerUserId: 'owner-id',
+          isArchived: false,
+          currentUserRole: 'Owner',
+          isFollowing: true,
+          members: [],
+          createdAt: '2026-07-18T00:00:00Z',
+        }),
+      ),
       listRevisions: vi.fn().mockReturnValue(
         of({ items: revisions, page: 1, pageSize: 20, totalCount: 2, totalPages: 1 }),
       ),
@@ -83,7 +207,7 @@ describe('KnowledgeDetailPage', () => {
       ),
     ).toBe('/project-documents');
     expect(fixture.nativeElement.querySelector('.detail-toolbar a')?.textContent?.trim()).toBe(
-      'Back to project documents',
+      'Project Documents',
     );
     expect(fixture.nativeElement.querySelector('.detail-page > .comments-panel')).not.toBeNull();
     expect(api.listDocumentComments).toHaveBeenCalledWith(item.id, 1, 20);
