@@ -1,6 +1,7 @@
 .detail-page {
   display: grid;
   gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .detail-toolbar {
@@ -375,6 +376,7 @@ h2 {
 .comments-panel {
   display: grid;
   width: 100%;
+  min-width: 0;
   gap: 16px;
   padding: 22px;
 }
@@ -409,6 +411,7 @@ h2 {
   gap: 10px;
   margin: 0;
   padding: 0;
+  min-width: 0;
   list-style: none;
 }
 
@@ -416,6 +419,7 @@ h2 {
   border: 1px solid #e5ece9;
   border-radius: 8px;
   background: #fbfcfc;
+  min-width: 0;
   padding: 12px 14px;
 }
 

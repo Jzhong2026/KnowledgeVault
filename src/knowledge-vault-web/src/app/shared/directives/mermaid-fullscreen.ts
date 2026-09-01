@@ -1,3 +1,5 @@
+import { prepareMermaidSourceForRender } from './mermaid-source';
+
 /**
  * Fullscreen viewer and toolbar actions for rendered Mermaid diagrams.
  *
@@ -14,6 +16,8 @@ const ICONS = {
   zoomIn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>',
   zoomOut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>',
   fit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+  themeDark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  themeLight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
 };
 
 const CANVAS_PADDING = 28;
@@ -23,6 +27,113 @@ const ZOOM_STEP = 1.25;
 
 let activeOverlay: HTMLElement | null = null;
 let activeCleanup: (() => void) | null = null;
+
+// Mermaid instance isolated to the fullscreen viewer so toggling its theme
+// never disturbs the diagrams rendered by the page-level directive.
+let viewerMermaidPromise: Promise<typeof import('mermaid')> | undefined;
+
+interface ViewerTheme {
+  theme: 'dark';
+  themeVariables?: Record<string, string>;
+}
+
+// Both viewer modes use Mermaid's `dark` engine but supply contrasting
+// themeVariables so the SVG always paints crisp actor boxes, lifelines and
+// text. Going through the dark engine ensures the inline `fill` attributes
+// Mermaid emits align with our viewer background (no "white on white"
+// accidents like the default theme produces on a white canvas).
+const VIEWER_THEMES: Record<'dark' | 'light', ViewerTheme> = {
+  dark: {
+    theme: 'dark',
+    themeVariables: {
+      background: '#1f2937',
+      primaryColor: '#1f2937',
+      primaryTextColor: '#f9fafb',
+      primaryBorderColor: '#e5e7eb',
+      lineColor: '#e5e7eb',
+      secondaryColor: '#111827',
+      tertiaryColor: '#111827',
+      actorBkg: 'transparent',
+      actorBorder: '#e5e7eb',
+      actorTextColor: '#f9fafb',
+      actorLineColor: '#e5e7eb',
+      signalColor: '#e5e7eb',
+      signalTextColor: '#f9fafb',
+      labelBoxBkgColor: '#111827',
+      labelBoxBorderColor: '#e5e7eb',
+      labelTextColor: '#f9fafb',
+      noteBkgColor: '#111827',
+      noteBorderColor: '#e5e7eb',
+      noteTextColor: '#f9fafb',
+      activationBorderColor: '#e5e7eb',
+      activationBkgColor: '#1f2937',
+      sequenceNumberColor: '#111827',
+    },
+  },
+  light: {
+    theme: 'dark',
+    themeVariables: {
+      background: '#ffffff',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#1f2937',
+      primaryBorderColor: '#1f2937',
+      lineColor: '#1f2937',
+      secondaryColor: '#e5e7eb',
+      tertiaryColor: '#e5e7eb',
+      actorBkg: '#ffffff',
+      actorBorder: '#1f2937',
+      actorTextColor: '#1f2937',
+      actorLineColor: '#1f2937',
+      signalColor: '#1f2937',
+      signalTextColor: '#1f2937',
+      labelBoxBkgColor: '#ffffff',
+      labelBoxBorderColor: '#1f2937',
+      labelTextColor: '#1f2937',
+      noteBkgColor: '#ffffff',
+      noteBorderColor: '#1f2937',
+      noteTextColor: '#1f2937',
+      activationBorderColor: '#1f2937',
+      activationBkgColor: '#e5e7eb',
+      sequenceNumberColor: '#ffffff',
+    },
+  },
+};
+
+let viewerTheme: 'dark' | 'light' = 'dark';
+
+function loadViewerMermaid(): Promise<typeof import('mermaid')> {
+  viewerMermaidPromise ??= import('mermaid').then((module) => {
+    const config = VIEWER_THEMES[viewerTheme];
+    module.default.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: config.theme,
+      themeVariables: config.themeVariables,
+    });
+    return module;
+  });
+  return viewerMermaidPromise;
+}
+
+async function rerenderViewerDiagram(
+  source: string,
+  container: HTMLElement,
+  renderId: number,
+): Promise<{ svg: SVGSVGElement; markup: string }> {
+  const mermaid = (await loadViewerMermaid()).default;
+  const id = `mermaid-viewer-${++renderId}-${Date.now().toString(36)}`;
+  const { svg, bindFunctions } = await mermaid.render(
+    id,
+    prepareMermaidSourceForRender(source),
+  );
+  container.innerHTML = svg;
+  const element = container.querySelector('svg');
+  bindFunctions?.(container);
+  if (!element) {
+    throw new Error('Mermaid produced no SVG');
+  }
+  return { svg: element, markup: svg };
+}
 
 /** Floating toolbar on top-right of each Mermaid diagram: zoom / download / copy source. */
 export function createMermaidDiagramToolbar(
@@ -114,6 +225,7 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
   const actualButton = createControlButton('原始大小', '<span class="mermaid-fullscreen__ratio">1:1</span>');
   const downloadButton = createControlButton('下载 SVG', ICONS.download);
   const copyButton = createControlButton('复制源码', ICONS.copy);
+  const themeButton = createControlButton('切换亮色主题', ICONS.themeLight, 'mermaid-fullscreen__button--theme');
   const closeButton = createControlButton('关闭', ICONS.close, 'mermaid-fullscreen__button--close');
 
   controls.append(
@@ -126,6 +238,7 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
     createControlDivider(),
     downloadButton,
     copyButton,
+    themeButton,
     closeButton,
   );
 
@@ -135,7 +248,10 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
 
   const canvas = document.createElement('div');
   canvas.className = 'mermaid-fullscreen__canvas';
+  // Render through the viewer-local Mermaid instance so the diagram picks up
+  // the chosen themeVariables instead of relying on CSS overrides.
   canvas.innerHTML = svgMarkup;
+  canvas.dataset['loadingTheme'] = viewerTheme;
 
   const viewport = document.createElement('div');
   viewport.className = 'mermaid-fullscreen__viewport';
@@ -146,12 +262,17 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
   document.body.append(overlay);
   activeOverlay = overlay;
 
-  const svg = canvas.querySelector('svg');
-  const baseSize = svg ? readSvgSize(svg) : { width: 800, height: 600 };
+  let svg = canvas.querySelector('svg');
+  let baseSize: { width: number; height: number } = svg
+    ? readSvgSize(svg)
+    : { width: 800, height: 600 };
+  let currentMarkup: string = svgMarkup;
+
   const state = {
     scale: 1,
     fitMode: true,
     fitScale: 1,
+    theme: viewerTheme,
   };
 
   const computeFitScale = (): number => {
@@ -167,6 +288,39 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
 
   const renderScale = (): void => {
     zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+  };
+
+  const applyThemeButtonLabel = (): void => {
+    themeButton.title = state.theme === 'dark' ? '切换亮色主题' : '切换暗色主题';
+    themeButton.setAttribute('aria-label', themeButton.title);
+    themeButton.innerHTML = state.theme === 'dark' ? ICONS.themeLight : ICONS.themeDark;
+  };
+
+  const applyCanvasThemeClass = (): void => {
+    canvas.classList.toggle('mermaid-fullscreen__canvas--light', state.theme === 'light');
+    overlay.classList.toggle('mermaid-fullscreen__overlay--light', state.theme === 'light');
+  };
+
+  const rerenderForTheme = async (): Promise<void> => {
+    viewerTheme = state.theme;
+    try {
+      canvas.classList.add('mermaid-fullscreen__canvas--loading');
+      const result = await rerenderViewerDiagram(source, canvas, diagramId);
+      currentMarkup = result.markup;
+      svg = result.svg;
+      baseSize = readSvgSize(svg);
+      applyCanvasThemeClass();
+      applyThemeButtonLabel();
+      // Re-fit the freshly rendered diagram to the viewport.
+      enterFitMode();
+    } finally {
+      canvas.classList.remove('mermaid-fullscreen__canvas--loading');
+    }
+  };
+
+  const toggleTheme = (): void => {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    void rerenderForTheme();
   };
 
   const applyScale = (scale: number): void => {
@@ -342,10 +496,11 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
   zoomInButton.addEventListener('click', () => zoomFromControl(ZOOM_STEP));
   fitButton.addEventListener('click', enterFitMode);
   actualButton.addEventListener('click', () => setScale(1));
-  downloadButton.addEventListener('click', () => downloadMermaidSvg(svgMarkup, diagramId));
+  downloadButton.addEventListener('click', () => downloadMermaidSvg(currentMarkup, diagramId));
   copyButton.addEventListener('click', (event) =>
     void copyMermaidSource(source, event.currentTarget),
   );
+  themeButton.addEventListener('click', toggleTheme);
   closeButton.addEventListener('click', closeMermaidFullscreen);
 
   viewport.addEventListener('wheel', onWheel, { passive: false });
@@ -359,6 +514,12 @@ export function openMermaidFullscreen(svgMarkup: string, source: string, diagram
   window.addEventListener('resize', onResize);
 
   enterFitMode();
+  applyCanvasThemeClass();
+  applyThemeButtonLabel();
+  // Always replace the directive-provided SVG with one rendered through the
+  // viewer-local Mermaid instance so the chosen themeVariables apply from
+  // the very first paint (avoiding stale contrast on toggle).
+  void rerenderForTheme();
   closeButton.focus();
 
   activeCleanup = () => {

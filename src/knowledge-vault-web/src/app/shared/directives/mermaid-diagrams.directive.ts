@@ -2,6 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { Directive, ElementRef, inject, Input, OnDestroy, PLATFORM_ID } from '@angular/core';
 
 import { createMermaidDiagramToolbar } from './mermaid-fullscreen';
+import { prepareMermaidSourceForRender } from './mermaid-source';
 
 let diagramId = 0;
 let mermaidModule: Promise<typeof import('mermaid')> | undefined;
@@ -51,7 +52,10 @@ export class MermaidDiagramsDirective implements OnDestroy {
 
       try {
         const id = `mermaid-diagram-${++diagramId}`;
-        const { svg, bindFunctions } = await mermaid.render(id, source);
+        const { svg, bindFunctions } = await mermaid.render(
+          id,
+          prepareMermaidSourceForRender(source),
+        );
 
         if (version !== this.renderVersion || !diagram.isConnected) {
           return;
@@ -81,7 +85,7 @@ export class MermaidDiagramsDirective implements OnDestroy {
   }
 }
 
-async function loadMermaid(): Promise<typeof import('mermaid')> {
+export async function loadMermaid(themeHint?: 'dark' | 'default'): Promise<typeof import('mermaid')> {
   mermaidModule ??= import('mermaid').then((module) => {
     module.default.initialize({
       startOnLoad: false,
@@ -92,5 +96,50 @@ async function loadMermaid(): Promise<typeof import('mermaid')> {
     return module;
   });
 
-  return mermaidModule;
+  const module = await mermaidModule;
+
+  // Re-initialize the global Mermaid config when a specific theme is requested
+  // (the fullscreen viewer switches between dark/default depending on user
+  // preference). Each theme uses its built-in palette so we never need to fight
+  // the renderer with CSS overrides.
+  if (themeHint) {
+    const themeVariables =
+      themeHint === 'dark'
+        ? {
+            // Bump contrast inside dark theme: actor/lifelines/labels all use
+            // very light gray, sequence numbers are highlighted.
+            background: '#1f2937',
+            primaryColor: '#1f2937',
+            primaryTextColor: '#f9fafb',
+            primaryBorderColor: '#e5e7eb',
+            lineColor: '#e5e7eb',
+            secondaryColor: '#111827',
+            tertiaryColor: '#111827',
+            actorBkg: 'transparent',
+            actorBorder: '#e5e7eb',
+            actorTextColor: '#f9fafb',
+            actorLineColor: '#e5e7eb',
+            signalColor: '#e5e7eb',
+            signalTextColor: '#f9fafb',
+            labelBoxBkgColor: '#111827',
+            labelBoxBorderColor: '#e5e7eb',
+            labelTextColor: '#f9fafb',
+            noteBkgColor: '#111827',
+            noteBorderColor: '#e5e7eb',
+            noteTextColor: '#f9fafb',
+            activationBorderColor: '#e5e7eb',
+            activationBkgColor: '#1f2937',
+            sequenceNumberColor: '#111827',
+          }
+        : undefined;
+
+    module.default.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: themeHint,
+      themeVariables,
+    });
+  }
+
+  return module;
 }

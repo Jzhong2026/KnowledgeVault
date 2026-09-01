@@ -1730,7 +1730,13 @@ export class WorkspacePage implements OnDestroy {
         }
         imported++;
       }
-      this.importProgress.set(`Imported ${imported} file${imported === 1 ? '' : 's'}${ignored ? `; ignored ${ignored} duplicate${ignored === 1 ? '' : 's'}` : ''}.`);
+      const msg = `Imported ${imported} file${imported === 1 ? '' : 's'}${ignored ? `; ignored ${ignored} duplicate${ignored === 1 ? '' : 's'}` : ''}.`;
+      this.importProgress.set(msg);
+      setTimeout(() => {
+        if (this.importProgress() === msg) {
+          this.importProgress.set(null);
+        }
+      }, 4000);
       this.pendingImportTargets = [];
       this.loadContent(this.workspace.current(), 1, false);
     } catch (err: unknown) {

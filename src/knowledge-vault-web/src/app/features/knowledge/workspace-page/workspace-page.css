@@ -461,9 +461,9 @@ button:disabled {
 
 .workspace-import-status {
   position: fixed;
-  z-index: 20;
-  right: 24px;
-  bottom: 24px;
+  z-index: 50;
+  right: 92px;
+  bottom: 28px;
   margin: 0;
   border: 1px solid #a7f3d0;
   border-radius: 8px;
@@ -473,6 +473,19 @@ button:disabled {
   font-size: 13px;
   font-weight: 600;
   padding: 10px 14px;
+  pointer-events: auto;
+  animation: workspace-import-status-in 180ms ease-out;
+}
+
+@keyframes workspace-import-status-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .document-list {
@@ -815,6 +828,7 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 130px;
   gap: 24px;
+  min-width: 0;
 }
 
 .workspace-doc__heading-row {
@@ -902,13 +916,13 @@ button:disabled {
   color: #cbd5e1;
 }
 
-.workspace-comments { display: grid; gap: 14px; border-top: 1px solid var(--border, #e2e8f0); padding-top: 20px; }
+.workspace-comments { display: grid; gap: 14px; border-top: 1px solid var(--border, #e2e8f0); padding-top: 20px; min-width: 0; }
 .workspace-comments__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .workspace-comments__header h4, .workspace-comments__header p, .workspace-comments__empty { margin: 0; }
 .workspace-comments__header h4 { color: var(--text, #0f172a); font-size: 16px; }
 .workspace-comments__header p, .workspace-comments__empty, .workspace-comment__meta { color: var(--muted, #64748b); font-size: 13px; }
-.workspace-comment-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.workspace-comment { display: grid; gap: 8px; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; padding: 14px 16px; }
+.workspace-comment-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.workspace-comment { display: grid; gap: 8px; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; padding: 14px 16px; min-width: 0; }
 .workspace-comment__meta { display: flex; flex-wrap: wrap; gap: 5px 10px; }
 .workspace-comment__meta strong, .workspace-comment__content { color: var(--text, #0f172a); }
 .workspace-comment__content { overflow: hidden; }
@@ -927,4 +941,9 @@ button:disabled {
   .workspace-revision-rail { border-left: 0; border-top: 1px solid var(--border, #e2e8f0); padding: 14px 0 0; }
   .document-list__row { grid-template-columns: 1fr auto; }
   .document-list__row > span, .document-list__row > time { display: none; }
+  .workspace-import-status {
+    right: 88px;
+    bottom: 24px;
+    max-width: calc(100vw - 110px);
+  }
 }

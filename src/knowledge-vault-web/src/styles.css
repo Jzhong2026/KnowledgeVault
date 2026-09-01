@@ -513,10 +513,16 @@ a {
 
 .mermaid-fullscreen__viewport {
   flex: 1;
-  display: flex;
+  display: block;
   overflow: auto; /* Vertical + horizontal scrollbars once the diagram is zoomed in. */
   cursor: grab;
   outline: none;
+  background: #0f1115; /* slightly lighter than pure black so the dark
+                          diagram's lifelines/text read better against it */
+}
+
+.mermaid-fullscreen__overlay--light .mermaid-fullscreen__viewport {
+  background: #ffffff;
 }
 
 .mermaid-fullscreen__viewport--dragging {
@@ -524,42 +530,76 @@ a {
 }
 
 .mermaid-fullscreen__canvas {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 100%;
-  min-height: 100%;
+  display: inline-block;
+  width: max-content;
+  height: max-content;
+  /* Anchor content to the top-left so vertical overflow always pushes
+     downward and reveals a vertical scrollbar. */
   padding: 28px;
   line-height: 0;
   user-select: none;
   box-sizing: border-box;
 }
 
+.mermaid-fullscreen__canvas--light {
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+
+
 .mermaid-fullscreen__canvas svg {
   display: block;
   max-width: none;
 }
 
+.mermaid-fullscreen__button--theme {
+  border-color: rgba(105, 223, 192, 0.45);
+  background: rgba(105, 223, 192, 0.14);
+  color: #9ff0d8;
+}
+
+.mermaid-fullscreen__button--theme:hover {
+  border-color: rgba(105, 223, 192, 0.8);
+  background: rgba(105, 223, 192, 0.24);
+  color: #fff;
+}
+
+/* Theme switching now happens at the Mermaid renderer level (see
+   mermaid-fullscreen.ts -> rerenderViewerDiagram). The SVG already comes
+   painted with the chosen theme's high-contrast palette, so this stylesheet
+   just hosts the surrounding chrome (background, scrollbar, buttons). */
+
 .mermaid-fullscreen__viewport::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .mermaid-fullscreen__viewport::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
 }
 
 .mermaid-fullscreen__viewport::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(220, 232, 240, 0.55); /* thumb always visible, not faded */
   background-clip: content-box;
 }
 
 .mermaid-fullscreen__viewport::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.34);
+  background: rgba(220, 232, 240, 0.85);
   background-clip: content-box;
+}
+
+.mermaid-fullscreen__viewport::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+.mermaid-fullscreen__viewport {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(220, 232, 240, 0.55) rgba(255, 255, 255, 0.04);
 }
 
 .markdown-body table {

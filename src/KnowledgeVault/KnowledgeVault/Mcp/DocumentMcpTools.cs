@@ -114,7 +114,7 @@ public sealed class DocumentMcpTools(
     [Description("Create a personal or project document. Project documents are immediately visible to project members.")]
     public Task<string> CreateDocument(
         [Description("Document title")] string title,
-        [Description("Markdown document content; an empty value uses the selected document type template")] string content,
+		[Description("Inline Markdown document content as text. This must be the actual content, NOT a file path or file name; the server does not read files from disk, so passing a path will store the path string literally. Read the file yourself and pass its text here. An empty value uses the selected document type template")] string content,
         [Description("Scope: Personal or Project")] string scope = "Project",
         [Description("Type: General, PlanningReview, or TaskBreakdown")] string documentType = "General",
         [Description("Required project id for Project scope (Guid)")] string? projectId = null,
@@ -156,7 +156,7 @@ public sealed class DocumentMcpTools(
     public Task<string> UpdateDocument(
         [Description("Document id (Guid)")] string documentId,
         [Description("Revision number read before making this update")] int expectedRevisionNumber,
-        [Description("Complete Markdown content for the new revision")] string content,
+		[Description("Complete Markdown content for the new revision as inline text. This must be the actual content, NOT a file path or file name; the server does not read files from disk, so passing a path will store the path string literally and corrupt the document. Read the file yourself and pass its text here")] string content,
         [Description("Optional replacement title; omit to preserve the current title")] string? title = null,
         [Description("Optional replacement summary; omit to preserve the current summary")] string? summary = null,
         [Description("Optional explanation of this revision")] string? changeNote = null,
