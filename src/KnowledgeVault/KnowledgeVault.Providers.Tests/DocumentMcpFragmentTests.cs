@@ -130,6 +130,39 @@ public sealed class DocumentMcpFragmentTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Metadata_patch_keeps_unspecified_fields_and_is_atomic_with_folder()
+    {
+        var created = await Docs().CreateAsync(
+            new CreateDocumentRequest(DocumentScope.Personal, null, null, DocumentType.General,
+                "Doc", "body-stays", null, null, null, null, null, null,
+                KnowledgeItemStatus.Draft, null, ["keep-tag"]),
+            CancellationToken.None);
+
+        await Docs().UpdateMetadataAsync(created.Id,
+            new UpdateDocumentMetadataRequest(
+                null, null, null, KnowledgeItemStatus.Active, null, null, Patch: true),
+            CancellationToken.None);
+
+        var afterStatus = await Docs().GetAsync(created.Id, CancellationToken.None);
+        Assert.Equal(KnowledgeItemStatus.Active, afterStatus.Status);
+        Assert.Contains(afterStatus.Tags, x => x.Name == "keep-tag");
+        Assert.Equal(1, afterStatus.CurrentRevisionNumber);
+
+        var missingFolder = Guid.NewGuid();
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            Docs().UpdateMetadataAsync(created.Id,
+                new UpdateDocumentMetadataRequest(
+                    null, null, null, KnowledgeItemStatus.Archived, null, null,
+                    FolderId: missingFolder, UpdateFolder: true, Patch: true),
+                CancellationToken.None));
+
+        var afterFailedMove = await Docs().GetAsync(created.Id, CancellationToken.None);
+        Assert.Equal(KnowledgeItemStatus.Active, afterFailedMove.Status);
+        Assert.Null(_db.KnowledgeItems.Single(x => x.Id == created.Id).FolderId);
+        Assert.Contains(afterFailedMove.Tags, x => x.Name == "keep-tag");
+    }
+
+    [Fact]
     public async Task Write_ack_succeeds_after_archive()
     {
         var created = await Docs().CreateAsync(

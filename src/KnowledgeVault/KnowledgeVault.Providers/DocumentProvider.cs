@@ -311,11 +311,29 @@ public sealed class DocumentProvider(
 
     public async Task<DocumentWriteAckDto> GetWriteAckAsync(Guid id, CancellationToken cancellationToken)
     {
-        var item = await BuildDetailQuery()
-            .FirstOrDefaultAsync(x => x.Id == id && x.Status != KnowledgeItemStatus.Deleted, cancellationToken)
+        var row = await dbContext.KnowledgeItems
+            .AsNoTracking()
+            .Where(x => x.Id == id && x.Status != KnowledgeItemStatus.Deleted)
+            .Select(x => new
+            {
+                x.Id,
+                x.CurrentRevisionNumber,
+                x.Status,
+                Title = x.CurrentRevision!.Title,
+                Content = x.CurrentRevision.Content,
+                ChangeNote = x.CurrentRevision.ChangeNote
+            })
+            .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
-        return item.ToDto().ToWriteAck();
+        return new DocumentWriteAckDto(
+            row.Id,
+            row.CurrentRevisionNumber,
+            row.Title,
+            row.Status,
+            row.Content.Length,
+            DocumentContentHash.Sha256Hex(row.Content),
+            row.ChangeNote);
     }
 
     public async Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken)
@@ -440,30 +458,46 @@ public sealed class DocumentProvider(
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
-        EnsureProjectMemoryMetadataIsValid(item, request);
+        var nextStatus = request.Status ?? item.Status;
+        var nextTopicId = ResolveOptionalGuid(
+            request.Patch, request.ClearTopic, request.TopicId, item.TopicId);
+        var nextCategoryId = ResolveOptionalGuid(
+            request.Patch, request.ClearCategory, request.CategoryId, item.CategoryId);
+        var moveFolder = request.UpdateFolder || request.FolderId.HasValue;
+
+        EnsureProjectMemoryMetadataIsValid(item, request.ProjectId, nextTopicId, nextCategoryId, nextStatus);
+
+        Folder? folder = null;
+        if (moveFolder)
+        {
+            folder = await locationService.ResolveFolderAsync(
+                item.Scope, item.ProjectId, request.FolderId, userId, cancellationToken);
+        }
 
         var location = await locationService.ResolveLocationAsync(
             item.Scope,
             request.ProjectId ?? item.ProjectId,
-            request.TopicId,
+            nextTopicId,
             userId,
             cancellationToken);
 
-        if (request.FolderId.HasValue)
+        await locationService.EnsureCategoryAsync(nextCategoryId, cancellationToken);
+        item.ProjectId = location.ProjectId;
+        item.TopicId = location.TopicId;
+        item.CategoryId = nextCategoryId;
+        if (moveFolder)
         {
-            var folder = await locationService.ResolveFolderAsync(
-                item.Scope, item.ProjectId, request.FolderId, userId, cancellationToken);
             item.FolderId = folder?.Id;
         }
 
-        await locationService.EnsureCategoryAsync(request.CategoryId, cancellationToken);
-        item.ProjectId = location.ProjectId;
-        item.TopicId = location.TopicId;
-        item.CategoryId = request.CategoryId;
         item.UpdatedAt = now;
-        item.ChangeStatus(request.Status, now);
+        item.ChangeStatus(nextStatus, now);
 
-        await tagService.SyncTagsAsync(item, request.TagIds, request.TagNames, cancellationToken);
+        if (request.TagIds is not null || request.TagNames is not null)
+        {
+            await tagService.SyncTagsAsync(item, request.TagIds, request.TagNames, cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -533,21 +567,39 @@ public sealed class DocumentProvider(
 
     private static void EnsureProjectMemoryMetadataIsValid(
         KnowledgeItem item,
-        UpdateDocumentMetadataRequest request)
+        Guid? requestedProjectId,
+        Guid? nextTopicId,
+        Guid? nextCategoryId,
+        KnowledgeItemStatus nextStatus)
     {
         if (!item.IsProjectMemory)
         {
             return;
         }
 
-        if ((request.ProjectId.HasValue && request.ProjectId != item.ProjectId) ||
-            request.TopicId.HasValue ||
-            request.CategoryId != item.CategoryId ||
-            request.Status != KnowledgeItemStatus.Active)
+        if ((requestedProjectId.HasValue && requestedProjectId != item.ProjectId) ||
+            nextTopicId.HasValue ||
+            nextCategoryId != item.CategoryId ||
+            nextStatus != KnowledgeItemStatus.Active)
         {
             throw new ValidationException(
                 "MEMORY.md is a fixed active project document; its category, status, and location cannot be changed.");
         }
+    }
+
+    private static Guid? ResolveOptionalGuid(bool patch, bool clear, Guid? requested, Guid? current)
+    {
+        if (!patch)
+        {
+            return requested;
+        }
+
+        if (clear)
+        {
+            return null;
+        }
+
+        return requested ?? current;
     }
 
     private static KnowledgeItemRevision BuildRevision(

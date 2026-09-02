@@ -68,10 +68,14 @@ public sealed record UpdateDocumentMetadataRequest(
     Guid? ProjectId,
     Guid? TopicId,
     Guid? CategoryId,
-    KnowledgeItemStatus Status,
+    KnowledgeItemStatus? Status,
     IReadOnlyList<Guid>? TagIds,
     IReadOnlyList<string>? TagNames,
-    Guid? FolderId = null);
+    Guid? FolderId = null,
+    bool UpdateFolder = false,
+    bool Patch = false,
+    bool ClearTopic = false,
+    bool ClearCategory = false);
 
 // Explicit document move. folderId = null moves the document to the root (no folder);
 // a non-null folderId moves it into that folder. Scope/project consistency and write

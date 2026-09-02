@@ -278,27 +278,12 @@ public sealed class DocumentMcpTools(
     {
         return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
         {
-            if (oldTexts is null || newTexts is null || oldTexts.Length == 0 || oldTexts.Length != newTexts.Length)
-            {
-                throw new KnowledgeVault.Infrastructure.Exceptions.ValidationException(
-                    "oldTexts and newTexts must be non-empty arrays of the same length.");
-            }
-
-            if (replaceAllFlags is not null && replaceAllFlags.Length != oldTexts.Length)
-            {
-                throw new KnowledgeVault.Infrastructure.Exceptions.ValidationException(
-                    "replaceAllFlags must be the same length as oldTexts.");
-            }
-
             var provider = services.GetRequiredService<IDocumentProvider>();
             var ack = await provider.ApplyPatchAsync(
                 McpArguments.Guid(documentId, nameof(documentId)),
                 new ApplyDocumentPatchRequest(
                     expectedRevisionNumber,
-                    oldTexts.Select((oldText, index) => new DocumentPatchHunk(
-                        oldText,
-                        newTexts[index],
-                        replaceAllFlags is not null ? replaceAllFlags[index] : replaceAll)).ToArray(),
+                    DocumentMcpBinding.BindPatchHunks(oldTexts, newTexts, replaceAll, replaceAllFlags),
                     changeNote),
                 cancellationToken);
             return McpJson.Serialize(ack);
@@ -320,25 +305,10 @@ public sealed class DocumentMcpTools(
         {
             var id = McpArguments.Guid(documentId, nameof(documentId));
             var provider = services.GetRequiredService<IDocumentProvider>();
-            var current = await provider.GetAsync(id, cancellationToken);
             await provider.UpdateMetadataAsync(
                 id,
-                new UpdateDocumentMetadataRequest(
-                    current.ProjectId,
-                    topicId is null ? current.TopicId : McpArguments.OptionalGuid(topicId, nameof(topicId)),
-                    categoryId is null ? current.Category?.Id : McpArguments.OptionalGuid(categoryId, nameof(categoryId)),
-                    McpArguments.OptionalEnum<KnowledgeItemStatus>(status, nameof(status)) ?? current.Status,
-                    tagNames is null ? current.Tags.Select(x => x.Id).ToArray() : null,
-                    tagNames),
+                DocumentMcpBinding.BindMetadata(status, categoryId, topicId, folderId, tagNames),
                 cancellationToken);
-            if (folderId is not null)
-            {
-                await provider.MoveDocumentAsync(
-                    id,
-                    McpArguments.OptionalGuid(folderId, nameof(folderId)),
-                    cancellationToken);
-            }
-
             var ack = await provider.GetWriteAckAsync(id, cancellationToken);
             return McpJson.Serialize(ack);
         });

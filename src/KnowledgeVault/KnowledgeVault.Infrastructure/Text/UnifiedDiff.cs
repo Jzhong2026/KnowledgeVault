@@ -97,21 +97,18 @@ public static class UnifiedDiff
                 newLines.Count - suffix + i));
         }
 
-        var text = Format(
+        var (text, truncated) = Format(
             rows,
             oldLines,
             newLines,
             oldLabel,
             newLabel,
             contextLines,
-            prefix - contextPrefix);
-        if (text.Length > maxChars)
+            prefix - contextPrefix,
+            maxChars);
+        if (truncated)
         {
-            return new UnifiedDiffResult(
-                text[..maxChars] + $"\n[truncated: diff exceeded {maxChars} characters; use get_document_content_range]\n",
-                Truncated: true,
-                oldLines.Count,
-                newLines.Count);
+            return new UnifiedDiffResult(text, true, oldLines.Count, newLines.Count);
         }
 
         return new UnifiedDiffResult(text, false, oldLines.Count, newLines.Count);
@@ -287,21 +284,22 @@ public static class UnifiedDiff
         return rows;
     }
 
-    private static string Format(
+    private static (string Text, bool Truncated) Format(
         List<(RowKind Kind, int OldIndex, int NewIndex)> rows,
         IReadOnlyList<string> oldLines,
         IReadOnlyList<string> newLines,
         string oldLabel,
         string newLabel,
         int contextLines,
-        int hiddenPrefixLines)
+        int hiddenPrefixLines,
+        int maxChars)
     {
         var builder = new StringBuilder();
         AppendLf(builder, "--- ", oldLabel);
         AppendLf(builder, "+++ ", newLabel);
         if (rows.Count == 0 || rows.All(r => r.Kind == RowKind.Equal))
         {
-            return builder.ToString();
+            return (builder.ToString(), false);
         }
 
         var changeFlags = rows.Select(r => r.Kind != RowKind.Equal).ToArray();
@@ -319,6 +317,7 @@ public static class UnifiedDiff
             }
         }
 
+        var truncated = false;
         var index = 0;
         while (index < rows.Count)
         {
@@ -379,16 +378,20 @@ public static class UnifiedDiff
                 newStart = newCount == 0 ? consumed : consumed + 1;
             }
 
-            builder.Append("@@ -")
-                .Append(oldStart)
-                .Append(',')
-                .Append(oldCount)
-                .Append(" +")
-                .Append(newStart)
-                .Append(',')
-                .Append(newCount)
-                .Append(" @@\n");
+            var header = $"@@ -{oldStart},{oldCount} +{newStart},{newCount} @@\n";
+            var hunkSize = header.Length;
+            for (var i = hunkStart; i <= hunkEnd; i++)
+            {
+                hunkSize += 1 + LineText(rows[i], oldLines, newLines).Length + 1;
+            }
 
+            if (builder.Length + hunkSize > maxChars)
+            {
+                truncated = true;
+                break;
+            }
+
+            builder.Append(header);
             for (var i = hunkStart; i <= hunkEnd; i++)
             {
                 var row = rows[i];
@@ -409,8 +412,25 @@ public static class UnifiedDiff
             index = hunkEnd + 1;
         }
 
-        return builder.ToString();
+        if (truncated)
+        {
+            builder.Append("[truncated: diff exceeded ")
+                .Append(maxChars)
+                .Append(" characters; use get_document_content_range]\n");
+        }
+
+        return (builder.ToString(), truncated);
     }
+
+    private static string LineText(
+        (RowKind Kind, int OldIndex, int NewIndex) row,
+        IReadOnlyList<string> oldLines,
+        IReadOnlyList<string> newLines) =>
+        row.Kind switch
+        {
+            RowKind.Insert => newLines[row.NewIndex],
+            _ => oldLines[row.OldIndex]
+        };
 
     private static void AppendLf(StringBuilder builder, string prefix, string text)
     {

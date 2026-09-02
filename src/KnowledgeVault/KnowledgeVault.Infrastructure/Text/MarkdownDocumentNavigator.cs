@@ -98,14 +98,14 @@ public static class MarkdownDocumentNavigator
         var fenceMarker = string.Empty;
         for (var i = 0; i < lines.Count; i++)
         {
-            if (TryFence(lines[i].Text, out var marker))
+            if (TryFence(lines[i].Text, out var marker, out var restIsBlank))
             {
                 if (!inFence)
                 {
                     inFence = true;
                     fenceMarker = marker;
                 }
-                else if (marker[0] == fenceMarker[0] && marker.Length >= fenceMarker.Length)
+                else if (restIsBlank && marker[0] == fenceMarker[0] && marker.Length >= fenceMarker.Length)
                 {
                     inFence = false;
                     fenceMarker = string.Empty;
@@ -502,9 +502,10 @@ public static class MarkdownDocumentNavigator
         return markdown.Substring(start, length);
     }
 
-    private static bool TryFence(string line, out string marker)
+    private static bool TryFence(string line, out string marker, out bool restIsBlank)
     {
         var trimmed = line.TrimStart();
+        restIsBlank = false;
         if (trimmed.Length < 3)
         {
             marker = string.Empty;
@@ -528,6 +529,16 @@ public static class MarkdownDocumentNavigator
         {
             marker = string.Empty;
             return false;
+        }
+
+        restIsBlank = true;
+        for (var i = count; i < trimmed.Length; i++)
+        {
+            if (trimmed[i] is not ' ' and not '\t')
+            {
+                restIsBlank = false;
+                break;
+            }
         }
 
         marker = new string(ch, count);

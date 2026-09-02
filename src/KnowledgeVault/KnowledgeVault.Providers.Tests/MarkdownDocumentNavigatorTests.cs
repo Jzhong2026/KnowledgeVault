@@ -150,6 +150,27 @@ public sealed class MarkdownDocumentNavigatorTests
     }
 
     [Fact]
+    public void Outline_does_not_close_a_fence_with_info_text()
+    {
+        var markdown = """
+            # Real
+
+            ```
+            # example
+            ```not-a-close
+            # still-fenced
+            ```
+
+            ## Child
+            """;
+        var outline = MarkdownDocumentNavigator.BuildOutline(markdown);
+        Assert.DoesNotContain(outline, x => x.Heading == "example");
+        Assert.DoesNotContain(outline, x => x.Heading == "still-fenced");
+        Assert.Contains(outline, x => x.Heading == "Real");
+        Assert.Contains(outline, x => x.Heading == "Child");
+    }
+
+    [Fact]
     public void Range_by_h1_includes_nested_sections()
     {
         var range = MarkdownDocumentNavigator.ReadRange(Sample, "Title", 1, null, null, null, null);
@@ -255,6 +276,19 @@ public sealed class UnifiedDiffTests
         Assert.True(result.Truncated);
         Assert.Contains("truncated", result.Text);
         Assert.True(result.Text.Length < 2_000);
+    }
+
+    [Fact]
+    public void Huge_single_line_change_truncates_before_copying_the_line()
+    {
+        var oldText = new string('a', 80_000);
+        var newText = new string('b', 80_000);
+        var result = UnifiedDiff.CreateResult(oldText, newText, "a", "b", contextLines: 0, maxChars: 800);
+        Assert.True(result.Truncated);
+        Assert.True(result.Text.Length < 1_200);
+        Assert.DoesNotContain(new string('a', 1_000), result.Text);
+        Assert.DoesNotContain(new string('b', 1_000), result.Text);
+        Assert.Contains("truncated", result.Text);
     }
 
     [Fact]
