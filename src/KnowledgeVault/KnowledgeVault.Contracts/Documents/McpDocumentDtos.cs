@@ -10,7 +10,12 @@ public static class DocumentMcpLimits
     public const int SearchMaxHits = 20;
     public const int SearchContextLinesDefault = 2;
     public const int SearchContextLinesMax = 8;
+    public const int SearchExcerptChars = 240;
+    public const int SearchTotalChars = 4_000;
     public const int DiffContextLines = 3;
+    public const int DiffMaxChars = 16_000;
+    public const long DiffMaxLcsCells = 1_200_000;
+    public const int MaxOutlineHeadings = 80;
 }
 
 public sealed record DocumentWriteAckDto(
@@ -39,7 +44,8 @@ public sealed record DocumentMcpHeadDto(
     KnowledgeItemStatus Status,
     int ContentLength,
     string ContentHash,
-    IReadOnlyList<DocumentOutlineHeadingDto> Outline);
+    IReadOnlyList<DocumentOutlineHeadingDto> Outline,
+    bool OutlineTruncated = false);
 
 public sealed record DocumentContentRangeQuery(
     string? Heading,
@@ -90,12 +96,16 @@ public sealed record DocumentRevisionDiffDto(
     Guid DocumentId,
     int FromRevision,
     int ToRevision,
-    string UnifiedDiff);
+    string UnifiedDiff,
+    bool Truncated = false,
+    int OldLineCount = 0,
+    int NewLineCount = 0);
 
 public sealed record DocumentReviewContextMcpDto(
     DocumentMcpHeadDto Document,
     int RevisionNumber,
     int? PreviousRevisionNumber,
     string UnifiedDiff,
+    bool DiffTruncated,
     IReadOnlyList<CommentDto> Comments,
     IReadOnlyList<DocumentReviewDto> Reviews);

@@ -179,6 +179,7 @@ public sealed class DocumentReviewProvider(
             .SelectReviewDtosAsync(cancellationToken);
 
         string diff;
+        var diffTruncated = false;
         int? previousRevisionNumber = null;
         if (revisionNumber > 1)
         {
@@ -186,6 +187,7 @@ public sealed class DocumentReviewProvider(
             var revisionDiff = await revisionProvider.GetDiffAsync(
                 documentId, previousRevisionNumber.Value, revisionNumber, cancellationToken);
             diff = revisionDiff.UnifiedDiff;
+            diffTruncated = revisionDiff.Truncated;
         }
         else
         {
@@ -197,6 +199,7 @@ public sealed class DocumentReviewProvider(
             revisionNumber,
             previousRevisionNumber,
             diff,
+            diffTruncated,
             comments.Items,
             reviews);
     }

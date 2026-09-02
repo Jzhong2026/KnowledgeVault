@@ -128,4 +128,98 @@ public sealed class DocumentMcpFragmentTests : IAsyncLifetime
         Assert.Equal(KnowledgeItemStatus.Active, current.Status);
         Assert.Equal("body-stays", current.Content);
     }
+
+    [Fact]
+    public async Task Write_ack_succeeds_after_archive()
+    {
+        var created = await Docs().CreateAsync(
+            new CreateDocumentRequest(DocumentScope.Personal, null, null, DocumentType.General,
+                "Doc", "keep-me", null, null, null, null, null, null,
+                KnowledgeItemStatus.Active, null, null),
+            CancellationToken.None);
+
+        await Docs().UpdateMetadataAsync(created.Id,
+            new UpdateDocumentMetadataRequest(null, null, null, KnowledgeItemStatus.Archived, null, null),
+            CancellationToken.None);
+
+        var ack = await Docs().GetWriteAckAsync(created.Id, CancellationToken.None);
+        Assert.Equal(KnowledgeItemStatus.Archived, ack.Status);
+        Assert.Equal("keep-me".Length, ack.ContentLength);
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            Docs().GetForMcpAsync(created.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Apply_patch_honors_per_hunk_replace_all()
+    {
+        var created = await Docs().CreateAsync(
+            new CreateDocumentRequest(DocumentScope.Personal, null, null, DocumentType.General,
+                "Doc", "aaa aaa\nbbb\n", null, null, null, null, null, null,
+                KnowledgeItemStatus.Draft, null, null),
+            CancellationToken.None);
+
+        var ack = await Docs().ApplyPatchAsync(created.Id,
+            new ApplyDocumentPatchRequest(1,
+            [
+                new DocumentPatchHunk("aaa", "A", ReplaceAll: true),
+                new DocumentPatchHunk("bbb", "B")
+            ],
+            "mixed"),
+            CancellationToken.None);
+
+        Assert.Equal(3, ack.AppliedCount);
+        var current = await Docs().GetAsync(created.Id, CancellationToken.None);
+        Assert.Contains("A A", current.Content);
+        Assert.Contains("B", current.Content);
+        Assert.DoesNotContain("aaa", current.Content);
+        Assert.DoesNotContain("bbb", current.Content);
+    }
+
+    [Fact]
+    public async Task Search_clips_huge_line_and_head_json_omits_body()
+    {
+        const string marker = "UNIQUE_BODY_MARKER_16K";
+        var body = "# Head\n\n" + marker + new string('中', 16_000);
+        var created = await Docs().CreateAsync(
+            new CreateDocumentRequest(DocumentScope.Personal, null, null, DocumentType.General,
+                "Big", body, null, null, null, null, null, null,
+                KnowledgeItemStatus.Draft, null, null),
+            CancellationToken.None);
+
+        var search = await Docs().SearchInDocumentAsync(
+            created.Id, null, new DocumentSearchQuery(marker), CancellationToken.None);
+        var hit = Assert.Single(search.Hits);
+        Assert.True(hit.Text.Length < 400);
+        Assert.DoesNotContain(new string('中', 1_000), hit.Text);
+
+        var head = await Docs().GetMcpHeadAsync(created.Id, null, CancellationToken.None);
+        var json = System.Text.Json.JsonSerializer.Serialize(head);
+        Assert.DoesNotContain(marker, json);
+        Assert.DoesNotContain(new string('中', 200), json);
+        Assert.True(head.ContentLength > 16_000);
+    }
+
+    [Fact]
+    public async Task Revision_diff_skips_huge_rewrite()
+    {
+        var oldBody = string.Join('\n', Enumerable.Range(0, 2000).Select(i => $"old-{i}"));
+        var newBody = string.Join('\n', Enumerable.Range(0, 2000).Select(i => $"new-{i}"));
+        var created = await Docs().CreateAsync(
+            new CreateDocumentRequest(DocumentScope.Personal, null, null, DocumentType.General,
+                "Doc", oldBody, null, null, null, null, null, null,
+                KnowledgeItemStatus.Draft, null, null),
+            CancellationToken.None);
+
+        await Docs().UpdateAsync(created.Id,
+            new UpdateDocumentRequest(1, null, null, "Doc", newBody, null, null, null, null, "rewrite",
+                null, KnowledgeItemStatus.Draft, null, null),
+            CancellationToken.None);
+
+        var revisions = new RevisionProvider(_db, TestProviders.DocAccess(_db, _user));
+        var diff = await revisions.GetDiffAsync(created.Id, 1, 2, CancellationToken.None);
+        Assert.True(diff.Truncated);
+        Assert.Contains("diff skipped", diff.UnifiedDiff);
+        Assert.Equal(2000, diff.OldLineCount);
+        Assert.Equal(2000, diff.NewLineCount);
+    }
 }

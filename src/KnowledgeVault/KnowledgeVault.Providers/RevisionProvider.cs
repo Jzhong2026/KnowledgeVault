@@ -83,12 +83,21 @@ public sealed class RevisionProvider(
         var to = revisions.FirstOrDefault(x => x.RevisionNumber == toRevision)
             ?? throw new NotFoundException("Revision was not found.");
 
-        var diff = UnifiedDiff.Create(
+        var diff = UnifiedDiff.CreateResult(
             from.Content,
             to.Content,
             $"revision {fromRevision}",
             $"revision {toRevision}",
-            DocumentMcpLimits.DiffContextLines);
-        return new DocumentRevisionDiffDto(documentId, fromRevision, toRevision, diff);
+            DocumentMcpLimits.DiffContextLines,
+            DocumentMcpLimits.DiffMaxChars,
+            DocumentMcpLimits.DiffMaxLcsCells);
+        return new DocumentRevisionDiffDto(
+            documentId,
+            fromRevision,
+            toRevision,
+            diff.Text,
+            diff.Truncated,
+            diff.OldLineCount,
+            diff.NewLineCount);
     }
 }

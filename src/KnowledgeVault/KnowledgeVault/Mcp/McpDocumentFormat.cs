@@ -38,6 +38,8 @@ internal static class McpDocumentFormat
         builder.AppendLine($"Document id: {diff.DocumentId}");
         builder.AppendLine($"From revision: {diff.FromRevision}");
         builder.AppendLine($"To revision: {diff.ToRevision}");
+        builder.AppendLine($"Truncated: {diff.Truncated}");
+        builder.AppendLine($"Old lines: {diff.OldLineCount}; new lines: {diff.NewLineCount}");
         builder.AppendLine();
         builder.Append(diff.UnifiedDiff);
         return builder.ToString();

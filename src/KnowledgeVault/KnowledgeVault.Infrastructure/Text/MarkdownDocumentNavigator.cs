@@ -25,6 +25,10 @@ public sealed record MarkdownRangeResult(
 
 public sealed record MarkdownSearchHit(int Line, string Text, IReadOnlyList<string> Before, IReadOnlyList<string> After);
 
+public sealed record MarkdownSearchResult(IReadOnlyList<MarkdownSearchHit> Hits, bool TruncatedHits);
+
+public sealed record MarkdownOutlineResult(IReadOnlyList<MarkdownHeadingSpan> Headings, bool Truncated);
+
 public sealed record MarkdownPatchHunk(string OldText, string NewText, bool ReplaceAll = false);
 
 /// <summary>
@@ -37,6 +41,9 @@ public static class MarkdownDocumentNavigator
     public const int DefaultSearchMaxHits = 20;
     public const int DefaultSearchContextLines = 2;
     public const int MaxSearchContextLines = 8;
+    public const int DefaultSearchExcerptChars = 240;
+    public const int DefaultSearchTotalChars = 4_000;
+    public const int DefaultMaxOutlineHeadings = 80;
 
     private static readonly Regex HeadingRegex = new(
         @"^(#{1,6})\s+(.+?)\s*$",
@@ -78,13 +85,40 @@ public static class MarkdownDocumentNavigator
         return lines;
     }
 
-    public static IReadOnlyList<MarkdownHeadingSpan> BuildOutline(string markdown)
+    public static IReadOnlyList<MarkdownHeadingSpan> BuildOutline(string markdown) =>
+        BuildOutline(markdown, DefaultMaxOutlineHeadings).Headings;
+
+    public static MarkdownOutlineResult BuildOutline(string markdown, int maxHeadings)
     {
         markdown ??= string.Empty;
+        maxHeadings = Math.Max(1, maxHeadings);
         var lines = SplitLines(markdown);
         var headings = new List<(int LineIndex, int Level, string Heading, int CharOffset)>();
+        var inFence = false;
+        var fenceMarker = string.Empty;
         for (var i = 0; i < lines.Count; i++)
         {
+            if (TryFence(lines[i].Text, out var marker))
+            {
+                if (!inFence)
+                {
+                    inFence = true;
+                    fenceMarker = marker;
+                }
+                else if (marker[0] == fenceMarker[0] && marker.Length >= fenceMarker.Length)
+                {
+                    inFence = false;
+                    fenceMarker = string.Empty;
+                }
+
+                continue;
+            }
+
+            if (inFence)
+            {
+                continue;
+            }
+
             var match = HeadingRegex.Match(lines[i].Text);
             if (!match.Success)
             {
@@ -94,9 +128,11 @@ public static class MarkdownDocumentNavigator
             headings.Add((i, match.Groups[1].Value.Length, match.Groups[2].Value.Trim(), lines[i].CharOffset));
         }
 
+        var truncated = headings.Count > maxHeadings;
+
         if (headings.Count == 0)
         {
-            return
+            return new MarkdownOutlineResult(
             [
                 new MarkdownHeadingSpan(
                     Level: 0,
@@ -106,7 +142,7 @@ public static class MarkdownDocumentNavigator
                     EndLine: lines.Count,
                     CharOffset: 0,
                     CharLength: markdown.Length)
-            ];
+            ], Truncated: false);
         }
 
         var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -118,8 +154,17 @@ public static class MarkdownDocumentNavigator
             seen++;
             occurrences[heading.Heading] = seen;
 
+            var endLineIndex = lines.Count - 1;
+            for (var j = i + 1; j < headings.Count; j++)
+            {
+                if (headings[j].Level <= heading.Level)
+                {
+                    endLineIndex = headings[j].LineIndex - 1;
+                    break;
+                }
+            }
+
             var startLine = lines[heading.LineIndex].Number;
-            var endLineIndex = i + 1 < headings.Count ? headings[i + 1].LineIndex - 1 : lines.Count - 1;
             var endLine = lines[endLineIndex].Number;
             var endChar = lines[endLineIndex].CharOffset + lines[endLineIndex].CharLength;
             result.Add(new MarkdownHeadingSpan(
@@ -132,7 +177,9 @@ public static class MarkdownDocumentNavigator
                 Math.Max(0, endChar - heading.CharOffset)));
         }
 
-        return result;
+        return new MarkdownOutlineResult(
+            truncated ? result.Take(maxHeadings).ToList() : result,
+            truncated);
     }
 
     public static MarkdownRangeResult ReadRange(
@@ -165,7 +212,7 @@ public static class MarkdownDocumentNavigator
         if (!string.IsNullOrWhiteSpace(heading))
         {
             var wantedOccurrence = occurrence is > 0 ? occurrence.Value : 1;
-            var matches = BuildOutline(markdown)
+            var matches = BuildOutline(markdown, int.MaxValue).Headings
                 .Where(x => x.Level > 0 && string.Equals(x.Heading, heading.Trim(), StringComparison.Ordinal))
                 .ToArray();
             if (matches.Length == 0)
@@ -251,12 +298,14 @@ public static class MarkdownDocumentNavigator
             truncated);
     }
 
-    public static IReadOnlyList<MarkdownSearchHit> Search(
+    public static MarkdownSearchResult Search(
         string markdown,
         string pattern,
         bool isRegex,
         int contextLines = DefaultSearchContextLines,
-        int maxHits = DefaultSearchMaxHits)
+        int maxHits = DefaultSearchMaxHits,
+        int excerptChars = DefaultSearchExcerptChars,
+        int totalChars = DefaultSearchTotalChars)
     {
         markdown ??= string.Empty;
         if (string.IsNullOrEmpty(pattern))
@@ -266,9 +315,30 @@ public static class MarkdownDocumentNavigator
 
         contextLines = Math.Clamp(contextLines, 0, MaxSearchContextLines);
         maxHits = Math.Clamp(maxHits, 1, 100);
+        excerptChars = Math.Clamp(excerptChars, 32, 2_000);
+        totalChars = Math.Max(excerptChars, totalChars);
         var lines = SplitLines(markdown);
-        var hits = new List<MarkdownSearchHit>();
+        var candidates = new List<(int Line, int MatchOffsetInLine)>();
         var seenLines = new HashSet<int>();
+        var moreHits = false;
+
+        void AddCandidate(int charIndex)
+        {
+            var line = LineAtOffset(lines, charIndex);
+            if (!seenLines.Add(line))
+            {
+                return;
+            }
+
+            if (candidates.Count >= maxHits)
+            {
+                moreHits = true;
+                return;
+            }
+
+            var lineStart = lines[line - 1].CharOffset;
+            candidates.Add((line, Math.Max(0, charIndex - lineStart)));
+        }
 
         if (isRegex)
         {
@@ -282,29 +352,20 @@ public static class MarkdownDocumentNavigator
                 throw new ValidationException($"Invalid regular expression: {ex.Message}");
             }
 
-            MatchCollection matches;
             try
             {
-                matches = regex.Matches(markdown);
+                for (var match = regex.Match(markdown); match.Success; match = match.NextMatch())
+                {
+                    AddCandidate(match.Index);
+                    if (moreHits)
+                    {
+                        break;
+                    }
+                }
             }
             catch (RegexMatchTimeoutException)
             {
                 throw new ValidationException("The regular expression timed out.");
-            }
-
-            foreach (Match match in matches)
-            {
-                var line = LineAtOffset(lines, match.Index);
-                if (!seenLines.Add(line))
-                {
-                    continue;
-                }
-
-                hits.Add(BuildHit(lines, line, contextLines));
-                if (hits.Count >= maxHits)
-                {
-                    break;
-                }
             }
         }
         else
@@ -318,21 +379,34 @@ public static class MarkdownDocumentNavigator
                     break;
                 }
 
-                var line = LineAtOffset(lines, index);
-                if (seenLines.Add(line))
+                AddCandidate(index);
+                if (moreHits)
                 {
-                    hits.Add(BuildHit(lines, line, contextLines));
-                    if (hits.Count >= maxHits)
-                    {
-                        break;
-                    }
+                    break;
                 }
 
                 start = index + Math.Max(pattern.Length, 1);
             }
         }
 
-        return hits;
+        var hits = new List<MarkdownSearchHit>(candidates.Count);
+        var usedChars = 0;
+        var truncatedByChars = false;
+        foreach (var candidate in candidates)
+        {
+            var hit = BuildHit(lines, candidate.Line, candidate.MatchOffsetInLine, contextLines, excerptChars);
+            var size = EstimateHitChars(hit);
+            if (hits.Count > 0 && usedChars + size > totalChars)
+            {
+                truncatedByChars = true;
+                break;
+            }
+
+            hits.Add(hit);
+            usedChars += size;
+        }
+
+        return new MarkdownSearchResult(hits, moreHits || truncatedByChars);
     }
 
     public static string ApplyPatches(string markdown, IReadOnlyList<MarkdownPatchHunk> hunks)
@@ -428,6 +502,38 @@ public static class MarkdownDocumentNavigator
         return markdown.Substring(start, length);
     }
 
+    private static bool TryFence(string line, out string marker)
+    {
+        var trimmed = line.TrimStart();
+        if (trimmed.Length < 3)
+        {
+            marker = string.Empty;
+            return false;
+        }
+
+        var ch = trimmed[0];
+        if (ch is not '`' and not '~')
+        {
+            marker = string.Empty;
+            return false;
+        }
+
+        var count = 0;
+        while (count < trimmed.Length && trimmed[count] == ch)
+        {
+            count++;
+        }
+
+        if (count < 3)
+        {
+            marker = string.Empty;
+            return false;
+        }
+
+        marker = new string(ch, count);
+        return true;
+    }
+
     private static int LineAtOffset(IReadOnlyList<MarkdownLine> lines, int offset)
     {
         for (var i = lines.Count - 1; i >= 0; i--)
@@ -441,19 +547,55 @@ public static class MarkdownDocumentNavigator
         return 1;
     }
 
-    private static MarkdownSearchHit BuildHit(IReadOnlyList<MarkdownLine> lines, int lineNumber, int contextLines)
+    private static MarkdownSearchHit BuildHit(
+        IReadOnlyList<MarkdownLine> lines,
+        int lineNumber,
+        int matchOffsetInLine,
+        int contextLines,
+        int excerptChars)
     {
         var line = lines[lineNumber - 1];
         var before = lines
             .Skip(Math.Max(0, lineNumber - 1 - contextLines))
             .Take(Math.Min(contextLines, lineNumber - 1))
-            .Select(x => x.Text)
+            .Select(x => Clip(x.Text, excerptChars))
             .ToArray();
         var after = lines
             .Skip(lineNumber)
             .Take(contextLines)
-            .Select(x => x.Text)
+            .Select(x => Clip(x.Text, excerptChars))
             .ToArray();
-        return new MarkdownSearchHit(lineNumber, line.Text, before, after);
+        return new MarkdownSearchHit(
+            lineNumber,
+            ClipAround(line.Text, matchOffsetInLine, excerptChars),
+            before,
+            after);
+    }
+
+    private static int EstimateHitChars(MarkdownSearchHit hit) =>
+        hit.Text.Length + hit.Before.Sum(x => x.Length) + hit.After.Sum(x => x.Length);
+
+    private static string Clip(string text, int max)
+    {
+        if (text.Length <= max)
+        {
+            return text;
+        }
+
+        return text[..max] + "…";
+    }
+
+    private static string ClipAround(string text, int index, int max)
+    {
+        if (text.Length <= max)
+        {
+            return text;
+        }
+
+        index = Math.Clamp(index, 0, Math.Max(text.Length - 1, 0));
+        var start = Math.Clamp(index - max / 2, 0, text.Length - max);
+        var prefix = start > 0 ? "…" : "";
+        var suffix = start + max < text.Length ? "…" : "";
+        return prefix + text.Substring(start, max) + suffix;
     }
 }

@@ -109,7 +109,8 @@ internal static class DtoMapper
         string? content)
     {
         content ??= string.Empty;
-        var outline = MarkdownDocumentNavigator.BuildOutline(content)
+        var outlineResult = MarkdownDocumentNavigator.BuildOutline(content, DocumentMcpLimits.MaxOutlineHeadings);
+        var outline = outlineResult.Headings
             .Select(x => new DocumentOutlineHeadingDto(
                 x.Level,
                 x.Heading,
@@ -126,7 +127,8 @@ internal static class DtoMapper
             status,
             content.Length,
             DocumentContentHash.Sha256Hex(content),
-            outline);
+            outline,
+            outlineResult.Truncated);
     }
 
     public static KnowledgeItemDto ToDto(this KnowledgeItem item)

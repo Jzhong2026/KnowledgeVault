@@ -100,7 +100,7 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Get the heading outline of a document: level, heading, occurrence, line and character ranges.")]
+    [Description("Get the heading outline of a document: level, heading, occurrence, line and character ranges. Dense outlines may be truncated.")]
     public Task<string> GetDocumentOutline(
         [Description("Document id (Guid)")] string documentId,
         [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
@@ -113,12 +113,16 @@ public sealed class DocumentMcpTools(
                 McpArguments.Guid(documentId, nameof(documentId)),
                 revisionNumber,
                 cancellationToken);
-            return McpJson.Serialize(head.Outline);
+            return McpJson.Serialize(new
+            {
+                headings = head.Outline,
+                truncated = head.OutlineTruncated
+            });
         });
     }
 
     [McpServerTool]
-    [Description("Read a slice of a document as Markdown. Provide exactly one mode: heading, startLine+lineCount, or offset+limit. Max 24000 characters.")]
+    [Description("Read a slice of a document as Markdown. Provide exactly one mode: heading, startLine+lineCount, or offset+limit. Responses longer than 24000 characters are truncated and marked truncated=true.")]
     public Task<string> GetDocumentContentRange(
         [Description("Document id (Guid)")] string documentId,
         [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
@@ -127,7 +131,7 @@ public sealed class DocumentMcpTools(
         [Description("1-based start line")] int? startLine = null,
         [Description("Number of lines to read; required with startLine")] int? lineCount = null,
         [Description("0-based character offset")] int? offset = null,
-        [Description("Character count; required with offset, max 24000")] int? limit = null,
+        [Description("Character count; required with offset. Values above 24000 are truncated.")] int? limit = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -143,7 +147,7 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Search inside one document. Returns matching lines and nearby context, not the full body. Max 20 hits.")]
+    [Description("Search inside one document. Returns clipped matching excerpts and nearby context, not the full body. Max 20 hits; long lines are truncated.")]
     public Task<string> SearchInDocument(
         [Description("Document id (Guid)")] string documentId,
         [Description("Literal substring, or a regular expression when isRegex is true")] string pattern,
@@ -267,7 +271,8 @@ public sealed class DocumentMcpTools(
         [Description("Revision number read before making this update")] int expectedRevisionNumber,
         [Description("Exact substrings to find, one per hunk")] string[] oldTexts,
         [Description("Replacements, same length as oldTexts")] string[] newTexts,
-        [Description("When true, every hunk replaces all matches of its oldText")] bool replaceAll = false,
+        [Description("When true, every hunk replaces all matches of its oldText. Ignored for a hunk when replaceAllFlags is provided")] bool replaceAll = false,
+        [Description("Optional per-hunk replaceAll flags, same length as oldTexts. When set, overrides the global replaceAll for each hunk")] bool[]? replaceAllFlags = null,
         [Description("Optional explanation of this revision")] string? changeNote = null,
         CancellationToken cancellationToken = default)
     {
@@ -279,12 +284,21 @@ public sealed class DocumentMcpTools(
                     "oldTexts and newTexts must be non-empty arrays of the same length.");
             }
 
+            if (replaceAllFlags is not null && replaceAllFlags.Length != oldTexts.Length)
+            {
+                throw new KnowledgeVault.Infrastructure.Exceptions.ValidationException(
+                    "replaceAllFlags must be the same length as oldTexts.");
+            }
+
             var provider = services.GetRequiredService<IDocumentProvider>();
             var ack = await provider.ApplyPatchAsync(
                 McpArguments.Guid(documentId, nameof(documentId)),
                 new ApplyDocumentPatchRequest(
                     expectedRevisionNumber,
-                    oldTexts.Select((oldText, index) => new DocumentPatchHunk(oldText, newTexts[index], replaceAll)).ToArray(),
+                    oldTexts.Select((oldText, index) => new DocumentPatchHunk(
+                        oldText,
+                        newTexts[index],
+                        replaceAllFlags is not null ? replaceAllFlags[index] : replaceAll)).ToArray(),
                     changeNote),
                 cancellationToken);
             return McpJson.Serialize(ack);
@@ -296,8 +310,9 @@ public sealed class DocumentMcpTools(
     public Task<string> UpdateDocumentMetadata(
         [Description("Document id (Guid)")] string documentId,
         [Description("Optional status: Draft, Active, or Archived")] string? status = null,
-        [Description("Optional category id (Guid)")] string? categoryId = null,
-        [Description("Optional project topic id (Guid)")] string? topicId = null,
+        [Description("Optional category id (Guid). Omit to keep the current category; pass empty to clear it")] string? categoryId = null,
+        [Description("Optional project topic id (Guid). Omit to keep the current topic; pass empty to clear it")] string? topicId = null,
+        [Description("Optional folder id (Guid). Omit to keep the current folder; pass empty to move to the workspace root")] string? folderId = null,
         [Description("Optional tag names; omit to leave tags unchanged")] string[]? tagNames = null,
         CancellationToken cancellationToken = default)
     {
@@ -310,12 +325,20 @@ public sealed class DocumentMcpTools(
                 id,
                 new UpdateDocumentMetadataRequest(
                     current.ProjectId,
-                    McpArguments.OptionalGuid(topicId, nameof(topicId)) ?? current.TopicId,
-                    McpArguments.OptionalGuid(categoryId, nameof(categoryId)) ?? current.Category?.Id,
+                    topicId is null ? current.TopicId : McpArguments.OptionalGuid(topicId, nameof(topicId)),
+                    categoryId is null ? current.Category?.Id : McpArguments.OptionalGuid(categoryId, nameof(categoryId)),
                     McpArguments.OptionalEnum<KnowledgeItemStatus>(status, nameof(status)) ?? current.Status,
                     tagNames is null ? current.Tags.Select(x => x.Id).ToArray() : null,
                     tagNames),
                 cancellationToken);
+            if (folderId is not null)
+            {
+                await provider.MoveDocumentAsync(
+                    id,
+                    McpArguments.OptionalGuid(folderId, nameof(folderId)),
+                    cancellationToken);
+            }
+
             var ack = await provider.GetWriteAckAsync(id, cancellationToken);
             return McpJson.Serialize(ack);
         });

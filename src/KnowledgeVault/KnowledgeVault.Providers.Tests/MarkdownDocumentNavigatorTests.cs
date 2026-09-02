@@ -29,7 +29,9 @@ public sealed class MarkdownDocumentNavigatorTests
         Assert.Equal(3, outline.Count);
         Assert.Equal("Title", outline[0].Heading);
         Assert.Equal(1, outline[0].StartLine);
+        Assert.Equal(outline[^1].EndLine, outline[0].EndLine);
         Assert.Equal("Alpha", outline[1].Heading);
+        Assert.True(outline[1].EndLine < outline[0].EndLine);
         Assert.Equal("Beta", outline[2].Heading);
         Assert.True(outline[1].CharLength > 0);
     }
@@ -64,7 +66,8 @@ public sealed class MarkdownDocumentNavigatorTests
     public void Search_returns_context_lines()
     {
         var hits = MarkdownDocumentNavigator.Search(Sample, "body a", isRegex: false, contextLines: 1);
-        var hit = Assert.Single(hits);
+        var hit = Assert.Single(hits.Hits);
+        Assert.False(hits.TruncatedHits);
         Assert.Contains("body a", hit.Text);
         Assert.NotEmpty(hit.Before);
     }
@@ -125,6 +128,58 @@ public sealed class MarkdownDocumentNavigatorTests
         Assert.Equal(10, range.Content.Length);
     }
 
+    [Fact]
+    public void Outline_skips_headings_inside_fenced_code()
+    {
+        var markdown = """
+            # Real
+
+            ```
+            # example
+            ```
+
+            ## Child
+            """;
+        var outline = MarkdownDocumentNavigator.BuildOutline(markdown);
+        Assert.DoesNotContain(outline, x => x.Heading == "example");
+        Assert.Contains(outline, x => x.Heading == "Real");
+        Assert.Contains(outline, x => x.Heading == "Child");
+        Assert.True(outline[0].EndLine >= outline.Single(x => x.Heading == "Child").StartLine);
+    }
+
+    [Fact]
+    public void Range_by_h1_includes_nested_sections()
+    {
+        var range = MarkdownDocumentNavigator.ReadRange(Sample, "Title", 1, null, null, null, null);
+        Assert.Contains("## Alpha", range.Content);
+        Assert.Contains("## Beta", range.Content);
+    }
+
+    [Fact]
+    public void Search_clips_a_huge_single_line()
+    {
+        var marker = "needle-token";
+        var body = marker + new string('x', 80_000);
+        var result = MarkdownDocumentNavigator.Search(body, marker, isRegex: false, contextLines: 0, excerptChars: 240);
+        var hit = Assert.Single(result.Hits);
+        Assert.True(hit.Text.Length <= 241);
+        Assert.DoesNotContain(new string('x', 1_000), hit.Text);
+        Assert.Contains("needle", hit.Text);
+    }
+
+    [Fact]
+    public void Search_does_not_mark_exact_hit_cap_as_truncated()
+    {
+        var body = string.Join('\n', Enumerable.Range(1, 20).Select(i => $"line-{i} the"));
+        var exact = MarkdownDocumentNavigator.Search(body, "the", isRegex: false, maxHits: 20);
+        Assert.Equal(20, exact.Hits.Count);
+        Assert.False(exact.TruncatedHits);
+
+        var extra = MarkdownDocumentNavigator.Search(body + "\nline-21 the", "the", isRegex: false, maxHits: 20);
+        Assert.Equal(20, extra.Hits.Count);
+        Assert.True(extra.TruncatedHits);
+    }
+
     private static int Count(string text, string value)
     {
         var count = 0;
@@ -159,5 +214,44 @@ public sealed class UnifiedDiffTests
     {
         var diff = UnifiedDiff.Create("same\n", "same\n", "a", "b");
         Assert.DoesNotContain("@@", diff);
+    }
+
+    [Fact]
+    public void Pure_insert_hunk_uses_standard_old_start()
+    {
+        var diff = UnifiedDiff.Create("a\nb\n", "a\nX\nb\n", "old", "new", contextLines: 0);
+        Assert.Contains("@@ -1,0 +2,1 @@", diff);
+        Assert.Contains("+X", diff);
+    }
+
+    [Fact]
+    public void Pure_delete_hunk_uses_standard_new_start()
+    {
+        var diff = UnifiedDiff.Create("a\nX\nb\n", "a\nb\n", "old", "new", contextLines: 0);
+        Assert.Contains("@@ -2,1 +1,0 @@", diff);
+        Assert.Contains("-X", diff);
+    }
+
+    [Fact]
+    public void Large_rewrite_is_skipped_before_lcs()
+    {
+        var oldText = string.Join('\n', Enumerable.Range(0, 2000).Select(i => $"old-{i}"));
+        var newText = string.Join('\n', Enumerable.Range(0, 2000).Select(i => $"new-{i}"));
+        var result = UnifiedDiff.CreateResult(oldText, newText, "a", "b");
+        Assert.True(result.Truncated);
+        Assert.Contains("diff skipped", result.Text);
+        Assert.Equal(2000, result.OldLineCount);
+        Assert.Equal(2000, result.NewLineCount);
+    }
+
+    [Fact]
+    public void Oversized_diff_text_is_truncated()
+    {
+        var oldText = string.Join('\n', Enumerable.Range(0, 80).Select(i => new string('a', 200) + i));
+        var newText = string.Join('\n', Enumerable.Range(0, 80).Select(i => new string('b', 200) + i));
+        var result = UnifiedDiff.CreateResult(oldText, newText, "a", "b", contextLines: 0, maxChars: 1_000);
+        Assert.True(result.Truncated);
+        Assert.Contains("truncated", result.Text);
+        Assert.True(result.Text.Length < 2_000);
     }
 }

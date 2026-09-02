@@ -2,33 +2,69 @@ using System.Text;
 
 namespace KnowledgeVault.Infrastructure.Text;
 
+public sealed record UnifiedDiffResult(string Text, bool Truncated, int OldLineCount, int NewLineCount);
+
 /// <summary>
 /// Line-oriented unified diff using Hirschberg LCS so large Markdown bodies
-/// stay in linear extra memory.
+/// stay in linear extra memory. Callers must still cap output size: LCS time
+/// is O(oldLines × newLines).
 /// </summary>
 public static class UnifiedDiff
 {
+    public const int DefaultMaxChars = 16_000;
+    public const long DefaultMaxLcsCells = 1_200_000;
+
     public static string Create(
         string oldText,
         string newText,
         string oldLabel,
         string newLabel,
-        int contextLines = 3)
+        int contextLines = 3) =>
+        CreateResult(oldText, newText, oldLabel, newLabel, contextLines).Text;
+
+    public static UnifiedDiffResult CreateResult(
+        string oldText,
+        string newText,
+        string oldLabel,
+        string newLabel,
+        int contextLines = 3,
+        int maxChars = DefaultMaxChars,
+        long maxLcsCells = DefaultMaxLcsCells)
     {
         oldText ??= string.Empty;
         newText ??= string.Empty;
         contextLines = Math.Max(0, contextLines);
+        maxChars = Math.Max(256, maxChars);
         var oldLines = Split(oldText);
         var newLines = Split(newText);
         if (oldLines.Count == 1 && oldLines[0].Length == 0 && newLines.Count == 1 && newLines[0].Length == 0
             && oldText.Length == 0 && newText.Length == 0)
         {
-            return $"--- {oldLabel}\n+++ {newLabel}\n";
+            return new UnifiedDiffResult($"--- {oldLabel}\n+++ {newLabel}\n", false, 0, 0);
+        }
+
+        if ((long)oldLines.Count * newLines.Count > maxLcsCells)
+        {
+            return new UnifiedDiffResult(
+                $"--- {oldLabel}\n+++ {newLabel}\n[diff skipped: {oldLines.Count} vs {newLines.Count} lines exceeds complexity limit; use get_document_content_range]\n",
+                Truncated: true,
+                oldLines.Count,
+                newLines.Count);
         }
 
         var pairs = FindLcsPairs(oldLines, newLines);
         var rows = BuildRows(oldLines, newLines, pairs);
-        return Format(rows, oldLines, newLines, oldLabel, newLabel, contextLines);
+        var text = Format(rows, oldLines, newLines, oldLabel, newLabel, contextLines);
+        if (text.Length > maxChars)
+        {
+            return new UnifiedDiffResult(
+                text[..maxChars] + $"\n[truncated: diff exceeded {maxChars} characters; use get_document_content_range]\n",
+                Truncated: true,
+                oldLines.Count,
+                newLines.Count);
+        }
+
+        return new UnifiedDiffResult(text, false, oldLines.Count, newLines.Count);
     }
 
     private static IReadOnlyList<string> Split(string text)
@@ -241,16 +277,14 @@ public static class UnifiedDiff
 
             if (firstOld)
             {
-                oldStart = hunkStart > 0
-                    ? rows.Take(hunkStart).LastOrDefault(r => r.Kind != RowKind.Insert).OldIndex + 2
-                    : 1;
+                var consumed = rows.Take(hunkStart).Count(r => r.Kind != RowKind.Insert);
+                oldStart = oldCount == 0 ? consumed : consumed + 1;
             }
 
             if (firstNew)
             {
-                newStart = hunkStart > 0
-                    ? rows.Take(hunkStart).LastOrDefault(r => r.Kind != RowKind.Delete).NewIndex + 2
-                    : 1;
+                var consumed = rows.Take(hunkStart).Count(r => r.Kind != RowKind.Delete);
+                newStart = newCount == 0 ? consumed : consumed + 1;
             }
 
             builder.Append("@@ -")

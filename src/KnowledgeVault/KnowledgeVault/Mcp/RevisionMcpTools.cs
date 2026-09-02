@@ -50,7 +50,7 @@ public sealed class RevisionMcpTools(
     }
 
     [McpServerTool]
-    [Description("Return a unified diff between two revisions. Does not include unchanged bodies.")]
+    [Description("Return a unified diff between two revisions. Large rewrites are truncated or skipped; use get_document_content_range for the rest.")]
     public Task<string> GetRevisionDiff(
         [Description("Document id (Guid)")] string documentId,
         [Description("Starting revision number")] int fromRevision,

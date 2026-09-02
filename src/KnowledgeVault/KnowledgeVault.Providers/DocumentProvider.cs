@@ -228,19 +228,21 @@ public sealed class DocumentProvider(
         CancellationToken cancellationToken)
     {
         var (item, revision) = await LoadMcpRevisionAsync(id, revisionNumber, cancellationToken);
-        var hits = MarkdownDocumentNavigator.Search(
+        var search = MarkdownDocumentNavigator.Search(
             revision.Content,
             query.Pattern,
             query.IsRegex,
             query.ContextLines,
-            DocumentMcpLimits.SearchMaxHits);
+            DocumentMcpLimits.SearchMaxHits,
+            DocumentMcpLimits.SearchExcerptChars,
+            DocumentMcpLimits.SearchTotalChars);
         return new DocumentSearchResultDto(
             item.Id,
             revision.RevisionNumber,
             DocumentContentHash.Sha256Hex(revision.Content),
-            hits.Count,
-            hits.Select(x => new DocumentSearchHitDto(x.Line, x.Text, x.Before, x.After)).ToArray(),
-            hits.Count >= DocumentMcpLimits.SearchMaxHits);
+            search.Hits.Count,
+            search.Hits.Select(x => new DocumentSearchHitDto(x.Line, x.Text, x.Before, x.After)).ToArray(),
+            search.TruncatedHits);
     }
 
     public async Task<DocumentWriteAckDto> ApplyPatchAsync(
@@ -309,8 +311,11 @@ public sealed class DocumentProvider(
 
     public async Task<DocumentWriteAckDto> GetWriteAckAsync(Guid id, CancellationToken cancellationToken)
     {
-        var document = await GetForMcpAsync(id, cancellationToken);
-        return document.ToWriteAck();
+        var item = await BuildDetailQuery()
+            .FirstOrDefaultAsync(x => x.Id == id && x.Status != KnowledgeItemStatus.Deleted, cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+
+        return item.ToDto().ToWriteAck();
     }
 
     public async Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken)
