@@ -24,6 +24,27 @@ public interface IDocumentProvider
     /// <summary>Reads a current document for an authenticated MCP API key without user visibility filtering.</summary>
     Task<KnowledgeItemDto> GetForMcpAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<DocumentMcpHeadDto> GetMcpHeadAsync(Guid id, int? revisionNumber, CancellationToken cancellationToken);
+
+    Task<DocumentContentRangeDto> GetMcpContentRangeAsync(
+        Guid id,
+        int? revisionNumber,
+        DocumentContentRangeQuery query,
+        CancellationToken cancellationToken);
+
+    Task<DocumentSearchResultDto> SearchInDocumentAsync(
+        Guid id,
+        int? revisionNumber,
+        DocumentSearchQuery query,
+        CancellationToken cancellationToken);
+
+    Task<DocumentWriteAckDto> ApplyPatchAsync(
+        Guid id,
+        ApplyDocumentPatchRequest request,
+        CancellationToken cancellationToken);
+
+    Task<DocumentWriteAckDto> GetWriteAckAsync(Guid id, CancellationToken cancellationToken);
+
     Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken);
 
     Task<KnowledgeItemDto> UpdateAsync(Guid id, UpdateDocumentRequest request, CancellationToken cancellationToken);
@@ -44,6 +65,12 @@ public interface IRevisionProvider
     Task<PagedResult<RevisionSummaryDto>> ListAsync(Guid documentId, int page, int pageSize, CancellationToken cancellationToken);
 
     Task<RevisionDto> GetAsync(Guid documentId, int revisionNumber, CancellationToken cancellationToken);
+
+    Task<DocumentRevisionDiffDto> GetDiffAsync(
+        Guid documentId,
+        int fromRevision,
+        int toRevision,
+        CancellationToken cancellationToken);
 }
 
 public interface ICommentProvider

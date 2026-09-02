@@ -52,7 +52,7 @@ public sealed record UpdateDocumentRequest(
     Guid? ProjectId,
     Guid? TopicId,
     string Title,
-    string Content,
+    string? Content,
     string? Summary,
     string? SourceUrl,
     string? LinkDisplayText,

@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using KnowledgeVault.Infrastructure.Exceptions;
@@ -94,8 +95,9 @@ public static class McpJson
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
-            WriteIndented = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
         options.Converters.Add(new JsonStringEnumConverter());
         return options;

@@ -8,6 +8,7 @@ using KnowledgeVault.Contracts.Reviews;
 using KnowledgeVault.Contracts.Tags;
 using KnowledgeVault.Domain.Entities;
 using KnowledgeVault.Domain.Enums;
+using KnowledgeVault.Infrastructure.Text;
 
 namespace KnowledgeVault.Providers.Mapping;
 
@@ -80,6 +81,52 @@ internal static class DtoMapper
                 .ToArray(),
             item.CreatedAt,
             item.UpdatedAt);
+    }
+
+    public static DocumentWriteAckDto ToWriteAck(this KnowledgeItemDto item, int? appliedCount = null)
+    {
+        return new DocumentWriteAckDto(
+            item.Id,
+            item.CurrentRevisionNumber,
+            item.Title,
+            item.Status,
+            item.Content?.Length ?? 0,
+            DocumentContentHash.Sha256Hex(item.Content),
+            item.ChangeNote,
+            appliedCount);
+    }
+
+    public static DocumentMcpHeadDto ToMcpHead(this KnowledgeItemDto item)
+    {
+        return ToMcpHead(item.Id, item.Title, item.CurrentRevisionNumber, item.Status, item.Content);
+    }
+
+    public static DocumentMcpHeadDto ToMcpHead(
+        Guid id,
+        string title,
+        int revisionNumber,
+        KnowledgeItemStatus status,
+        string? content)
+    {
+        content ??= string.Empty;
+        var outline = MarkdownDocumentNavigator.BuildOutline(content)
+            .Select(x => new DocumentOutlineHeadingDto(
+                x.Level,
+                x.Heading,
+                x.Occurrence,
+                x.StartLine,
+                x.EndLine,
+                x.CharOffset,
+                x.CharLength))
+            .ToArray();
+        return new DocumentMcpHeadDto(
+            id,
+            title,
+            revisionNumber,
+            status,
+            content.Length,
+            DocumentContentHash.Sha256Hex(content),
+            outline);
     }
 
     public static KnowledgeItemDto ToDto(this KnowledgeItem item)

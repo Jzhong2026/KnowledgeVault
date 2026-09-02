@@ -12,6 +12,7 @@ using KnowledgeVault.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication;
 using KnowledgeVault.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.ResponseCompression;
 using KnowledgeVault.Providers;
 using KnowledgeVault.Providers.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -111,6 +112,11 @@ builder.Services.AddHttpClient<IVectorStore, ChromaVectorStore>()
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.ApiKey);
         }
     });
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 builder.Services.AddMcpServer()
     .WithHttpTransport()
@@ -224,6 +230,7 @@ var swaggerEnabled = app.Environment.IsDevelopment()
     || builder.Configuration.GetValue<bool>("Swagger:Enabled");
 
 app.UseMiddleware<ApiExceptionMiddleware>();
+app.UseResponseCompression();
 app.UseSerilogRequestLogging(options =>
 {
     options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";

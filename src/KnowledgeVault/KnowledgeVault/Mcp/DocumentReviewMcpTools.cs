@@ -66,7 +66,7 @@ public sealed class DocumentReviewMcpTools(
     }
 
     [McpServerTool]
-    [Description("Get a review-ready bundle containing the target revision, previous revision, comments, and review assignments.")]
+    [Description("Get a review bundle: document outline, unified diff vs the previous revision, comments, and assignments. Does not include full bodies.")]
     public Task<string> GetDocumentReviewContext(
         [Description("Document id (Guid)")] string documentId,
         [Description("Revision number to review")] int revisionNumber,
@@ -75,7 +75,7 @@ public sealed class DocumentReviewMcpTools(
         return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentReviewProvider>();
-            var context = await provider.GetContextAsync(
+            var context = await provider.GetMcpContextAsync(
                 McpArguments.Guid(documentId, nameof(documentId)),
                 revisionNumber,
                 cancellationToken);

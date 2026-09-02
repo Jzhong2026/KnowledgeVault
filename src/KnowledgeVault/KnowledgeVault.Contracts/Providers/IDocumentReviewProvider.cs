@@ -1,4 +1,5 @@
 using KnowledgeVault.Contracts.Common;
+using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Reviews;
 
 namespace KnowledgeVault.Contracts.Providers;
@@ -15,6 +16,11 @@ public interface IDocumentReviewProvider
         CancellationToken cancellationToken);
 
     Task<DocumentReviewContextDto> GetContextAsync(
+        Guid documentId,
+        int revisionNumber,
+        CancellationToken cancellationToken);
+
+    Task<DocumentReviewContextMcpDto> GetMcpContextAsync(
         Guid documentId,
         int revisionNumber,
         CancellationToken cancellationToken);

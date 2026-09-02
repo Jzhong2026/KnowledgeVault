@@ -1,4 +1,5 @@
 using KnowledgeVault.Contracts.Common;
+using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Providers;
 using KnowledgeVault.Contracts.Reviews;
 using KnowledgeVault.Contracts.Security;
@@ -159,6 +160,43 @@ public sealed class DocumentReviewProvider(
             document,
             revision,
             previousRevision,
+            comments.Items,
+            reviews);
+    }
+
+    public async Task<DocumentReviewContextMcpDto> GetMcpContextAsync(
+        Guid documentId,
+        int revisionNumber,
+        CancellationToken cancellationToken)
+    {
+        await documentAccessService.EnsureViewAsync(documentId, cancellationToken);
+        var head = await documentProvider.GetMcpHeadAsync(documentId, revisionNumber, cancellationToken);
+        var comments = await commentProvider.ListAsync(documentId, revisionNumber, 1, 100, cancellationToken);
+        var revision = await revisionProvider.GetAsync(documentId, revisionNumber, cancellationToken);
+        var reviews = await BuildReviewQuery()
+            .Where(x => x.KnowledgeItemRevisionId == revision.Id)
+            .OrderBy(x => x.CreatedAt)
+            .SelectReviewDtosAsync(cancellationToken);
+
+        string diff;
+        int? previousRevisionNumber = null;
+        if (revisionNumber > 1)
+        {
+            previousRevisionNumber = revisionNumber - 1;
+            var revisionDiff = await revisionProvider.GetDiffAsync(
+                documentId, previousRevisionNumber.Value, revisionNumber, cancellationToken);
+            diff = revisionDiff.UnifiedDiff;
+        }
+        else
+        {
+            diff = "(no previous revision; use get_document_content_range to read this revision)";
+        }
+
+        return new DocumentReviewContextMcpDto(
+            head,
+            revisionNumber,
+            previousRevisionNumber,
+            diff,
             comments.Items,
             reviews);
     }

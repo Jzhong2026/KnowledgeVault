@@ -21,7 +21,12 @@ public sealed class KnowledgeVaultMcpPrompts(
         return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
-            var document = await provider.GetAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);
+            var head = await provider.GetMcpHeadAsync(McpArguments.Guid(id, nameof(id)), null, cancellationToken);
+            var outline = string.Join(
+                Environment.NewLine,
+                head.Outline.Select(h => h.Level == 0
+                    ? $"(no headings, {head.ContentLength} chars)"
+                    : $"{new string('#', h.Level)} {h.Heading}  lines {h.StartLine}-{h.EndLine}"));
             return new GetPromptResult
             {
                 Description = $"Summarize document {id}",
@@ -32,7 +37,7 @@ public sealed class KnowledgeVaultMcpPrompts(
                         Role = Role.User,
                         Content = new TextContentBlock
                         {
-                            Text = $"Please summarize the following knowledge document (id {id}):\n\n{document.Content}"
+                            Text = $"Summarize knowledge document {id} (revision {head.CurrentRevisionNumber}, {head.ContentLength} characters). Use get_document_content_range or search_in_document if you need body text. Outline:\n\n{outline}"
                         }
                     }
                 ]

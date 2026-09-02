@@ -14,7 +14,7 @@ public sealed class DocumentMcpTools(
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
     [McpServerTool]
-    [Description("Search documents visible to the API key owner by title, summary, or content.")]
+    [Description("Search documents visible to the API key owner by title, summary, or content. Returns metadata only.")]
     public Task<string> SearchKnowledgeItems(
         [Description("Free-text search term")] string query,
         [Description("Optional project id (Guid)")] string? projectId = null,
@@ -47,7 +47,7 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("List project documents with reliable project, document type, topic, status, and search filters.")]
+    [Description("List project documents with project, type, topic, status, and search filters. Returns metadata only.")]
     public Task<string> ListProjectDocuments(
         [Description("Project id (Guid)")] string projectId,
         [Description("Optional type: General, PlanningReview, TaskBreakdown, or ProjectMemory")] string? documentType = null,
@@ -82,21 +82,90 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Get the current full content and metadata of a document by id.")]
+    [Description("Get document metadata, content hash, and heading outline. Never returns the body. Use get_document_content_range or search_in_document to read text.")]
     public Task<string> GetKnowledgeItem(
         [Description("Document id (Guid)")] string id,
+        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
         {
             var provider = services.GetRequiredService<IDocumentProvider>();
-            var document = await provider.GetForMcpAsync(McpArguments.Guid(id, nameof(id)), cancellationToken);
-            return McpJson.Serialize(document);
+            var head = await provider.GetMcpHeadAsync(
+                McpArguments.Guid(id, nameof(id)),
+                revisionNumber,
+                cancellationToken);
+            return McpJson.Serialize(head);
         });
     }
 
     [McpServerTool]
-    [Description("Recursively list the current subfolders and documents below a folder. Results are flat metadata only; use get_knowledge_item to read document content.")]
+    [Description("Get the heading outline of a document: level, heading, occurrence, line and character ranges.")]
+    public Task<string> GetDocumentOutline(
+        [Description("Document id (Guid)")] string documentId,
+        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteReadAsync(async services =>
+        {
+            var provider = services.GetRequiredService<IDocumentProvider>();
+            var head = await provider.GetMcpHeadAsync(
+                McpArguments.Guid(documentId, nameof(documentId)),
+                revisionNumber,
+                cancellationToken);
+            return McpJson.Serialize(head.Outline);
+        });
+    }
+
+    [McpServerTool]
+    [Description("Read a slice of a document as Markdown. Provide exactly one mode: heading, startLine+lineCount, or offset+limit. Max 24000 characters.")]
+    public Task<string> GetDocumentContentRange(
+        [Description("Document id (Guid)")] string documentId,
+        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
+        [Description("Heading text to read (ATX heading without #)")] string? heading = null,
+        [Description("1-based occurrence when the heading is repeated")] int? occurrence = null,
+        [Description("1-based start line")] int? startLine = null,
+        [Description("Number of lines to read; required with startLine")] int? lineCount = null,
+        [Description("0-based character offset")] int? offset = null,
+        [Description("Character count; required with offset, max 24000")] int? limit = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteReadAsync(async services =>
+        {
+            var provider = services.GetRequiredService<IDocumentProvider>();
+            var range = await provider.GetMcpContentRangeAsync(
+                McpArguments.Guid(documentId, nameof(documentId)),
+                revisionNumber,
+                new DocumentContentRangeQuery(heading, occurrence, startLine, lineCount, offset, limit),
+                cancellationToken);
+            return McpDocumentFormat.Range(range);
+        });
+    }
+
+    [McpServerTool]
+    [Description("Search inside one document. Returns matching lines and nearby context, not the full body. Max 20 hits.")]
+    public Task<string> SearchInDocument(
+        [Description("Document id (Guid)")] string documentId,
+        [Description("Literal substring, or a regular expression when isRegex is true")] string pattern,
+        [Description("Treat pattern as a .NET regular expression")] bool isRegex = false,
+        [Description("Context lines around each hit (0-8)")] int contextLines = 2,
+        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteReadAsync(async services =>
+        {
+            var provider = services.GetRequiredService<IDocumentProvider>();
+            var result = await provider.SearchInDocumentAsync(
+                McpArguments.Guid(documentId, nameof(documentId)),
+                revisionNumber,
+                new DocumentSearchQuery(pattern, isRegex, contextLines),
+                cancellationToken);
+            return McpJson.Serialize(result);
+        });
+    }
+
+    [McpServerTool]
+    [Description("Recursively list subfolders and documents below a folder. Metadata only; use get_document_content_range to read bodies.")]
     public Task<string> ListFolderContents(
         [Description("Root folder id (Guid); the root itself is not returned")] string folderId,
         CancellationToken cancellationToken = default)
@@ -111,10 +180,10 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Create a personal or project document. Project documents are immediately visible to project members.")]
+    [Description("Create a personal or project document. Returns metadata and a content hash, not the body.")]
     public Task<string> CreateDocument(
         [Description("Document title")] string title,
-		[Description("Inline Markdown document content as text. This must be the actual content, NOT a file path or file name; the server does not read files from disk, so passing a path will store the path string literally. Read the file yourself and pass its text here. An empty value uses the selected document type template")] string content,
+        [Description("Inline Markdown body. Pass the actual text, not a file path.")] string content,
         [Description("Scope: Personal or Project")] string scope = "Project",
         [Description("Type: General, PlanningReview, or TaskBreakdown")] string documentType = "General",
         [Description("Required project id for Project scope (Guid)")] string? projectId = null,
@@ -147,16 +216,16 @@ public sealed class DocumentMcpTools(
                     TagIds: null,
                     tagNames),
                 cancellationToken);
-            return McpJson.Serialize(document);
+            return McpJson.Serialize(McpDocumentFormat.Ack(document));
         });
     }
 
     [McpServerTool]
-    [Description("Create a new document revision with optimistic concurrency protection.")]
+    [Description("Replace the full document or change title/summary. Omit content to keep the current body. Prefer apply_document_patch for local edits. Returns metadata only.")]
     public Task<string> UpdateDocument(
         [Description("Document id (Guid)")] string documentId,
         [Description("Revision number read before making this update")] int expectedRevisionNumber,
-		[Description("Complete Markdown content for the new revision as inline text. This must be the actual content, NOT a file path or file name; the server does not read files from disk, so passing a path will store the path string literally and corrupt the document. Read the file yourself and pass its text here")] string content,
+        [Description("Optional full Markdown replacement. Omit to keep the current body. Do not pass a file path.")] string? content = null,
         [Description("Optional replacement title; omit to preserve the current title")] string? title = null,
         [Description("Optional replacement summary; omit to preserve the current summary")] string? summary = null,
         [Description("Optional explanation of this revision")] string? changeNote = null,
@@ -187,12 +256,73 @@ public sealed class DocumentMcpTools(
                     current.Tags.Select(x => x.Id).ToArray(),
                     TagNames: null),
                 cancellationToken);
-            return McpJson.Serialize(updated);
+            return McpJson.Serialize(McpDocumentFormat.Ack(updated));
         });
     }
 
     [McpServerTool]
-    [Description("Move a document into a different folder. Pass a null folderId to move the document to the workspace root (no folder).")]
+    [Description("Apply one or more search-replace hunks in a single new revision. Atomic: any failed hunk rolls back. Prefer this over update_document for local edits.")]
+    public Task<string> ApplyDocumentPatch(
+        [Description("Document id (Guid)")] string documentId,
+        [Description("Revision number read before making this update")] int expectedRevisionNumber,
+        [Description("Exact substrings to find, one per hunk")] string[] oldTexts,
+        [Description("Replacements, same length as oldTexts")] string[] newTexts,
+        [Description("When true, every hunk replaces all matches of its oldText")] bool replaceAll = false,
+        [Description("Optional explanation of this revision")] string? changeNote = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
+        {
+            if (oldTexts is null || newTexts is null || oldTexts.Length == 0 || oldTexts.Length != newTexts.Length)
+            {
+                throw new KnowledgeVault.Infrastructure.Exceptions.ValidationException(
+                    "oldTexts and newTexts must be non-empty arrays of the same length.");
+            }
+
+            var provider = services.GetRequiredService<IDocumentProvider>();
+            var ack = await provider.ApplyPatchAsync(
+                McpArguments.Guid(documentId, nameof(documentId)),
+                new ApplyDocumentPatchRequest(
+                    expectedRevisionNumber,
+                    oldTexts.Select((oldText, index) => new DocumentPatchHunk(oldText, newTexts[index], replaceAll)).ToArray(),
+                    changeNote),
+                cancellationToken);
+            return McpJson.Serialize(ack);
+        });
+    }
+
+    [McpServerTool]
+    [Description("Update document status, category, tags, topic, or folder without creating a revision or sending the body.")]
+    public Task<string> UpdateDocumentMetadata(
+        [Description("Document id (Guid)")] string documentId,
+        [Description("Optional status: Draft, Active, or Archived")] string? status = null,
+        [Description("Optional category id (Guid)")] string? categoryId = null,
+        [Description("Optional project topic id (Guid)")] string? topicId = null,
+        [Description("Optional tag names; omit to leave tags unchanged")] string[]? tagNames = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
+        {
+            var id = McpArguments.Guid(documentId, nameof(documentId));
+            var provider = services.GetRequiredService<IDocumentProvider>();
+            var current = await provider.GetAsync(id, cancellationToken);
+            await provider.UpdateMetadataAsync(
+                id,
+                new UpdateDocumentMetadataRequest(
+                    current.ProjectId,
+                    McpArguments.OptionalGuid(topicId, nameof(topicId)) ?? current.TopicId,
+                    McpArguments.OptionalGuid(categoryId, nameof(categoryId)) ?? current.Category?.Id,
+                    McpArguments.OptionalEnum<KnowledgeItemStatus>(status, nameof(status)) ?? current.Status,
+                    tagNames is null ? current.Tags.Select(x => x.Id).ToArray() : null,
+                    tagNames),
+                cancellationToken);
+            var ack = await provider.GetWriteAckAsync(id, cancellationToken);
+            return McpJson.Serialize(ack);
+        });
+    }
+
+    [McpServerTool]
+    [Description("Move a document into a different folder. Pass a null folderId to move it to the workspace root. Returns metadata only.")]
     public Task<string> MoveDocument(
         [Description("Document id (Guid)")] string documentId,
         [Description("Target folder id (Guid), or null/empty to move to the root")] string? folderId = null,
@@ -206,8 +336,8 @@ public sealed class DocumentMcpTools(
                 id,
                 McpArguments.OptionalGuid(folderId, nameof(folderId)),
                 cancellationToken);
-            var current = await provider.GetForMcpAsync(id, cancellationToken);
-            return McpJson.Serialize(current);
+            var ack = await provider.GetWriteAckAsync(id, cancellationToken);
+            return McpJson.Serialize(ack);
         });
     }
 }

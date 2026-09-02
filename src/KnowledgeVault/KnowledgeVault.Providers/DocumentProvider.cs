@@ -179,6 +179,140 @@ public sealed class DocumentProvider(
         return item.ToDto();
     }
 
+    public async Task<DocumentMcpHeadDto> GetMcpHeadAsync(
+        Guid id,
+        int? revisionNumber,
+        CancellationToken cancellationToken)
+    {
+        var (item, revision) = await LoadMcpRevisionAsync(id, revisionNumber, cancellationToken);
+        return DtoMapper.ToMcpHead(
+            item.Id,
+            revision.Title,
+            revision.RevisionNumber,
+            item.Status,
+            revision.Content);
+    }
+
+    public async Task<DocumentContentRangeDto> GetMcpContentRangeAsync(
+        Guid id,
+        int? revisionNumber,
+        DocumentContentRangeQuery query,
+        CancellationToken cancellationToken)
+    {
+        var (item, revision) = await LoadMcpRevisionAsync(id, revisionNumber, cancellationToken);
+        var range = MarkdownDocumentNavigator.ReadRange(
+            revision.Content,
+            query.Heading,
+            query.Occurrence,
+            query.StartLine,
+            query.LineCount,
+            query.Offset,
+            query.Limit,
+            DocumentMcpLimits.RangeMaxChars);
+        return new DocumentContentRangeDto(
+            item.Id,
+            revision.RevisionNumber,
+            DocumentContentHash.Sha256Hex(revision.Content),
+            range.Content,
+            range.StartLine,
+            range.EndLine,
+            range.CharOffset,
+            range.CharLength,
+            range.Truncated);
+    }
+
+    public async Task<DocumentSearchResultDto> SearchInDocumentAsync(
+        Guid id,
+        int? revisionNumber,
+        DocumentSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var (item, revision) = await LoadMcpRevisionAsync(id, revisionNumber, cancellationToken);
+        var hits = MarkdownDocumentNavigator.Search(
+            revision.Content,
+            query.Pattern,
+            query.IsRegex,
+            query.ContextLines,
+            DocumentMcpLimits.SearchMaxHits);
+        return new DocumentSearchResultDto(
+            item.Id,
+            revision.RevisionNumber,
+            DocumentContentHash.Sha256Hex(revision.Content),
+            hits.Count,
+            hits.Select(x => new DocumentSearchHitDto(x.Line, x.Text, x.Before, x.After)).ToArray(),
+            hits.Count >= DocumentMcpLimits.SearchMaxHits);
+    }
+
+    public async Task<DocumentWriteAckDto> ApplyPatchAsync(
+        Guid id,
+        ApplyDocumentPatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        await documentAccessService.EnsureEditAsync(id, cancellationToken);
+
+        var userId = currentUserContext.RequireUserId();
+        var now = dateTimeProvider.UtcNow;
+
+        var item = await dbContext.KnowledgeItems
+            .Include(x => x.CurrentRevision)
+            .Include(x => x.KnowledgeItemTags)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+
+        if (item.CurrentRevisionNumber != request.ExpectedRevisionNumber)
+        {
+            throw new ConflictException(
+                $"The document has been modified. Current revision is {item.CurrentRevisionNumber}.");
+        }
+
+        if (item.IsProjectMemory)
+        {
+            throw new ValidationException(
+                "MEMORY.md cannot be edited directly. Submit a memory candidate for administrator review.");
+        }
+
+        var current = item.CurrentRevision
+            ?? throw new NotFoundException("Document revision was not found.");
+        var hunks = request.Patches
+            .Select(x => new MarkdownPatchHunk(x.OldText, x.NewText, x.ReplaceAll))
+            .ToArray();
+        var patched = MarkdownDocumentNavigator.ApplyPatches(current.Content, hunks);
+        var appliedCount = hunks.Sum(h =>
+            h.ReplaceAll
+                ? CountOccurrences(current.Content, h.OldText)
+                : 1);
+
+        var revision = BuildRevision(
+            item.Id,
+            item.CurrentRevisionNumber + 1,
+            current.Title,
+            patched,
+            new CopiedContentRequest(current.Summary, current.SourceUrl, current.LinkDisplayText, current.LinkUrl, request.ChangeNote),
+            userId,
+            now);
+
+        item.AdvanceToRevision(revision);
+        item.UpdatedAt = now;
+        dbContext.KnowledgeItemRevisions.Add(revision);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new DocumentWriteAckDto(
+            item.Id,
+            item.CurrentRevisionNumber,
+            revision.Title,
+            item.Status,
+            patched.Length,
+            DocumentContentHash.Sha256Hex(patched),
+            request.ChangeNote,
+            appliedCount);
+    }
+
+    public async Task<DocumentWriteAckDto> GetWriteAckAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var document = await GetForMcpAsync(id, cancellationToken);
+        return document.ToWriteAck();
+    }
+
     public async Task<KnowledgeItemDto> CreateAsync(CreateDocumentRequest request, CancellationToken cancellationToken)
     {
         if (request.DocumentType == DocumentType.ProjectMemory)
@@ -243,7 +377,7 @@ public sealed class DocumentProvider(
         var now = dateTimeProvider.UtcNow;
 
         var item = await dbContext.KnowledgeItems
-            .Include(x => x.Revisions)
+            .Include(x => x.CurrentRevision)
             .Include(x => x.KnowledgeItemTags)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
@@ -268,8 +402,11 @@ public sealed class DocumentProvider(
             cancellationToken);
         await locationService.EnsureCategoryAsync(request.CategoryId, cancellationToken);
 
+        var currentRevision = item.CurrentRevision;
+        var content = request.Content ?? currentRevision?.Content
+            ?? throw new NotFoundException("Document revision was not found.");
         var revision = BuildRevision(
-            item.Id, item.CurrentRevisionNumber + 1, request.Title, request.Content, request, userId, now);
+            item.Id, item.CurrentRevisionNumber + 1, request.Title, content, request, userId, now);
 
         item.AdvanceToRevision(revision);
         item.ProjectId = location.ProjectId;
@@ -514,4 +651,62 @@ public sealed class DocumentProvider(
 
         return item.ToDto();
     }
+
+    private async Task<(KnowledgeItem Item, KnowledgeItemRevision Revision)> LoadMcpRevisionAsync(
+        Guid id,
+        int? revisionNumber,
+        CancellationToken cancellationToken)
+    {
+        var item = await BuildDetailQuery()
+            .FirstOrDefaultAsync(
+                x => x.Id == id && x.Status != KnowledgeItemStatus.Archived && x.Status != KnowledgeItemStatus.Deleted,
+                cancellationToken)
+            ?? throw new NotFoundException("Document was not found.");
+
+        if (!revisionNumber.HasValue || revisionNumber.Value == item.CurrentRevisionNumber)
+        {
+            var current = item.CurrentRevision
+                ?? throw new NotFoundException("Document revision was not found.");
+            return (item, current);
+        }
+
+        var revision = await dbContext.KnowledgeItemRevisions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.KnowledgeItemId == id && x.RevisionNumber == revisionNumber.Value,
+                cancellationToken)
+            ?? throw new NotFoundException("Revision was not found.");
+        return (item, revision);
+    }
+
+    private static int CountOccurrences(string content, string oldText)
+    {
+        if (string.IsNullOrEmpty(oldText))
+        {
+            return 0;
+        }
+
+        var count = 0;
+        var start = 0;
+        while (start <= content.Length)
+        {
+            var index = content.IndexOf(oldText, start, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                break;
+            }
+
+            count++;
+            start = index + Math.Max(oldText.Length, 1);
+        }
+
+        return count;
+    }
+
+    private sealed record CopiedContentRequest(
+        string? Summary,
+        string? SourceUrl,
+        string? LinkDisplayText,
+        string? LinkUrl,
+        string? ChangeNote) : IDocumentContentRequest;
 }
