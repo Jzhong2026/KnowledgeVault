@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text;
 using KnowledgeVault.Infrastructure.Exceptions;
 using KnowledgeVault.Infrastructure.Text;
 using Xunit;
@@ -253,5 +255,129 @@ public sealed class UnifiedDiffTests
         Assert.True(result.Truncated);
         Assert.Contains("truncated", result.Text);
         Assert.True(result.Text.Length < 2_000);
+    }
+
+    [Fact]
+    public void Large_document_one_line_edit_is_not_skipped()
+    {
+        var lines = Enumerable.Range(1, 1600).Select(i => $"line {i}").ToArray();
+        var oldText = string.Join('\n', lines) + "\n";
+        lines[800] = "changed";
+        var newText = string.Join('\n', lines) + "\n";
+        var result = UnifiedDiff.CreateResult(oldText, newText, "a", "b");
+        Assert.False(result.Truncated);
+        Assert.DoesNotContain("diff skipped", result.Text);
+        Assert.Contains("-line 801", result.Text);
+        Assert.Contains("+changed", result.Text);
+        Assert.Equal(1600, result.OldLineCount);
+        Assert.Equal(1600, result.NewLineCount);
+    }
+
+    [Fact]
+    public void Trailing_newline_is_not_a_phantom_line()
+    {
+        var append = UnifiedDiff.CreateResult("a\nb\n", "a\nb\nc\n", "old", "new", contextLines: 0);
+        Assert.Equal(2, append.OldLineCount);
+        Assert.Equal(3, append.NewLineCount);
+        Assert.Contains("@@ -2,0 +3,1 @@", append.Text);
+        Assert.Contains("+c", append.Text);
+
+        var deleteLast = UnifiedDiff.CreateResult("a\nb\nc\n", "a\nb\n", "old", "new", contextLines: 0);
+        Assert.Equal(3, deleteLast.OldLineCount);
+        Assert.Equal(2, deleteLast.NewLineCount);
+        Assert.Contains("@@ -3,1 +2,0 @@", deleteLast.Text);
+        Assert.Contains("-c", deleteLast.Text);
+
+        var replaceAll = UnifiedDiff.CreateResult("a\nb\nc\n", "x\ny\nz\n", "old", "new", contextLines: 0);
+        Assert.Contains("@@ -1,3 +1,3 @@", replaceAll.Text);
+
+        var emptyToContent = UnifiedDiff.CreateResult("", "a\nb\n", "old", "new", contextLines: 0);
+        Assert.Equal(0, emptyToContent.OldLineCount);
+        Assert.Equal(2, emptyToContent.NewLineCount);
+        Assert.Contains("@@ -0,0 +1,2 @@", emptyToContent.Text);
+    }
+
+    [Fact]
+    public void Diff_output_uses_lf_only()
+    {
+        var result = UnifiedDiff.CreateResult("one\ntwo\nthree\n", "one\nTWO\nthree\n", "a/doc.md", "b/doc.md");
+        Assert.DoesNotContain('\r', result.Text);
+        Assert.Contains("--- a/doc.md\n+++ b/doc.md\n", result.Text);
+    }
+
+    [Fact]
+    public void Git_apply_accepts_end_of_file_hunks()
+    {
+        AssertGitApply("a\nb\n", "a\nb\nc\n");
+        AssertGitApply("a\nb\nc\n", "a\nb\n");
+        AssertGitApply("a\nb\nc\n", "a\nX\nc\n");
+        AssertGitApply("", "a\nb\n");
+    }
+
+    private static void AssertGitApply(string oldText, string newText)
+    {
+        var git = ResolveGit();
+        if (git is null)
+        {
+            return;
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "kv-diff-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "doc.md"), Encoding.UTF8.GetBytes(oldText));
+            var patch = UnifiedDiff.Create(oldText, newText, "a/doc.md", "b/doc.md");
+            File.WriteAllBytes(Path.Combine(root, "change.diff"), Encoding.UTF8.GetBytes(patch));
+
+            var apply = Process.Start(new ProcessStartInfo
+            {
+                FileName = git,
+                Arguments = "-c core.autocrlf=false -c core.eol=lf apply --whitespace=nowarn change.diff",
+                WorkingDirectory = root,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            }) ?? throw new InvalidOperationException("git apply failed to start.");
+            var stderr = apply.StandardError.ReadToEnd();
+            Assert.True(apply.WaitForExit(15_000), "git apply timed out.");
+            Assert.True(apply.ExitCode == 0, $"git apply failed ({apply.ExitCode}): {stderr}\nPATCH:\n{patch}");
+
+            var applied = Encoding.UTF8.GetString(File.ReadAllBytes(Path.Combine(root, "doc.md")));
+            Assert.Equal(newText, applied);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string? ResolveGit()
+    {
+        var fromPath = FindOnPath("git.exe") ?? FindOnPath("git");
+        if (fromPath is not null)
+        {
+            return fromPath;
+        }
+
+        var candidates = new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Git", "cmd", "git.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Git", "cmd", "git.exe")
+        };
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    private static string? FindOnPath(string fileName)
+    {
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(path))
+        {
+            return null;
+        }
+
+        return path.Split(Path.PathSeparator)
+            .Select(dir => Path.Combine(dir, fileName))
+            .FirstOrDefault(File.Exists);
     }
 }

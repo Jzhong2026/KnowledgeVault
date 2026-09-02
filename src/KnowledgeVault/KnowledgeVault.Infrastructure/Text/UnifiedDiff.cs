@@ -6,14 +6,19 @@ public sealed record UnifiedDiffResult(string Text, bool Truncated, int OldLineC
 
 /// <summary>
 /// Line-oriented unified diff using Hirschberg LCS so large Markdown bodies
-/// stay in linear extra memory. Callers must still cap output size: LCS time
-/// is O(oldLines × newLines).
+/// stay in linear extra memory. Common prefix/suffix are stripped before the
+/// O(oldLines × newLines) LCS, so a one-line edit in a large file stays cheap.
+/// Output always uses LF so <c>git apply</c> and JS/Python parsers see Unix diffs.
 /// </summary>
 public static class UnifiedDiff
 {
     public const int DefaultMaxChars = 16_000;
     public const long DefaultMaxLcsCells = 1_200_000;
 
+    /// <summary>
+    /// Text-only helper. Prefer <see cref="CreateResult"/> when callers need
+    /// <see cref="UnifiedDiffResult.Truncated"/> or exact line counts.
+    /// </summary>
     public static string Create(
         string oldText,
         string newText,
@@ -37,13 +42,24 @@ public static class UnifiedDiff
         maxChars = Math.Max(256, maxChars);
         var oldLines = Split(oldText);
         var newLines = Split(newText);
-        if (oldLines.Count == 1 && oldLines[0].Length == 0 && newLines.Count == 1 && newLines[0].Length == 0
-            && oldText.Length == 0 && newText.Length == 0)
+        if (oldLines.Count == 0 && newLines.Count == 0)
         {
             return new UnifiedDiffResult($"--- {oldLabel}\n+++ {newLabel}\n", false, 0, 0);
         }
 
-        if ((long)oldLines.Count * newLines.Count > maxLcsCells)
+        var (prefix, suffix) = CommonAffix(oldLines, newLines);
+        var oldSpan = oldLines.Count - prefix - suffix;
+        var newSpan = newLines.Count - prefix - suffix;
+        if (oldSpan == 0 && newSpan == 0)
+        {
+            return new UnifiedDiffResult(
+                $"--- {oldLabel}\n+++ {newLabel}\n",
+                false,
+                oldLines.Count,
+                newLines.Count);
+        }
+
+        if ((long)oldSpan * newSpan > maxLcsCells)
         {
             return new UnifiedDiffResult(
                 $"--- {oldLabel}\n+++ {newLabel}\n[diff skipped: {oldLines.Count} vs {newLines.Count} lines exceeds complexity limit; use get_document_content_range]\n",
@@ -52,9 +68,43 @@ public static class UnifiedDiff
                 newLines.Count);
         }
 
-        var pairs = FindLcsPairs(oldLines, newLines);
-        var rows = BuildRows(oldLines, newLines, pairs);
-        var text = Format(rows, oldLines, newLines, oldLabel, newLabel, contextLines);
+        var oldSlice = Slice(oldLines, prefix, oldSpan);
+        var newSlice = Slice(newLines, prefix, newSpan);
+        var pairs = FindLcsPairs(oldSlice, newSlice);
+        var middle = BuildRows(oldSlice, newSlice, pairs);
+        var contextPrefix = Math.Min(contextLines, prefix);
+        var contextSuffix = Math.Min(contextLines, suffix);
+        var rows = new List<(RowKind Kind, int OldIndex, int NewIndex)>(
+            middle.Count + contextPrefix + contextSuffix);
+        for (var i = prefix - contextPrefix; i < prefix; i++)
+        {
+            rows.Add((RowKind.Equal, i, i));
+        }
+
+        foreach (var row in middle)
+        {
+            rows.Add((
+                row.Kind,
+                row.OldIndex < 0 ? -1 : row.OldIndex + prefix,
+                row.NewIndex < 0 ? -1 : row.NewIndex + prefix));
+        }
+
+        for (var i = 0; i < contextSuffix; i++)
+        {
+            rows.Add((
+                RowKind.Equal,
+                oldLines.Count - suffix + i,
+                newLines.Count - suffix + i));
+        }
+
+        var text = Format(
+            rows,
+            oldLines,
+            newLines,
+            oldLabel,
+            newLabel,
+            contextLines,
+            prefix - contextPrefix);
         if (text.Length > maxChars)
         {
             return new UnifiedDiffResult(
@@ -70,7 +120,48 @@ public static class UnifiedDiff
     private static IReadOnlyList<string> Split(string text)
     {
         text = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-        return text.Length == 0 ? [string.Empty] : text.Split('\n');
+        if (text.Length == 0)
+        {
+            return [];
+        }
+
+        var lines = text.Split('\n');
+        return text[^1] == '\n'
+            ? lines.AsSpan(0, lines.Length - 1).ToArray()
+            : lines;
+    }
+
+    private static (int Prefix, int Suffix) CommonAffix(
+        IReadOnlyList<string> oldLines,
+        IReadOnlyList<string> newLines)
+    {
+        var prefix = 0;
+        var limit = Math.Min(oldLines.Count, newLines.Count);
+        while (prefix < limit && oldLines[prefix] == newLines[prefix])
+        {
+            prefix++;
+        }
+
+        var suffix = 0;
+        while (suffix < oldLines.Count - prefix &&
+               suffix < newLines.Count - prefix &&
+               oldLines[oldLines.Count - 1 - suffix] == newLines[newLines.Count - 1 - suffix])
+        {
+            suffix++;
+        }
+
+        return (prefix, suffix);
+    }
+
+    private static List<string> Slice(IReadOnlyList<string> lines, int start, int count)
+    {
+        var slice = new List<string>(count);
+        for (var i = 0; i < count; i++)
+        {
+            slice.Add(lines[start + i]);
+        }
+
+        return slice;
     }
 
     private static List<(int OldIndex, int NewIndex)> FindLcsPairs(
@@ -202,12 +293,13 @@ public static class UnifiedDiff
         IReadOnlyList<string> newLines,
         string oldLabel,
         string newLabel,
-        int contextLines)
+        int contextLines,
+        int hiddenPrefixLines)
     {
         var builder = new StringBuilder();
-        builder.Append("--- ").AppendLine(oldLabel);
-        builder.Append("+++ ").AppendLine(newLabel);
-        if (rows.All(r => r.Kind == RowKind.Equal))
+        AppendLf(builder, "--- ", oldLabel);
+        AppendLf(builder, "+++ ", newLabel);
+        if (rows.Count == 0 || rows.All(r => r.Kind == RowKind.Equal))
         {
             return builder.ToString();
         }
@@ -277,13 +369,13 @@ public static class UnifiedDiff
 
             if (firstOld)
             {
-                var consumed = rows.Take(hunkStart).Count(r => r.Kind != RowKind.Insert);
+                var consumed = hiddenPrefixLines + rows.Take(hunkStart).Count(r => r.Kind != RowKind.Insert);
                 oldStart = oldCount == 0 ? consumed : consumed + 1;
             }
 
             if (firstNew)
             {
-                var consumed = rows.Take(hunkStart).Count(r => r.Kind != RowKind.Delete);
+                var consumed = hiddenPrefixLines + rows.Take(hunkStart).Count(r => r.Kind != RowKind.Delete);
                 newStart = newCount == 0 ? consumed : consumed + 1;
             }
 
@@ -295,7 +387,7 @@ public static class UnifiedDiff
                 .Append(newStart)
                 .Append(',')
                 .Append(newCount)
-                .AppendLine(" @@");
+                .Append(" @@\n");
 
             for (var i = hunkStart; i <= hunkEnd; i++)
             {
@@ -303,13 +395,13 @@ public static class UnifiedDiff
                 switch (row.Kind)
                 {
                     case RowKind.Equal:
-                        builder.Append(' ').AppendLine(oldLines[row.OldIndex]);
+                        AppendLf(builder, " ", oldLines[row.OldIndex]);
                         break;
                     case RowKind.Delete:
-                        builder.Append('-').AppendLine(oldLines[row.OldIndex]);
+                        AppendLf(builder, "-", oldLines[row.OldIndex]);
                         break;
                     case RowKind.Insert:
-                        builder.Append('+').AppendLine(newLines[row.NewIndex]);
+                        AppendLf(builder, "+", newLines[row.NewIndex]);
                         break;
                 }
             }
@@ -318,5 +410,10 @@ public static class UnifiedDiff
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendLf(StringBuilder builder, string prefix, string text)
+    {
+        builder.Append(prefix).Append(text).Append('\n');
     }
 }
