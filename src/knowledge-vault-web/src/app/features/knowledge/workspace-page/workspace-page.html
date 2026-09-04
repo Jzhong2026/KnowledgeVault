@@ -643,23 +643,6 @@
     </div>
   }
 
-  @if (importConflictOpen()) {
-    <div class="dialog-backdrop" (click)="cancelImportConflicts()">
-      <div class="dialog import-conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="import-conflict-title" (click)="$event.stopPropagation()">
-        <h3 id="import-conflict-title">Duplicate files found</h3>
-        <p class="dialog__message">
-          {{ importConflictCount() }} file{{ importConflictCount() === 1 ? '' : 's' }} already exist in the target folder structure.
-          Existing folders will be merged to preserve the imported hierarchy.
-        </p>
-        <div class="dialog__actions">
-          <button type="button" class="ghost" (click)="cancelImportConflicts()">Cancel</button>
-          <button type="button" class="ghost" (click)="resolveImportConflicts(false)">Ignore duplicates</button>
-          <button type="button" class="primary" (click)="resolveImportConflicts(true)">Overwrite files</button>
-        </div>
-      </div>
-    </div>
-  }
-
   @if (importingFiles() || importProgress()) {
     <p class="workspace-import-status" role="status">{{ importProgress() ?? 'Importing files…' }}</p>
   }

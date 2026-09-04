@@ -268,3 +268,254 @@ describe('WorkspacePage document id copy (workspace mode)', () => {
     );
   });
 });
+
+describe('WorkspacePage file import', () => {
+  const designCategory = {
+    id: 'design-id',
+    name: 'Design',
+    sortOrder: 0,
+    isArchived: false,
+    isSystem: true,
+    createdAt: '2026-09-01T00:00:00Z',
+  };
+
+  function folderPage(documents: KnowledgeItemSummary[] = []) {
+    return {
+      folders: [],
+      documents,
+      page: 1,
+      pageSize: 20,
+      totalFolderCount: 0,
+      totalDocumentCount: documents.length,
+      hasMoreFolders: false,
+      hasMoreDocuments: false,
+      hasMore: false,
+    };
+  }
+
+  function summary(id: string, title: string, revision = 1): KnowledgeItemSummary {
+    return {
+      id,
+      scope: 'Personal',
+      ownerUserId: 'owner-id',
+      ownerDisplayName: 'Owner',
+      documentType: 'General',
+      currentRevisionNumber: revision,
+      title,
+      status: 'Active',
+      tags: [],
+      createdAt: '2026-09-01T00:00:00Z',
+    };
+  }
+
+  function item(doc: KnowledgeItemSummary, content: string): KnowledgeItem {
+    return { ...doc, content };
+  }
+
+  function dropEvent(file: File): DragEvent {
+    return {
+      preventDefault() {},
+      stopPropagation() {},
+      dataTransfer: {
+        types: ['Files'],
+        files: [file],
+        items: [],
+        dropEffect: 'copy',
+      },
+    } as unknown as DragEvent;
+  }
+
+  async function createImportFixture(options: {
+    documents?: KnowledgeItemSummary[];
+    existingContent?: Record<string, KnowledgeItem>;
+  } = {}) {
+    const documents = options.documents ?? [];
+    const api = {
+      listFolderContent: vi.fn().mockReturnValue(of(folderPage(documents))),
+      listDocumentOwners: vi.fn().mockReturnValue(of([])),
+      listCategories: vi.fn().mockReturnValue(of([designCategory])),
+      listTags: vi.fn().mockReturnValue(of([])),
+      listProjects: vi
+        .fn()
+        .mockReturnValue(of({ items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 })),
+      getKnowledgeItem: vi.fn().mockImplementation((id: string) => {
+        const existing = options.existingContent?.[id];
+        return of(existing ?? item(summary(id, 'unknown'), ''));
+      }),
+      createKnowledgeItem: vi.fn().mockImplementation((request: { title: string; content: string }) =>
+        of(item(summary('created-id', request.title), request.content)),
+      ),
+      updateKnowledgeItem: vi.fn().mockImplementation((id: string, request: { title: string; content: string }) =>
+        of(item(summary(id, request.title, 2), request.content)),
+      ),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [WorkspacePage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        { provide: AuthService, useValue: { currentUser: () => null } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { data: { scope: 'Personal' } },
+            queryParamMap: of(convertToParamMap({})),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return { fixture, api };
+  }
+
+  async function dropTextFile(
+    fixture: { componentInstance: WorkspacePage; nativeElement: HTMLElement },
+    name: string,
+    content: string,
+  ): Promise<void> {
+    await fixture.componentInstance.onFileDrop(dropEvent(new File([content], name, { type: 'text/plain' })));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  function conflictDialog(nativeElement: HTMLElement): HTMLElement | null {
+    return nativeElement.querySelector('.import-conflict-dialog');
+  }
+
+  it('creates a new document using the original filename', async () => {
+    const { fixture, api } = await createImportFixture();
+
+    await dropTextFile(fixture, 'test.txt', 'hello');
+
+    expect(conflictDialog(fixture.nativeElement)).toBeNull();
+    expect(api.createKnowledgeItem).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'test.txt',
+      content: 'hello',
+    }));
+    expect(api.updateKnowledgeItem).not.toHaveBeenCalled();
+  });
+
+  it('renames an existing stem-named document to the dropped filename', async () => {
+    const existing = summary('doc-test', 'test');
+    const { fixture, api } = await createImportFixture({
+      documents: [existing],
+      existingContent: { [existing.id]: item(existing, 'hello') },
+    });
+
+    await dropTextFile(fixture, 'test.txt', 'hello');
+
+    expect(conflictDialog(fixture.nativeElement)).toBeNull();
+    expect(api.createKnowledgeItem).not.toHaveBeenCalled();
+    expect(api.updateKnowledgeItem).toHaveBeenCalledWith(existing.id, expect.objectContaining({
+      title: 'test.txt',
+      content: 'hello',
+      expectedRevisionNumber: 1,
+    }));
+  });
+
+  it('skips an update when the dropped filename and content already match', async () => {
+    const existing = summary('doc-test', 'test.txt');
+    const { fixture, api } = await createImportFixture({
+      documents: [existing],
+      existingContent: { [existing.id]: item(existing, 'hello') },
+    });
+
+    await dropTextFile(fixture, 'test.txt', 'hello');
+
+    expect(conflictDialog(fixture.nativeElement)).toBeNull();
+    expect(api.createKnowledgeItem).not.toHaveBeenCalled();
+    expect(api.updateKnowledgeItem).not.toHaveBeenCalled();
+  });
+
+  it('creates a revision when dropped content differs from the matched document', async () => {
+    const existing = summary('doc-test', 'test.txt');
+    const { fixture, api } = await createImportFixture({
+      documents: [existing],
+      existingContent: { [existing.id]: item(existing, 'hello') },
+    });
+
+    await dropTextFile(fixture, 'test.txt', 'hello world');
+
+    expect(conflictDialog(fixture.nativeElement)).toBeNull();
+    expect(api.createKnowledgeItem).not.toHaveBeenCalled();
+    expect(api.updateKnowledgeItem).toHaveBeenCalledWith(existing.id, expect.objectContaining({
+      title: 'test.txt',
+      content: 'hello world',
+      expectedRevisionNumber: 1,
+    }));
+  });
+
+  it('does not create another revision when the same file is dropped again', async () => {
+    const created = summary('created-id', 'test.txt');
+    let documents: KnowledgeItemSummary[] = [];
+    const existingContent: Record<string, KnowledgeItem> = {};
+    const api = {
+      listFolderContent: vi.fn().mockImplementation(() => of(folderPage(documents))),
+      listDocumentOwners: vi.fn().mockReturnValue(of([])),
+      listCategories: vi.fn().mockReturnValue(of([designCategory])),
+      listTags: vi.fn().mockReturnValue(of([])),
+      listProjects: vi
+        .fn()
+        .mockReturnValue(of({ items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 })),
+      getKnowledgeItem: vi.fn().mockImplementation((id: string) => of(existingContent[id] ?? item(summary(id, 'unknown'), ''))),
+      createKnowledgeItem: vi.fn().mockImplementation((request: { title: string; content: string }) => {
+        documents = [created];
+        existingContent[created.id] = item(created, request.content);
+        return of(existingContent[created.id]);
+      }),
+      updateKnowledgeItem: vi.fn(),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [WorkspacePage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        { provide: AuthService, useValue: { currentUser: () => null } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { data: { scope: 'Personal' } },
+            queryParamMap: of(convertToParamMap({})),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await dropTextFile(fixture, 'test.txt', 'hello');
+    await dropTextFile(fixture, 'test.txt', 'hello');
+
+    expect(conflictDialog(fixture.nativeElement)).toBeNull();
+    expect(api.createKnowledgeItem).toHaveBeenCalledTimes(1);
+    expect(api.updateKnowledgeItem).not.toHaveBeenCalled();
+  });
+
+  it('creates a new file when several stem-related documents exist without an exact name match', async () => {
+    const stem = summary('doc-test', 'test');
+    const markdown = summary('doc-md', 'test.md');
+    const { fixture, api } = await createImportFixture({
+      documents: [stem, markdown],
+      existingContent: {
+        [stem.id]: item(stem, 'hello'),
+        [markdown.id]: item(markdown, 'hello'),
+      },
+    });
+
+    await dropTextFile(fixture, 'test.txt', 'hello');
+
+    expect(conflictDialog(fixture.nativeElement)).toBeNull();
+    expect(api.updateKnowledgeItem).not.toHaveBeenCalled();
+    expect(api.createKnowledgeItem).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'test.txt',
+      content: 'hello',
+    }));
+  });
+});

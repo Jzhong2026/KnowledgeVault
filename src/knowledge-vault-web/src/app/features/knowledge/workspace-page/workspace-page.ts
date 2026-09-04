@@ -39,6 +39,7 @@ import { ContentEditor } from '../components/content-editor/content-editor';
 import { FullscreenDocumentWorkspace } from '../components/fullscreen-document-workspace/fullscreen-document-workspace';
 import { TileGrid } from '../components/tile-grid/tile-grid';
 import { getDocumentContentKind } from '../../../shared/utils/document-content-kind';
+import { findExistingImportDocument, importTitlesEqual } from './import-document-match';
 
 /** Page size used for the workspace "Load more" UI. Each click reveals
  *  this many more folders AND this many more documents. Backend clamps the
@@ -149,8 +150,6 @@ export class WorkspacePage implements OnDestroy {
   readonly fileDropActive = signal(false);
   readonly importingFiles = signal(false);
   readonly importProgress = signal<string | null>(null);
-  readonly importConflictOpen = signal(false);
-  readonly importConflictCount = signal(0);
   readonly projects = signal<ProjectSummary[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly tags = signal<Tag[]>([]);
@@ -180,7 +179,6 @@ export class WorkspacePage implements OnDestroy {
   );
   readonly selectedItemCount = computed(() => this.selectedFolderIds().size + this.selectedDocumentIds().size);
   readonly hasSelectedItems = computed(() => this.selectedItemCount() > 0);
-  private pendingImportTargets: ImportTarget[] = [];
 
   /** Display name of the currently selected project. Resolved id-based so a
    *  project rename elsewhere stays consistent. Null when no project is
@@ -1527,38 +1525,12 @@ export class WorkspacePage implements OnDestroy {
       this.importingFiles.set(true);
       this.importProgress.set('Checking existing folders and documents…');
       const targets = await this.prepareImportTargets(files);
-      this.pendingImportTargets = targets;
-      const conflicts = targets.filter((target) => target.existingDocument).length;
-      if (conflicts > 0) {
-        this.importConflictCount.set(conflicts);
-        this.importConflictOpen.set(true);
-        this.importingFiles.set(false);
-        this.importProgress.set(null);
-        return;
-      }
-
-      await this.executeImport(targets, false, designCategory.id);
+      await this.executeImport(targets, designCategory.id);
     } catch (err: unknown) {
       this.error.set(getErrorMessage(err));
       this.importingFiles.set(false);
       this.importProgress.set(null);
     }
-  }
-
-  async resolveImportConflicts(overwrite: boolean): Promise<void> {
-    const designCategory = this.categories().find((category) =>
-      !category.isArchived && category.name.trim().toLocaleLowerCase() === 'design');
-    this.importConflictOpen.set(false);
-    if (!designCategory) {
-      this.error.set('The Design category is required before files can be imported.');
-      return;
-    }
-    await this.executeImport(this.pendingImportTargets, overwrite, designCategory.id);
-  }
-
-  cancelImportConflicts(): void {
-    this.importConflictOpen.set(false);
-    this.pendingImportTargets = [];
   }
 
   private hasExternalFiles(event: DragEvent): boolean {
@@ -1636,27 +1608,27 @@ export class WorkspacePage implements OnDestroy {
     const targets: ImportTarget[] = [];
     for (const file of files) {
       let parentId = rootFolderId;
+      let parentResolved = true;
       let content = (await getContent(parentId)).content;
       for (const segment of file.relativeDirectory) {
         const folder = content.folders.find((candidate) =>
           candidate.name.localeCompare(segment, undefined, { sensitivity: 'accent' }) === 0);
         if (!folder) {
-          parentId = null;
+          parentResolved = false;
           break;
         }
         parentId = folder.id;
         content = (await getContent(parentId)).content;
       }
-      const existingDocument = parentId === null
-        ? undefined
-        : content.documents.find((document) =>
-          document.title.localeCompare(file.file.name, undefined, { sensitivity: 'accent' }) === 0);
+      const existingDocument = parentResolved
+        ? findExistingImportDocument(content.documents, file.file.name)
+        : undefined;
       targets.push({ file, existingDocument });
     }
     return targets;
   }
 
-  private async executeImport(targets: ImportTarget[], overwrite: boolean, designCategoryId: string): Promise<void> {
+  private async executeImport(targets: ImportTarget[], designCategoryId: string): Promise<void> {
     this.importingFiles.set(true);
     this.error.set(null);
     const folderIds = new Map<string, string | null>();
@@ -1665,15 +1637,11 @@ export class WorkspacePage implements OnDestroy {
       : this.browseFolderId();
     folderIds.set('', rootFolderId);
     let imported = 0;
-    let ignored = 0;
+    let skipped = 0;
 
     try {
       for (const target of targets) {
-        this.importProgress.set(`Importing ${imported + ignored + 1} of ${targets.length}…`);
-        if (target.existingDocument && !overwrite) {
-          ignored++;
-          continue;
-        }
+        this.importProgress.set(`Importing ${imported + skipped + 1} of ${targets.length}…`);
 
         let parentId = rootFolderId;
         const path: string[] = [];
@@ -1707,8 +1675,14 @@ export class WorkspacePage implements OnDestroy {
         }
 
         const content = await target.file.file.text();
-        if (target.existingDocument && overwrite) {
+        if (target.existingDocument) {
           const existing = await firstValueFrom(this.api.getKnowledgeItem(target.existingDocument.id));
+          const sameTitle = importTitlesEqual(existing.title, target.file.file.name);
+          if (sameTitle && existing.content === content) {
+            skipped++;
+            continue;
+          }
+
           await firstValueFrom(this.api.updateKnowledgeItem(existing.id, {
             scope: existing.scope,
             projectId: existing.projectId ?? null,
@@ -1750,14 +1724,15 @@ export class WorkspacePage implements OnDestroy {
         }
         imported++;
       }
-      const msg = `Imported ${imported} file${imported === 1 ? '' : 's'}${ignored ? `; ignored ${ignored} duplicate${ignored === 1 ? '' : 's'}` : ''}.`;
+      const msg = imported === 0 && skipped > 0
+        ? `Skipped ${skipped} unchanged file${skipped === 1 ? '' : 's'}.`
+        : `Imported ${imported} file${imported === 1 ? '' : 's'}${skipped ? `; skipped ${skipped} unchanged` : ''}.`;
       this.importProgress.set(msg);
       setTimeout(() => {
         if (this.importProgress() === msg) {
           this.importProgress.set(null);
         }
       }, 4000);
-      this.pendingImportTargets = [];
       this.loadContent(this.workspace.current(), 1, false);
     } catch (err: unknown) {
       this.error.set(`Import stopped after ${imported} file${imported === 1 ? '' : 's'}: ${getErrorMessage(err)}`);
