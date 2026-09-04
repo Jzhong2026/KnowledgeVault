@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication;
 using KnowledgeVault.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Options;
 using KnowledgeVault.Providers;
 using KnowledgeVault.Providers.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -76,6 +77,12 @@ builder.Services.AddOptions<LlmOptions>()
 builder.Services.AddOptions<VectorStoreOptions>()
     .Bind(builder.Configuration.GetSection(VectorStoreOptions.SectionName))
     .ValidateDataAnnotations();
+builder.Services.AddOptions<McpToolOptions>()
+    .Bind(builder.Configuration.GetSection(McpToolOptions.SectionName))
+    .Validate(options => McpToolProfile.IsKnownProfile(options.Profile),
+        $"Mcp:Tools:Profile must be '{McpToolProfile.BalancedProfile}' or '{McpToolProfile.FullProfile}'.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IPostConfigureOptions<ModelContextProtocol.Server.McpServerOptions>, McpToolCollectionPostConfigurator>();
 builder.Services.AddHttpClient<ILLMProvider, OpenAiCompatibleLlmProvider>()
     .ConfigureHttpClient((sp, client) =>
     {

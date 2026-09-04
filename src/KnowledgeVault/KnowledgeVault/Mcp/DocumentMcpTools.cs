@@ -14,12 +14,12 @@ public sealed class DocumentMcpTools(
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
     [McpServerTool]
-    [Description("Search documents visible to the API key owner by title, summary, or content. Returns metadata only.")]
+    [Description("Search accessible documents by title, summary, or body; metadata only.")]
     public Task<string> SearchKnowledgeItems(
-        [Description("Free-text search term")] string query,
-        [Description("Optional project id (Guid)")] string? projectId = null,
-        [Description("One-based page number")] int page = 1,
-        [Description("Page size from 1 to 100")] int pageSize = 20,
+        [Description("Search text")] string query,
+        [Description("Optional project Guid")] string? projectId = null,
+        [Description("1-based page")] int page = 1,
+        [Description("Page size 1-100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -47,15 +47,15 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("List project documents with project, type, topic, status, and search filters. Returns metadata only.")]
+    [Description("List project documents with optional type, topic, status, and text filters; metadata only.")]
     public Task<string> ListProjectDocuments(
-        [Description("Project id (Guid)")] string projectId,
-        [Description("Optional type: General, PlanningReview, TaskBreakdown, or ProjectMemory")] string? documentType = null,
-        [Description("Optional project topic id (Guid)")] string? topicId = null,
-        [Description("Optional status: Draft, Active, Archived, or Deleted")] string? status = null,
-        [Description("Optional title, summary, or content search")] string? search = null,
-        [Description("One-based page number")] int page = 1,
-        [Description("Page size from 1 to 100")] int pageSize = 20,
+        [Description("Project Guid")] string projectId,
+        [Description("Optional: General, PlanningReview, TaskBreakdown, ProjectMemory")] string? documentType = null,
+        [Description("Optional topic Guid")] string? topicId = null,
+        [Description("Optional: Draft, Active, Archived, Deleted")] string? status = null,
+        [Description("Optional title/summary/body text")] string? search = null,
+        [Description("1-based page")] int page = 1,
+        [Description("Page size 1-100")] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -82,10 +82,10 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Get document metadata, content hash, and heading outline. Never returns the body. Use get_document_content_range or search_in_document to read text.")]
+    [Description("Get document head, hash, and outline; never returns the body.")]
     public Task<string> GetKnowledgeItem(
-        [Description("Document id (Guid)")] string id,
-        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
+        [Description("Document Guid")] string id,
+        [Description("Optional revision; default current")] int? revisionNumber = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -100,10 +100,10 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Get the heading outline of a document: level, heading, occurrence, line and character ranges. Dense outlines may be truncated.")]
+    [Description("Get heading ranges for a document.")]
     public Task<string> GetDocumentOutline(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Optional revision; default current")] int? revisionNumber = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -122,16 +122,16 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Read a slice of a document as Markdown. Provide exactly one mode: heading, startLine+lineCount, or offset+limit. Responses longer than 24000 characters are truncated and marked truncated=true.")]
+    [Description("Read one bounded Markdown slice by heading, lines, or offset (max 24000 chars).")]
     public Task<string> GetDocumentContentRange(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
-        [Description("Heading text to read (ATX heading without #)")] string? heading = null,
-        [Description("1-based occurrence when the heading is repeated")] int? occurrence = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Optional revision; default current")] int? revisionNumber = null,
+        [Description("ATX heading text without #")] string? heading = null,
+        [Description("1-based duplicate occurrence")] int? occurrence = null,
         [Description("1-based start line")] int? startLine = null,
-        [Description("Number of lines to read; required with startLine")] int? lineCount = null,
+        [Description("Lines to read with startLine")] int? lineCount = null,
         [Description("0-based character offset")] int? offset = null,
-        [Description("Character count; required with offset. Values above 24000 are truncated.")] int? limit = null,
+        [Description("Characters to read with offset; max 24000")] int? limit = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -147,13 +147,13 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Search inside one document. Returns clipped matching excerpts and nearby context, not the full body. Max 20 hits; long lines are truncated.")]
+    [Description("Find text or regex in one document; max 20 clipped hits with context.")]
     public Task<string> SearchInDocument(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Literal substring, or a regular expression when isRegex is true")] string pattern,
-        [Description("Treat pattern as a .NET regular expression")] bool isRegex = false,
-        [Description("Context lines around each hit (0-8)")] int contextLines = 2,
-        [Description("Optional revision number; omit for the current revision")] int? revisionNumber = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Text or .NET regex when isRegex=true")] string pattern,
+        [Description("Use regex matching")] bool isRegex = false,
+        [Description("Context lines 0-8")] int contextLines = 2,
+        [Description("Optional revision; default current")] int? revisionNumber = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -169,9 +169,9 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Recursively list subfolders and documents below a folder. Metadata only; use get_document_content_range to read bodies.")]
+    [Description("List descendant folders and documents; metadata only.")]
     public Task<string> ListFolderContents(
-        [Description("Root folder id (Guid); the root itself is not returned")] string folderId,
+        [Description("Root folder Guid; root is excluded")] string folderId,
         CancellationToken cancellationToken = default)
     {
         return ExecuteReadAsync(async services =>
@@ -184,18 +184,18 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Create a personal or project document. Returns metadata and a content hash, not the body.")]
+    [Description("Create a document; returns metadata and hash, not the body.")]
     public Task<string> CreateDocument(
         [Description("Document title")] string title,
-        [Description("Inline Markdown body. Pass the actual text, not a file path.")] string content,
-        [Description("Scope: Personal or Project")] string scope = "Project",
-        [Description("Type: General, PlanningReview, or TaskBreakdown")] string documentType = "General",
-        [Description("Required project id for Project scope (Guid)")] string? projectId = null,
-        [Description("Optional project topic id (Guid)")] string? topicId = null,
-        [Description("Optional short summary")] string? summary = null,
-        [Description("Optional revision change note")] string? changeNote = null,
-        [Description("Initial status: Draft, Active, or Archived")] string status = "Draft",
-        [Description("Optional document category id (Guid); use list_categories to discover it")] string? categoryId = null,
+        [Description("Inline Markdown body, not a file path")] string content,
+        [Description("Personal or Project")] string scope = "Project",
+        [Description("General, PlanningReview, or TaskBreakdown")] string documentType = "General",
+        [Description("Project Guid when scope=Project")] string? projectId = null,
+        [Description("Optional topic Guid")] string? topicId = null,
+        [Description("Optional summary")] string? summary = null,
+        [Description("Optional change note")] string? changeNote = null,
+        [Description("Draft, Active, or Archived")] string status = "Draft",
+        [Description("Optional category Guid")] string? categoryId = null,
         [Description("Optional tag names")] string[]? tagNames = null,
         CancellationToken cancellationToken = default)
     {
@@ -225,16 +225,16 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Replace the full document or change title/summary. Omit content to keep the current body. Prefer apply_document_patch for local edits. Returns metadata only.")]
+    [Description("Replace body or metadata. Omit content to keep body; prefer apply_document_patch.")]
     public Task<string> UpdateDocument(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Revision number read before making this update")] int expectedRevisionNumber,
-        [Description("Optional full Markdown replacement. Omit to keep the current body. Do not pass a file path.")] string? content = null,
-        [Description("Optional replacement title; omit to preserve the current title")] string? title = null,
-        [Description("Optional replacement summary; omit to preserve the current summary")] string? summary = null,
-        [Description("Optional explanation of this revision")] string? changeNote = null,
-        [Description("Optional status: Draft, Active, or Archived; omit to preserve current status")] string? status = null,
-        [Description("Optional replacement category id (Guid); omit to preserve the current category")] string? categoryId = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Revision read before update")] int expectedRevisionNumber,
+        [Description("Optional full Markdown body; omit to keep current")] string? content = null,
+        [Description("Optional title")] string? title = null,
+        [Description("Optional summary")] string? summary = null,
+        [Description("Optional change note")] string? changeNote = null,
+        [Description("Optional status: Draft, Active, Archived")] string? status = null,
+        [Description("Optional category Guid")] string? categoryId = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
@@ -265,15 +265,15 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Apply one or more search-replace hunks in a single new revision. Atomic: any failed hunk rolls back. Prefer this over update_document for local edits.")]
+    [Description("Apply exact search/replace hunks atomically in one revision.")]
     public Task<string> ApplyDocumentPatch(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Revision number read before making this update")] int expectedRevisionNumber,
-        [Description("Exact substrings to find, one per hunk")] string[] oldTexts,
-        [Description("Replacements, same length as oldTexts")] string[] newTexts,
-        [Description("When true, every hunk replaces all matches of its oldText. Ignored for a hunk when replaceAllFlags is provided")] bool replaceAll = false,
-        [Description("Optional per-hunk replaceAll flags, same length as oldTexts. When set, overrides the global replaceAll for each hunk")] bool[]? replaceAllFlags = null,
-        [Description("Optional explanation of this revision")] string? changeNote = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Revision read before update")] int expectedRevisionNumber,
+        [Description("Exact old text per hunk")] string[] oldTexts,
+        [Description("New text per hunk")] string[] newTexts,
+        [Description("Replace all matches by default")] bool replaceAll = false,
+        [Description("Optional per-hunk replaceAll flags")] bool[]? replaceAllFlags = null,
+        [Description("Optional change note")] string? changeNote = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
@@ -291,14 +291,14 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Update document status, category, tags, topic, or folder without creating a revision or sending the body.")]
+    [Description("Update status, category, tags, topic, or folder without a revision or body.")]
     public Task<string> UpdateDocumentMetadata(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Optional status: Draft, Active, or Archived")] string? status = null,
-        [Description("Optional category id (Guid). Omit to keep the current category; pass empty to clear it")] string? categoryId = null,
-        [Description("Optional project topic id (Guid). Omit to keep the current topic; pass empty to clear it")] string? topicId = null,
-        [Description("Optional folder id (Guid). Omit to keep the current folder; pass empty to move to the workspace root")] string? folderId = null,
-        [Description("Optional tag names; omit to leave tags unchanged")] string[]? tagNames = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Optional: Draft, Active, Archived")] string? status = null,
+        [Description("Optional category Guid; empty clears")] string? categoryId = null,
+        [Description("Optional topic Guid; empty clears")] string? topicId = null,
+        [Description("Optional folder Guid; empty means root")] string? folderId = null,
+        [Description("Optional tag names; omit to keep")] string[]? tagNames = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
@@ -315,10 +315,10 @@ public sealed class DocumentMcpTools(
     }
 
     [McpServerTool]
-    [Description("Move a document into a different folder. Pass a null folderId to move it to the workspace root. Returns metadata only.")]
+    [Description("Move a document to a folder or the workspace root; metadata only.")]
     public Task<string> MoveDocument(
-        [Description("Document id (Guid)")] string documentId,
-        [Description("Target folder id (Guid), or null/empty to move to the root")] string? folderId = null,
+        [Description("Document Guid")] string documentId,
+        [Description("Target folder Guid; null/empty means root")] string? folderId = null,
         CancellationToken cancellationToken = default)
     {
         return ExecuteAsync(ApiKeyScopes.DocumentsWrite, async services =>
