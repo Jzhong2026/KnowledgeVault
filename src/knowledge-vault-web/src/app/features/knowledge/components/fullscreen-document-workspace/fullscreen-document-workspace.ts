@@ -15,6 +15,7 @@ import {
 import { FormsModule } from '@angular/forms';
 
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm-dialog';
+import { DocumentContentViewer } from '../../../../shared/components/document-content-viewer/document-content-viewer';
 import { MermaidDiagramsDirective } from '../../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../../shared/pipes/markdown-content.pipe';
 import {
@@ -26,7 +27,7 @@ import {
 
 @Component({
   selector: 'app-fullscreen-document-workspace',
-  imports: [FormsModule, MarkdownContentPipe, MermaidDiagramsDirective],
+  imports: [FormsModule, MarkdownContentPipe, MermaidDiagramsDirective, DocumentContentViewer],
   templateUrl: './fullscreen-document-workspace.html',
   styleUrl: './fullscreen-document-workspace.css',
 })

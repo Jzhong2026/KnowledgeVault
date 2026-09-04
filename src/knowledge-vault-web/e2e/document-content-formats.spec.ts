@@ -4,9 +4,31 @@ const documents = [
   { id: 'markdown-document', title: 'notes.md', content: '# Markdown heading' },
   { id: 'text-document', title: 'notes.txt', content: '# Literal heading\n  preserved spacing' },
   { id: 'json-document', title: 'settings.json', content: '{"name":"vault","enabled":true}' },
+  {
+    id: 'html-document',
+    title: 'workflow.html',
+    content: `<!doctype html>
+      <html>
+        <head><style>h1 { color: rgb(1, 2, 3); }</style></head>
+        <body>
+          <h1 id="section">HTML workflow</h1>
+          <a href="#section">Jump locally</a>
+          <a href="https://external.example/page">External page</a>
+          <img src="https://external.example/pixel.png">
+          <script>document.body.dataset.scriptExecuted = 'true';</script>
+        </body>
+      </html>`,
+  },
 ];
 
-test('renders Markdown, text, and JSON according to the document extension', async ({ page }) => {
+test('renders Markdown, text, JSON, and static HTML according to the document extension', async ({ page }) => {
+  const externalRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().startsWith('https://external.example/')) {
+      externalRequests.push(request.url());
+    }
+  });
+
   await page.addInitScript(() => {
     localStorage.setItem('knowledge-vault.auth', JSON.stringify({
       token: 'playwright-token',
@@ -66,4 +88,19 @@ test('renders Markdown, text, and JSON according to the document extension', asy
   await page.getByText('settings.json', { exact: true }).click();
   await expect(page.locator('.article-body .plain-content')).toContainText('"name": "vault"');
   await expect(page.locator('.article-body .plain-content')).toContainText('"enabled": true');
+
+  await page.locator('a[href="/knowledge"]').first().click();
+  await page.getByText('workflow.html', { exact: true }).click();
+  const htmlFrame = page.frameLocator('.article-body iframe.static-html-preview');
+  await expect(htmlFrame.locator('h1')).toHaveText('HTML workflow');
+  await expect(htmlFrame.locator('h1')).toHaveCSS('color', 'rgb(1, 2, 3)');
+  await expect(htmlFrame.locator('body')).not.toHaveAttribute('data-script-executed', 'true');
+  await expect(htmlFrame.locator('a[href="#section"]')).toHaveCount(1);
+  await expect(htmlFrame.locator('a[href^="https://external.example"]')).toHaveCount(0);
+  await expect(htmlFrame.locator('img[src^="https://external.example"]')).toHaveCount(0);
+  expect(externalRequests).toEqual([]);
+
+  await page.getByRole('button', { name: 'Full screen' }).click();
+  const fullscreenHtmlFrame = page.frameLocator('.fullscreen-document iframe.static-html-preview');
+  await expect(fullscreenHtmlFrame.locator('h1')).toHaveText('HTML workflow');
 });

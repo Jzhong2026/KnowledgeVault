@@ -55,6 +55,27 @@ describe('ContentEditor', () => {
     expect(saved).toHaveBeenCalledWith(content);
   });
 
+  it('previews HTML statically while saving the original source', async () => {
+    await TestBed.configureTestingModule({ imports: [ContentEditor] }).compileComponents();
+
+    const fixture = TestBed.createComponent(ContentEditor);
+    const content = '<!doctype html><html><body><h1>Workflow</h1><script>alert(1)</script></body></html>';
+    fixture.componentRef.setInput('content', content);
+    fixture.componentRef.setInput('contentKind', 'html');
+    fixture.detectChanges();
+    const saved = vi.fn();
+    fixture.componentInstance.saveContent.subscribe(saved);
+
+    const frame = fixture.nativeElement.querySelector('iframe') as HTMLIFrameElement;
+    expect(frame).toBeTruthy();
+    expect(frame.srcdoc).toContain('<h1>Workflow</h1>');
+    expect(frame.srcdoc).not.toMatch(/<script\b/i);
+    expect(fixture.nativeElement.querySelector('textarea')?.getAttribute('aria-label')).toBe('HTML source');
+
+    fixture.componentInstance.save();
+    expect(saved).toHaveBeenCalledWith(content);
+  });
+
   it('asks via ConfirmService before discarding changed content', async () => {
     await TestBed.configureTestingModule({
       imports: [ContentEditor, ConfirmDialogHost],

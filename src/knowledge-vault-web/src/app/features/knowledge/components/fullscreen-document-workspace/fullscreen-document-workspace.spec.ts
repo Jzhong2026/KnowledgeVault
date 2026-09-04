@@ -34,4 +34,20 @@ describe('FullscreenDocumentWorkspace content formats', () => {
     fixture.componentInstance.save();
     expect(saved).toHaveBeenCalledWith(content);
   });
+
+  it('renders HTML as a static sandboxed document', async () => {
+    await TestBed.configureTestingModule({ imports: [FullscreenDocumentWorkspace] }).compileComponents();
+    const fixture = TestBed.createComponent(FullscreenDocumentWorkspace);
+    fixture.componentRef.setInput('title', 'workflow.html');
+    fixture.componentRef.setInput('content', '<!doctype html><html><body><h1>Workflow</h1></body></html>');
+    fixture.componentRef.setInput('contentKind', 'html');
+    fixture.detectChanges();
+
+    const frame = fixture.nativeElement.querySelector('iframe') as HTMLIFrameElement;
+    expect(frame).toBeTruthy();
+    expect(frame.getAttribute('sandbox')).toBe('');
+    expect(frame.srcdoc).toContain('<h1>Workflow</h1>');
+    expect(fixture.nativeElement.querySelector('.fullscreen-document__modebar')?.textContent)
+      .toContain('Static HTML');
+  });
 });

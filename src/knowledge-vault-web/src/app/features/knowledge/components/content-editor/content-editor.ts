@@ -19,6 +19,7 @@ import { FormsModule } from '@angular/forms';
 import { MermaidDiagramsDirective } from '../../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../../shared/pipes/markdown-content.pipe';
 import { ConfirmService } from '../../../../shared/components/confirm-dialog/confirm-dialog';
+import { DocumentContentViewer } from '../../../../shared/components/document-content-viewer/document-content-viewer';
 import {
   DocumentContentKind,
   formatJsonContent,
@@ -28,7 +29,7 @@ import {
 
 @Component({
   selector: 'app-content-editor',
-  imports: [FormsModule, MarkdownContentPipe, MermaidDiagramsDirective],
+  imports: [FormsModule, MarkdownContentPipe, MermaidDiagramsDirective, DocumentContentViewer],
   templateUrl: './content-editor.html',
   styleUrl: './content-editor.css',
 })

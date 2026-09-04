@@ -9,7 +9,7 @@
     <div class="content-editor__head">
       <div>
         <h2 id="content-editor-title">Edit content</h2>
-        <p>Preview updates as you edit the {{ contentKind === 'markdown' ? 'Markdown' : contentKind === 'json' ? 'JSON' : 'plain text' }} source.</p>
+        <p>Preview updates as you edit the {{ contentKind === 'markdown' ? 'Markdown' : contentKind === 'json' ? 'JSON' : contentKind === 'html' ? 'HTML' : 'plain text' }} source.</p>
       </div>
       <div class="content-editor__actions">
         <button type="button" class="ghost" [disabled]="saving" (click)="requestClose()">Cancel</button>
@@ -30,6 +30,10 @@
             [innerHTML]="draft | markdownContent"
             [appMermaidDiagrams]="draft"
           ></div>
+        } @else if (contentKind === 'html') {
+          <div #previewEl class="content-editor__preview content-editor__preview--html">
+            <app-document-content-viewer title="document.html" [content]="draft" />
+          </div>
         } @else {
           <pre #previewEl class="content-editor__preview content-editor__preview--plain">{{ previewContent() }}</pre>
         }

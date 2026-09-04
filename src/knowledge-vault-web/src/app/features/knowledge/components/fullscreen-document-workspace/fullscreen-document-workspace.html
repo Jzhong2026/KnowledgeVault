@@ -24,6 +24,14 @@
       </div>
     }
     <div class="fullscreen-document__divider" role="separator" aria-orientation="vertical" (pointerdown)="onDividerPointerDown($event)"></div>
-    @if (contentKind === 'markdown') { <div #previewEl class="fullscreen-document__preview markdown-body" (scroll)="onPreviewScroll()" [innerHTML]="(editing() ? draft : content) | markdownContent" [appMermaidDiagrams]="editing() ? draft : content"></div> } @else { <pre #previewEl class="fullscreen-document__preview fullscreen-document__preview--plain" (scroll)="onPreviewScroll()">{{ previewContent() }}</pre> }
+    @if (contentKind === 'markdown') {
+      <div #previewEl class="fullscreen-document__preview markdown-body" (scroll)="onPreviewScroll()" [innerHTML]="(editing() ? draft : content) | markdownContent" [appMermaidDiagrams]="editing() ? draft : content"></div>
+    } @else if (contentKind === 'html') {
+      <div #previewEl class="fullscreen-document__preview fullscreen-document__preview--html">
+        <app-document-content-viewer [title]="title" [content]="editing() ? draft : content" />
+      </div>
+    } @else {
+      <pre #previewEl class="fullscreen-document__preview fullscreen-document__preview--plain" (scroll)="onPreviewScroll()">{{ previewContent() }}</pre>
+    }
   </div>
 </section>
