@@ -271,7 +271,7 @@ public sealed class DocumentMcpTools(
         [Description("Revision read before update")] int expectedRevisionNumber,
         [Description("Exact old text per hunk")] string[] oldTexts,
         [Description("New text per hunk")] string[] newTexts,
-        [Description("Replace all matches by default")] bool replaceAll = false,
+        [Description("Replace every match; default false. Fails if oldText matches more than once.")] bool replaceAll = false,
         [Description("Optional per-hunk replaceAll flags")] bool[]? replaceAllFlags = null,
         [Description("Optional change note")] string? changeNote = null,
         CancellationToken cancellationToken = default)

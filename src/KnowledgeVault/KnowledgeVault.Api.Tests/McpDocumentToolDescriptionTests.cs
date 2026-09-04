@@ -24,4 +24,18 @@ public sealed class McpDocumentToolDescriptionTests
         Assert.True(descriptions.Max(description => description.Length) <= 160);
         Assert.True(descriptions.Sum(description => description.Length) <= 3200);
     }
+
+    [Fact]
+    public void Apply_document_patch_replace_all_describes_the_false_default()
+    {
+        var description = typeof(DocumentMcpTools)
+            .GetMethod(nameof(DocumentMcpTools.ApplyDocumentPatch))!
+            .GetParameters()
+            .Single(parameter => parameter.Name == "replaceAll")
+            .GetCustomAttribute<DescriptionAttribute>()!
+            .Description;
+
+        Assert.Contains("default false", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("by default", description, StringComparison.OrdinalIgnoreCase);
+    }
 }

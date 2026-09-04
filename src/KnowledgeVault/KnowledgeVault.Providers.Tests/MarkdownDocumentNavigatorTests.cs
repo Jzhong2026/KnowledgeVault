@@ -348,6 +348,30 @@ public sealed class UnifiedDiffTests
         AssertGitApply("", "a\nb\n");
     }
 
+    [Fact]
+    public void Missing_final_newline_is_marked_for_git_apply()
+    {
+        var changedLastLine = UnifiedDiff.CreateResult("a\nb", "a\nB", "old", "new", contextLines: 0);
+        Assert.Contains("-b\n\\ No newline at end of file\n", changedLastLine.Text);
+        Assert.Contains("+B\n\\ No newline at end of file\n", changedLastLine.Text);
+
+        var addedNewline = UnifiedDiff.CreateResult("a\nb", "a\nb\n", "old", "new", contextLines: 0);
+        Assert.Contains("-b\n\\ No newline at end of file\n", addedNewline.Text);
+        Assert.Contains("+b\n", addedNewline.Text);
+        Assert.DoesNotContain("+b\n\\ No newline at end of file", addedNewline.Text);
+
+        var removedNewline = UnifiedDiff.CreateResult("a\nb\n", "a\nb", "old", "new", contextLines: 0);
+        Assert.Contains("-b\n+b\n\\ No newline at end of file\n", removedNewline.Text);
+    }
+
+    [Fact]
+    public void Git_apply_accepts_files_without_trailing_newline()
+    {
+        AssertGitApply("a\nb", "a\nB");
+        AssertGitApply("a\nb", "a\nb\n");
+        AssertGitApply("a\nb\n", "a\nb");
+    }
+
     private static void AssertGitApply(string oldText, string newText)
     {
         var git = ResolveGit();

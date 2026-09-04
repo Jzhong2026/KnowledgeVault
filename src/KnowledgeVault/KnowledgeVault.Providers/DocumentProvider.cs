@@ -172,6 +172,8 @@ public sealed class DocumentProvider(
 
     public async Task<KnowledgeItemDto> GetForMcpAsync(Guid id, CancellationToken cancellationToken)
     {
+        await documentAccessService.EnsureViewAsync(id, cancellationToken);
+
         var item = await BuildDetailQuery()
             .FirstOrDefaultAsync(x => x.Id == id && x.Status != KnowledgeItemStatus.Archived && x.Status != KnowledgeItemStatus.Deleted, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
@@ -714,6 +716,8 @@ public sealed class DocumentProvider(
         int? revisionNumber,
         CancellationToken cancellationToken)
     {
+        await documentAccessService.EnsureViewAsync(id, cancellationToken);
+
         var item = await BuildDetailQuery()
             .FirstOrDefaultAsync(
                 x => x.Id == id && x.Status != KnowledgeItemStatus.Archived && x.Status != KnowledgeItemStatus.Deleted,

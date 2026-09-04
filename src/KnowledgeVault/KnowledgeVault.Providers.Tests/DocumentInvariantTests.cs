@@ -5,6 +5,7 @@ using KnowledgeVault.Contracts.Documents;
 using KnowledgeVault.Contracts.Security;
 using KnowledgeVault.DataAccess;
 using KnowledgeVault.Domain.Enums;
+using KnowledgeVault.Infrastructure.Exceptions;
 using KnowledgeVault.Providers;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -97,7 +98,7 @@ public sealed class DocumentInvariantTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Mcp_read_returns_current_document_without_user_visibility_check()
+    public async Task Mcp_read_rejects_documents_the_user_cannot_view()
     {
         var otherUserId = Guid.NewGuid();
         _db.Users.Add(Seed.User(otherUserId, "other"));
@@ -107,8 +108,21 @@ public sealed class DocumentInvariantTests : IAsyncLifetime
         _db.KnowledgeItemRevisions.Add(Seed.Revision(Guid.NewGuid(), id, 1, otherUserId));
         await _db.SaveChangesAsync();
 
-        var result = await Docs().GetForMcpAsync(id, CancellationToken.None);
-
-        Assert.Equal(id, result.Id);
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            Docs().GetForMcpAsync(id, CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            Docs().GetMcpHeadAsync(id, null, CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            Docs().GetMcpContentRangeAsync(
+                id,
+                null,
+                new DocumentContentRangeQuery(null, null, 1, 10, null, null),
+                CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            Docs().SearchInDocumentAsync(
+                id,
+                null,
+                new DocumentSearchQuery("body", false, 0),
+                CancellationToken.None));
     }
 }

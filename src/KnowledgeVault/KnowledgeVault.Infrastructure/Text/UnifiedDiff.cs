@@ -38,8 +38,12 @@ public static class UnifiedDiff
     {
         oldText ??= string.Empty;
         newText ??= string.Empty;
+        oldText = NormalizeNewlines(oldText);
+        newText = NormalizeNewlines(newText);
         contextLines = Math.Max(0, contextLines);
         maxChars = Math.Max(256, maxChars);
+        var oldEndsWithNewline = EndsWithNewline(oldText);
+        var newEndsWithNewline = EndsWithNewline(newText);
         var oldLines = Split(oldText);
         var newLines = Split(newText);
         if (oldLines.Count == 0 && newLines.Count == 0)
@@ -50,7 +54,7 @@ public static class UnifiedDiff
         var (prefix, suffix) = CommonAffix(oldLines, newLines);
         var oldSpan = oldLines.Count - prefix - suffix;
         var newSpan = newLines.Count - prefix - suffix;
-        if (oldSpan == 0 && newSpan == 0)
+        if (oldSpan == 0 && newSpan == 0 && oldEndsWithNewline == newEndsWithNewline)
         {
             return new UnifiedDiffResult(
                 $"--- {oldLabel}\n+++ {newLabel}\n",
@@ -97,6 +101,13 @@ public static class UnifiedDiff
                 newLines.Count - suffix + i));
         }
 
+        EnsureTrailingNewlineRows(
+            rows,
+            oldLines.Count,
+            newLines.Count,
+            oldEndsWithNewline,
+            newEndsWithNewline);
+
         var (text, truncated) = Format(
             rows,
             oldLines,
@@ -105,7 +116,9 @@ public static class UnifiedDiff
             newLabel,
             contextLines,
             prefix - contextPrefix,
-            maxChars);
+            maxChars,
+            oldEndsWithNewline,
+            newEndsWithNewline);
         if (truncated)
         {
             return new UnifiedDiffResult(text, true, oldLines.Count, newLines.Count);
@@ -114,9 +127,14 @@ public static class UnifiedDiff
         return new UnifiedDiffResult(text, false, oldLines.Count, newLines.Count);
     }
 
+    private static string NormalizeNewlines(string text) =>
+        text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
+    private static bool EndsWithNewline(string text) =>
+        text.Length > 0 && text[^1] == '\n';
+
     private static IReadOnlyList<string> Split(string text)
     {
-        text = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         if (text.Length == 0)
         {
             return [];
@@ -126,6 +144,40 @@ public static class UnifiedDiff
         return text[^1] == '\n'
             ? lines.AsSpan(0, lines.Length - 1).ToArray()
             : lines;
+    }
+
+    private static void EnsureTrailingNewlineRows(
+        List<(RowKind Kind, int OldIndex, int NewIndex)> rows,
+        int oldLineCount,
+        int newLineCount,
+        bool oldEndsWithNewline,
+        bool newEndsWithNewline)
+    {
+        if (oldEndsWithNewline == newEndsWithNewline || oldLineCount == 0 || newLineCount == 0)
+        {
+            return;
+        }
+
+        var lastOld = oldLineCount - 1;
+        var lastNew = newLineCount - 1;
+        var equalIndex = rows.FindIndex(row =>
+            row.Kind == RowKind.Equal && row.OldIndex == lastOld && row.NewIndex == lastNew);
+        if (equalIndex >= 0)
+        {
+            var equal = rows[equalIndex];
+            rows.RemoveAt(equalIndex);
+            rows.Insert(equalIndex, (RowKind.Delete, equal.OldIndex, -1));
+            rows.Insert(equalIndex + 1, (RowKind.Insert, -1, equal.NewIndex));
+            return;
+        }
+
+        var hasLastOld = rows.Exists(row => row.Kind != RowKind.Insert && row.OldIndex == lastOld);
+        var hasLastNew = rows.Exists(row => row.Kind != RowKind.Delete && row.NewIndex == lastNew);
+        if (!hasLastOld && !hasLastNew)
+        {
+            rows.Add((RowKind.Delete, lastOld, -1));
+            rows.Add((RowKind.Insert, -1, lastNew));
+        }
     }
 
     private static (int Prefix, int Suffix) CommonAffix(
@@ -292,7 +344,9 @@ public static class UnifiedDiff
         string newLabel,
         int contextLines,
         int hiddenPrefixLines,
-        int maxChars)
+        int maxChars,
+        bool oldEndsWithNewline,
+        bool newEndsWithNewline)
     {
         var builder = new StringBuilder();
         AppendLf(builder, "--- ", oldLabel);
@@ -383,6 +437,7 @@ public static class UnifiedDiff
             for (var i = hunkStart; i <= hunkEnd; i++)
             {
                 hunkSize += 1 + LineText(rows[i], oldLines, newLines).Length + 1;
+                hunkSize += EofMarkerLength(rows[i], oldLines.Count, newLines.Count, oldEndsWithNewline, newEndsWithNewline);
             }
 
             if (builder.Length + hunkSize > maxChars)
@@ -407,6 +462,8 @@ public static class UnifiedDiff
                         AppendLf(builder, "+", newLines[row.NewIndex]);
                         break;
                 }
+
+                AppendEofMarker(builder, row, oldLines.Count, newLines.Count, oldEndsWithNewline, newEndsWithNewline);
             }
 
             index = hunkEnd + 1;
@@ -431,6 +488,50 @@ public static class UnifiedDiff
             RowKind.Insert => newLines[row.NewIndex],
             _ => oldLines[row.OldIndex]
         };
+
+    private const string NoNewlineAtEof = "\\ No newline at end of file";
+
+    private static int EofMarkerLength(
+        (RowKind Kind, int OldIndex, int NewIndex) row,
+        int oldLineCount,
+        int newLineCount,
+        bool oldEndsWithNewline,
+        bool newEndsWithNewline) =>
+        ShouldMarkNoNewline(row, oldLineCount, newLineCount, oldEndsWithNewline, newEndsWithNewline)
+            ? NoNewlineAtEof.Length + 1
+            : 0;
+
+    private static void AppendEofMarker(
+        StringBuilder builder,
+        (RowKind Kind, int OldIndex, int NewIndex) row,
+        int oldLineCount,
+        int newLineCount,
+        bool oldEndsWithNewline,
+        bool newEndsWithNewline)
+    {
+        if (ShouldMarkNoNewline(row, oldLineCount, newLineCount, oldEndsWithNewline, newEndsWithNewline))
+        {
+            builder.Append(NoNewlineAtEof).Append('\n');
+        }
+    }
+
+    private static bool ShouldMarkNoNewline(
+        (RowKind Kind, int OldIndex, int NewIndex) row,
+        int oldLineCount,
+        int newLineCount,
+        bool oldEndsWithNewline,
+        bool newEndsWithNewline)
+    {
+        var lastOld = oldLineCount > 0 && row.OldIndex == oldLineCount - 1;
+        var lastNew = newLineCount > 0 && row.NewIndex == newLineCount - 1;
+        return row.Kind switch
+        {
+            RowKind.Equal => lastOld && lastNew && !oldEndsWithNewline && !newEndsWithNewline,
+            RowKind.Delete => lastOld && !oldEndsWithNewline,
+            RowKind.Insert => lastNew && !newEndsWithNewline,
+            _ => false
+        };
+    }
 
     private static void AppendLf(StringBuilder builder, string prefix, string text)
     {
