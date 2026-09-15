@@ -4,6 +4,8 @@ using KnowledgeVault.Domain.Enums;
 
 namespace KnowledgeVault.Contracts.Documents;
 
+public sealed record FolderPathSegmentDto(Guid Id, string Name);
+
 public sealed record KnowledgeItemDto(
     Guid Id,
     DocumentScope Scope,
@@ -24,7 +26,10 @@ public sealed record KnowledgeItemDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
     DateTimeOffset? PublishedAt,
-    DateTimeOffset? ArchivedAt);
+    DateTimeOffset? ArchivedAt,
+    Guid? FolderId,
+    string? ProjectName,
+    IReadOnlyList<FolderPathSegmentDto> FolderPath);
 
 public sealed record KnowledgeItemSummaryDto(
     Guid Id,

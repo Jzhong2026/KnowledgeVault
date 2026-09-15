@@ -131,7 +131,9 @@ internal static class DtoMapper
             outlineResult.Truncated);
     }
 
-    public static KnowledgeItemDto ToDto(this KnowledgeItem item)
+    public static KnowledgeItemDto ToDto(
+        this KnowledgeItem item,
+        IReadOnlyList<FolderPathSegmentDto>? folderPath = null)
     {
         var rev = item.CurrentRevision;
         return new KnowledgeItemDto(
@@ -158,7 +160,10 @@ internal static class DtoMapper
             item.CreatedAt,
             item.UpdatedAt,
             item.PublishedAt,
-            item.ArchivedAt);
+            item.ArchivedAt,
+            item.FolderId,
+            item.Project?.Name,
+            folderPath ?? []);
     }
 
     public static RevisionSummaryDto ToSummaryDto(this KnowledgeItemRevision revision)

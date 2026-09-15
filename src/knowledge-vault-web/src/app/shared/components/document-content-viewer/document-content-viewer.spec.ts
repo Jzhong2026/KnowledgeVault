@@ -45,6 +45,18 @@ describe('DocumentContentViewer', () => {
     expect(fixture.nativeElement.querySelector('pre')?.textContent).toBe('{broken');
   });
 
+  it('does not use the HTML iframe for md, txt, json, or xml even when the body looks like HTML', () => {
+    const htmlLookingBody = '<!doctype html><html><body><h1>Looks like HTML</h1></body></html>';
+
+    for (const title of ['guide.md', 'notes.txt', 'settings.json', 'export.xml']) {
+      fixture.componentRef.setInput('title', title);
+      fixture.componentRef.setInput('content', htmlLookingBody);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('iframe')).toBeNull();
+    }
+  });
+
   it('renders HTML in a script-free sandbox without external resource access', () => {
     fixture.componentRef.setInput('title', 'workflow.html');
     fixture.componentRef.setInput('content', `<!doctype html>

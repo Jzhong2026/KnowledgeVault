@@ -30,6 +30,12 @@ export const routes: Routes = [
           import('./features/knowledge/knowledge-detail-page/knowledge-detail-page').then((m) => m.KnowledgeDetailPage),
       },
       {
+        path: 'knowledge/folder/:folderId',
+        data: { scope: 'Personal' },
+        loadComponent: () =>
+          import('./features/knowledge/workspace-page/workspace-page').then((m) => m.WorkspacePage),
+      },
+      {
         path: 'knowledge',
         data: { scope: 'Personal' },
         loadComponent: () =>
@@ -40,6 +46,18 @@ export const routes: Routes = [
         data: { scope: 'Project' },
         loadComponent: () =>
           import('./features/knowledge/knowledge-detail-page/knowledge-detail-page').then((m) => m.KnowledgeDetailPage),
+      },
+      {
+        path: 'project-documents/folder/:folderId',
+        data: { scope: 'Project' },
+        loadComponent: () =>
+          import('./features/knowledge/workspace-page/workspace-page').then((m) => m.WorkspacePage),
+      },
+      {
+        path: 'project-documents/project/:projectId',
+        data: { scope: 'Project' },
+        loadComponent: () =>
+          import('./features/knowledge/workspace-page/workspace-page').then((m) => m.WorkspacePage),
       },
       {
         path: 'project-documents',

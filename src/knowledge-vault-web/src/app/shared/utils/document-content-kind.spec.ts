@@ -16,6 +16,15 @@ describe('document content kind', () => {
   it('keeps extensionless and unknown existing documents as Markdown', () => {
     expect(getDocumentContentKind('Architecture notes')).toBe('markdown');
     expect(getDocumentContentKind('data.csv')).toBe('markdown');
+    expect(getDocumentContentKind('notes.xml')).toBe('markdown');
+  });
+
+  it('never classifies md, txt, json, or xml titles as html', () => {
+    expect(getDocumentContentKind('guide.md')).not.toBe('html');
+    expect(getDocumentContentKind('notes.txt')).not.toBe('html');
+    expect(getDocumentContentKind('settings.json')).not.toBe('html');
+    expect(getDocumentContentKind('export.xml')).not.toBe('html');
+    expect(getDocumentContentKind('README')).not.toBe('html');
   });
 
   it('returns invalid JSON unchanged', () => {

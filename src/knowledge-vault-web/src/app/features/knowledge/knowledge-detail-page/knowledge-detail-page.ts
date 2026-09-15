@@ -17,13 +17,13 @@ import {
   Tag,
 } from '../../../core/models/knowledge.models';
 import { ProjectSummary, ProjectTopic } from '../../../core/models/projects.models';
-import { FolderSummary } from '../../../core/models/folder.models';
 import { LoadingIndicator } from '../../../shared/components/loading-indicator/loading-indicator';
 import { StatusPill } from '../../../shared/components/status-pill/status-pill';
 import { RevisionDiffDialog } from '../../../shared/components/revision-diff-dialog/revision-diff-dialog';
 import { DocumentContentViewer } from '../../../shared/components/document-content-viewer/document-content-viewer';
 import { MermaidDiagramsDirective } from '../../../shared/directives/mermaid-diagrams.directive';
 import { MarkdownContentPipe } from '../../../shared/pipes/markdown-content.pipe';
+import { documentDetailCommands } from '../../../core/workspace/document-location.routes';
 import { KnowledgeEditor } from '../components/knowledge-editor/knowledge-editor';
 import { ContentEditor } from '../components/content-editor/content-editor';
 import { getDocumentContentKind } from '../../../shared/utils/document-content-kind';
@@ -130,9 +130,9 @@ export class KnowledgeDetailPage {
     this.api.getKnowledgeItem(id).subscribe({
       next: (item) => {
         if (item.scope !== this.workspaceScope) {
-          const detailRoute =
-            item.scope === 'Project' ? '/project-documents/detail' : '/knowledge/detail';
-          void this.router.navigate([detailRoute, item.id], { replaceUrl: true });
+          void this.router.navigate(documentDetailCommands(item.scope, item.id), {
+            replaceUrl: true,
+          });
           return;
         }
 
@@ -233,47 +233,7 @@ export class KnowledgeDetailPage {
   }
 
   private loadDocumentBreadcrumb(item: KnowledgeItem): void {
-    this.documentBreadcrumb.set([]);
-    if (item.scope !== 'Project') {
-      return;
-    }
-
-    const queryProjectId = this.route.snapshot.queryParamMap?.get('projectId');
-    const folderId = this.route.snapshot.queryParamMap?.get('browseFolderId');
-    if (!folderId || (queryProjectId && queryProjectId !== item.projectId)) {
-      return;
-    }
-
-    const chain: FolderSummary[] = [];
-    let nextId: string | null = folderId;
-    const maxDepth = 32;
-
-    const finish = (): void => {
-      chain.reverse();
-      this.documentBreadcrumb.set(chain.map((folder) => ({ id: folder.id, name: folder.name })));
-    };
-
-    const visit = (depth: number): void => {
-      if (!nextId || depth > maxDepth) {
-        finish();
-        return;
-      }
-
-      this.api.getFolder(nextId).subscribe({
-        next: (folder) => {
-          if (folder.scope !== 'Project' || folder.projectId !== item.projectId) {
-            finish();
-            return;
-          }
-          chain.push(folder);
-          nextId = folder.parentFolderId ?? null;
-          visit(depth + 1);
-        },
-        error: () => finish(),
-      });
-    };
-
-    visit(0);
+    this.documentBreadcrumb.set(item.scope === 'Project' ? (item.folderPath ?? []) : []);
   }
 
   openFullscreenDocument(startEditing = false): void {

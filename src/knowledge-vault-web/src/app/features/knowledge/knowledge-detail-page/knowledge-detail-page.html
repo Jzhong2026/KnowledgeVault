@@ -10,18 +10,12 @@
         @if (knowledge.projectId) {
           @if (documentProjectName(); as projectName) {
             <span class="document-breadcrumb__separator" aria-hidden="true">/</span>
-            <a
-              [routerLink]="documentListRoute"
-              [queryParams]="{ projectId: knowledge.projectId }"
-            >{{ projectName }}</a>
+            <a [routerLink]="['/project-documents/project', knowledge.projectId]">{{ projectName }}</a>
           }
         }
         @for (folder of documentBreadcrumb(); track folder.id) {
           <span class="document-breadcrumb__separator" aria-hidden="true">/</span>
-          <a
-            [routerLink]="documentListRoute"
-            [queryParams]="{ projectId: knowledge.projectId, browseFolderId: folder.id }"
-          >{{ folder.name }}</a>
+          <a [routerLink]="['/project-documents/folder', folder.id]">{{ folder.name }}</a>
         }
         <span class="document-breadcrumb__separator" aria-hidden="true">/</span>
         <span class="document-breadcrumb__current" [title]="knowledge.title">

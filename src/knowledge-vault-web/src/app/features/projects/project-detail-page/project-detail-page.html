@@ -22,7 +22,7 @@
       </div>
       <div class="project-hero__actions">
         @if (project.isFollowing) {
-          <a class="documents-button" routerLink="/project-documents" [queryParams]="{ projectId: project.id }">Project documents</a>
+          <a class="documents-button" [routerLink]="['/project-documents/project', project.id]">Project documents</a>
         }
         <button
           type="button"
@@ -216,11 +216,11 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z" /></svg>
                 </div>
                 <div>
-                  <a routerLink="/project-documents" [queryParams]="{ projectId: project.id, topicId: group.id }">{{ group.name }}</a>
+                  <a [routerLink]="['/project-documents/project', project.id]">{{ group.name }}</a>
                   <p>{{ group.description || 'No group description.' }}</p>
                 </div>
                 <footer>
-                  <a routerLink="/project-documents" [queryParams]="{ projectId: project.id, topicId: group.id }">View documents</a>
+                  <a [routerLink]="['/project-documents/project', project.id]">View documents</a>
                   @if (canReviewMemory()) {
                     <button type="button" (click)="deleteGroup(group.id)">Delete</button>
                   }

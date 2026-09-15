@@ -127,7 +127,7 @@ export class WorkspaceMode {
   exit(): void {
     this.workspace.exitWorkspace();
     void this.router.navigate([], {
-      queryParams: { workspaceRootFolderId: null, folderId: null, browseFolderId: null },
+      queryParams: { workspaceRootFolderId: null, folderId: null },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });

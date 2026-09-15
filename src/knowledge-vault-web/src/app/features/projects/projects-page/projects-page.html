@@ -73,7 +73,7 @@
             <div class="project-card__links">
               <a class="open-project" [routerLink]="['/projects', project.id]">Open project</a>
               @if (project.isFollowing) {
-                <a class="project-documents" routerLink="/project-documents" [queryParams]="{ projectId: project.id }">Documents</a>
+                <a class="project-documents" [routerLink]="['/project-documents/project', project.id]">Documents</a>
                 <button
                   type="button"
                   class="default-project-link"

@@ -167,7 +167,7 @@ public sealed class DocumentProvider(
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
-        return item.ToDto();
+        return await ToDetailDtoAsync(item, cancellationToken);
     }
 
     public async Task<KnowledgeItemDto> GetForMcpAsync(Guid id, CancellationToken cancellationToken)
@@ -178,7 +178,7 @@ public sealed class DocumentProvider(
             .FirstOrDefaultAsync(x => x.Id == id && x.Status != KnowledgeItemStatus.Archived && x.Status != KnowledgeItemStatus.Deleted, cancellationToken)
             ?? throw new NotFoundException("Document was not found.");
 
-        return item.ToDto();
+        return await ToDetailDtoAsync(item, cancellationToken);
     }
 
     public async Task<DocumentMcpHeadDto> GetMcpHeadAsync(
@@ -708,7 +708,46 @@ public sealed class DocumentProvider(
         var item = await BuildDetailQuery()
             .FirstAsync(x => x.Id == itemId, cancellationToken);
 
-        return item.ToDto();
+        return await ToDetailDtoAsync(item, cancellationToken);
+    }
+
+    private async Task<KnowledgeItemDto> ToDetailDtoAsync(KnowledgeItem item, CancellationToken cancellationToken)
+    {
+        var folderPath = await ResolveFolderPathAsync(item.FolderId, item.Scope, item.ProjectId, cancellationToken);
+        return item.ToDto(folderPath);
+    }
+
+    private async Task<IReadOnlyList<FolderPathSegmentDto>> ResolveFolderPathAsync(
+        Guid? folderId,
+        DocumentScope scope,
+        Guid? projectId,
+        CancellationToken cancellationToken)
+    {
+        if (folderId is null)
+        {
+            return [];
+        }
+
+        var chain = new List<FolderPathSegmentDto>();
+        var currentId = folderId;
+        var safety = 0;
+        const int maxDepth = 32;
+
+        while (currentId.HasValue && safety++ < maxDepth)
+        {
+            var folder = await dbContext.Folders.AsNoTracking()
+                .FirstOrDefaultAsync(f => f.Id == currentId.Value, cancellationToken);
+            if (folder is null || folder.Scope != scope || folder.ProjectId != projectId)
+            {
+                break;
+            }
+
+            chain.Add(new FolderPathSegmentDto(folder.Id, folder.Name));
+            currentId = folder.ParentFolderId;
+        }
+
+        chain.Reverse();
+        return chain;
     }
 
     private async Task<(KnowledgeItem Item, KnowledgeItemRevision Revision)> LoadMcpRevisionAsync(

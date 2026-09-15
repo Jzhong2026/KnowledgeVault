@@ -10,7 +10,19 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client
   },
   {
+    path: 'knowledge/folder/:folderId',
+    renderMode: RenderMode.Client
+  },
+  {
     path: 'project-documents',
+    renderMode: RenderMode.Client
+  },
+  {
+    path: 'project-documents/folder/:folderId',
+    renderMode: RenderMode.Client
+  },
+  {
+    path: 'project-documents/project/:projectId',
     renderMode: RenderMode.Client
   },
   {

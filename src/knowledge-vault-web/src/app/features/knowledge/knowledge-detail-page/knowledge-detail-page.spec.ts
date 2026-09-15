@@ -17,6 +17,7 @@ describe('KnowledgeDetailPage', () => {
       id: 'document-id',
       scope: 'Project',
       projectId: 'project-id',
+      projectName: 'Atlas',
       ownerUserId: 'owner-id',
       ownerDisplayName: 'Owner',
       documentType: 'General',
@@ -26,48 +27,16 @@ describe('KnowledgeDetailPage', () => {
       status: 'Active',
       tags: [],
       createdAt: '2026-09-01T00:00:00Z',
-    };
-    const folders = {
-      'voice-folder-id': {
-        id: 'voice-folder-id',
-        name: 'Voice',
-        parentFolderId: 'guides-folder-id',
-        projectId: 'project-id',
-        scope: 'Project' as const,
-        sortOrder: 0,
-        childFolderCount: 0,
-        documentCount: 1,
-        creatorDisplayName: 'Owner',
-        isArchived: false,
-      },
-      'guides-folder-id': {
-        id: 'guides-folder-id',
-        name: 'Guides',
-        parentFolderId: null,
-        projectId: 'project-id',
-        scope: 'Project' as const,
-        sortOrder: 0,
-        childFolderCount: 1,
-        documentCount: 0,
-        creatorDisplayName: 'Owner',
-        isArchived: false,
-      },
+      folderId: 'voice-folder-id',
+      folderPath: [
+        { id: 'guides-folder-id', name: 'Guides' },
+        { id: 'voice-folder-id', name: 'Voice' },
+      ],
     };
     const api = {
       getKnowledgeItem: vi.fn().mockReturnValue(of(item)),
-      getProject: vi.fn().mockReturnValue(
-        of({
-          id: 'project-id',
-          name: 'Atlas',
-          ownerUserId: 'owner-id',
-          isArchived: false,
-          currentUserRole: 'Owner',
-          isFollowing: true,
-          members: [],
-          createdAt: '2026-09-01T00:00:00Z',
-        }),
-      ),
-      getFolder: vi.fn((id: keyof typeof folders) => of(folders[id])),
+      getProject: vi.fn(),
+      getFolder: vi.fn(),
       listRevisions: vi
         .fn()
         .mockReturnValue(of({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })),
@@ -87,10 +56,7 @@ describe('KnowledgeDetailPage', () => {
             snapshot: {
               data: { scope: 'Project' },
               paramMap: convertToParamMap({ id: item.id }),
-              queryParamMap: convertToParamMap({
-                projectId: item.projectId,
-                browseFolderId: 'voice-folder-id',
-              }),
+              queryParamMap: convertToParamMap({}),
             },
           },
         },
@@ -119,9 +85,14 @@ describe('KnowledgeDetailPage', () => {
       '/',
       'Voice guide',
     ]);
-    expect(links.at(-1)?.getAttribute('href')).toBe(
-      '/project-documents?projectId=project-id&browseFolderId=voice-folder-id',
-    );
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/project-documents',
+      '/project-documents/project/project-id',
+      '/project-documents/folder/guides-folder-id',
+      '/project-documents/folder/voice-folder-id',
+    ]);
+    expect(api.getFolder).not.toHaveBeenCalled();
+    expect(api.getProject).not.toHaveBeenCalled();
   });
 
   it('places revisions in a right rail and comments in a full-width row', async () => {

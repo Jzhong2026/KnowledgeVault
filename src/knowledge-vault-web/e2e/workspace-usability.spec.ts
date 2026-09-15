@@ -390,7 +390,7 @@ test.describe('Workspace usability — sidebar root + parent hint + multi-tab', 
     seededFolderIds.push(leafBody.id);
 
     // Land on the leaf via the normal browse route (not workspace mode).
-    await page.goto(`/knowledge?browseFolderId=${leafBody.id}`);
+    await page.goto(`/knowledge/folder/${leafBody.id}`);
     const breadcrumb = page.locator('[data-testid="browse-breadcrumb"]');
     await expect(breadcrumb).toBeVisible();
 
@@ -405,28 +405,22 @@ test.describe('Workspace usability — sidebar root + parent hint + multi-tab', 
     await expect(segments.nth(0)).toHaveText(rootName);
     await expect(segments.nth(1)).toHaveText(middleName);
 
-    // Clicking the root segment should jump back to the root and clear the
-    // breadcrumb entirely.
+    // Clicking the root folder segment should open that folder.
     await segments.nth(0).click();
-    // Wait for the URL to lose browseFolderId — the navigation happens
-    // asynchronously.
-    await expect
-      .poll(async () => {
-        return await page.evaluate(() => !new URLSearchParams(location.search).has('browseFolderId'));
-      }, { timeout: 10_000 })
-      .toBe(true);
-    await expect(page.locator('[data-testid="browse-breadcrumb"]')).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/knowledge/folder/${rootBody.id}(?:\\?|$)`), {
+      timeout: 10_000,
+    });
+    await expect(page.locator('[data-testid="browse-breadcrumb"]')).toContainText(rootName);
+    await expect(page.locator('[data-testid="browse-breadcrumb"]')).not.toContainText(middleName);
 
     // Clicking the middle segment from the leaf should land on the middle.
-    await page.goto(`/knowledge?browseFolderId=${leafBody.id}`);
+    await page.goto(`/knowledge/folder/${leafBody.id}`);
     const middleSegments = page.locator('[data-testid="browse-breadcrumb-segment"]');
     await expect(middleSegments).toHaveCount(2);
     await middleSegments.nth(1).click();
-    await expect
-      .poll(async () => {
-        return await page.evaluate((id) => new URLSearchParams(location.search).get('browseFolderId') === id, middleBody.id);
-      }, { timeout: 10_000 })
-      .toBe(true);
+    await expect(page).toHaveURL(new RegExp(`/knowledge/folder/${middleBody.id}(?:\\?|$)`), {
+      timeout: 10_000,
+    });
     const middleBreadcrumb = page.locator('[data-testid="browse-breadcrumb"]');
     await expect(middleBreadcrumb).toContainText(rootName);
     await expect(middleBreadcrumb).toContainText(middleName);
@@ -459,7 +453,7 @@ test.describe('Workspace usability — sidebar root + parent hint + multi-tab', 
     seededFolderIds.push(leafBody.id);
 
     // Drill into the leaf.
-    await page.goto(`/knowledge?browseFolderId=${leafBody.id}`);
+    await page.goto(`/knowledge/folder/${leafBody.id}`);
     await expect(page.locator('[data-testid="browse-breadcrumb"]')).toContainText(leafName);
 
     // "New folder" must show the leaf as parent, not the root.

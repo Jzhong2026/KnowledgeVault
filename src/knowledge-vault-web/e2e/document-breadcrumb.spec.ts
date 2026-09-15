@@ -4,9 +4,8 @@ import { expect, test, type Route } from '@playwright/test';
  * e2e coverage for the document detail breadcrumb (replaces the legacy
  * "Back to project documents" link with a full folder trail).
  *
- * The Angular `KnowledgeDetailPage` reads `browseFolderId` from the route
- * query params, then walks up the folder chain with one `GET /folders/{id}`
- * call per ancestor. The breadcrumb renders:
+ * The Angular `KnowledgeDetailPage` reads `projectName` and `folderPath`
+ * from `GET /documents/{id}`. The breadcrumb renders:
  *   Project Documents / <project name> / <ancestor folders...> / <doc title>
  * where every segment except the trailing title is a router link back to
  * the document list at the right folder.
@@ -64,6 +63,7 @@ const document = {
   id: DOCUMENT_ID,
   scope: 'Project',
   projectId: PROJECT_ID,
+  projectName: 'Atlas',
   ownerUserId: 'owner-id',
   ownerDisplayName: 'Owner',
   documentType: 'General',
@@ -73,6 +73,11 @@ const document = {
   status: 'Active',
   tags: [],
   createdAt: '2026-09-01T00:00:00Z',
+  folderId: VOICE_FOLDER_ID,
+  folderPath: [
+    { id: GUIDE_FOLDER_ID, name: 'Guides' },
+    { id: VOICE_FOLDER_ID, name: 'Voice' },
+  ],
 };
 
 async function fulfillJson(route: Route, body: unknown): Promise<void> {
@@ -135,9 +140,7 @@ test.describe('Document detail breadcrumb', () => {
       await fulfillJson(route, []);
     });
 
-    await page.goto(
-      `/project-documents/detail/${DOCUMENT_ID}?projectId=${PROJECT_ID}&browseFolderId=${VOICE_FOLDER_ID}`,
-    );
+    await page.goto(`/project-documents/detail/${DOCUMENT_ID}`);
 
     const breadcrumb = page.locator('[data-testid="document-breadcrumb"]');
     await expect(breadcrumb).toBeVisible();
@@ -163,31 +166,23 @@ test.describe('Document detail breadcrumb', () => {
     await expect(current).toHaveAttribute('title', 'Voice guide');
 
     const voiceLink = breadcrumb.locator('a', { hasText: 'Voice' });
-    await expect(voiceLink).toHaveAttribute(
-      'href',
-      `/project-documents?projectId=${PROJECT_ID}&browseFolderId=${VOICE_FOLDER_ID}`,
-    );
+    await expect(voiceLink).toHaveAttribute('href', `/project-documents/folder/${VOICE_FOLDER_ID}`);
 
     const guidesLink = breadcrumb.locator('a', { hasText: 'Guides' });
-    await expect(guidesLink).toHaveAttribute(
-      'href',
-      `/project-documents?projectId=${PROJECT_ID}&browseFolderId=${GUIDE_FOLDER_ID}`,
-    );
+    await expect(guidesLink).toHaveAttribute('href', `/project-documents/folder/${GUIDE_FOLDER_ID}`);
 
     const projectLink = breadcrumb.locator('a', { hasText: 'Atlas' });
-    await expect(projectLink).toHaveAttribute('href', `/project-documents?projectId=${PROJECT_ID}`);
+    await expect(projectLink).toHaveAttribute('href', `/project-documents/project/${PROJECT_ID}`);
 
     const rootLink = breadcrumb.locator('a', { hasText: 'Project Documents' });
     await expect(rootLink).toHaveAttribute('href', '/project-documents');
 
-    // The walker should request the leaf folder first, then its parent. We
-    // don't require a specific order beyond "both folders were fetched".
-    expect(folderRequests.sort()).toEqual([GUIDE_FOLDER_ID, VOICE_FOLDER_ID].sort());
+    expect(folderRequests).toEqual([]);
 
     await expect.poll(() => pageErrors).toEqual([]);
   });
 
-  test('shows only the project root when no browseFolderId is present', async ({ page }) => {
+  test('shows only the project root when the document is at the project root', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem(
         'knowledge-vault.auth',
@@ -203,7 +198,7 @@ test.describe('Document detail breadcrumb', () => {
     await page.route('**/KnowledgeVault/api/**', async (route) => {
       const url = route.request().url();
       if (url.includes(`/documents/${DOCUMENT_ID}`) && !url.includes('/revisions') && !url.includes('/comments')) {
-        await fulfillJson(route, document);
+        await fulfillJson(route, { ...document, folderId: null, folderPath: [] });
         return;
       }
       if (url.includes(`/projects/${PROJECT_ID}`) && !url.includes('/topics')) {
@@ -232,7 +227,7 @@ test.describe('Document detail breadcrumb', () => {
       await fulfillJson(route, []);
     });
 
-    await page.goto(`/project-documents/detail/${DOCUMENT_ID}?projectId=${PROJECT_ID}`);
+    await page.goto(`/project-documents/detail/${DOCUMENT_ID}`);
 
     const breadcrumb = page.locator('[data-testid="document-breadcrumb"]');
     await expect(breadcrumb).toBeVisible();
@@ -243,7 +238,7 @@ test.describe('Document detail breadcrumb', () => {
     );
     await expect(breadcrumb.locator('a', { hasText: 'Atlas' })).toHaveAttribute(
       'href',
-      `/project-documents?projectId=${PROJECT_ID}`,
+      `/project-documents/project/${PROJECT_ID}`,
     );
     await expect(breadcrumb.locator('.document-breadcrumb__current')).toHaveText('Voice guide');
     expect(folderRequests).toEqual([]);

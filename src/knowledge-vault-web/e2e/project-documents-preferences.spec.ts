@@ -42,8 +42,7 @@ test('Project Documents restores the signed-in user\'s last project and folder',
   // navigation; direct SSR navigation has no browser-side auth preference.
   await page.goto('/dashboard');
   await page.locator('a[href="/project-documents"]').first().click();
-  await expect(page).toHaveURL(/projectId=project-last/);
-  await expect(page).toHaveURL(/browseFolderId=folder-last/);
+  await expect(page).toHaveURL(/\/project-documents\/folder\/folder-last/);
   await expect(page.getByTestId('browse-breadcrumb')).toContainText('Last project');
 });
 

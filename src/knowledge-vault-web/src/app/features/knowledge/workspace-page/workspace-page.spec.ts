@@ -9,24 +9,21 @@ import { KnowledgeItem, KnowledgeItemSummary } from '../../../core/models/knowle
 import { WorkspacePage } from './workspace-page';
 
 describe('WorkspacePage document navigation', () => {
-  it('preserves the selected project folder when opening a project document', async () => {
-    const queryParamMap = new BehaviorSubject(
-      convertToParamMap({ projectId: 'project-id', browseFolderId: 'folder-id' }),
-    );
+  const emptyFolderPage = {
+    folders: [],
+    documents: [],
+    page: 1,
+    pageSize: 20,
+    totalFolderCount: 0,
+    totalDocumentCount: 0,
+    hasMoreFolders: false,
+    hasMoreDocuments: false,
+    hasMore: false,
+  };
+
+  async function createProjectWorkspace(params: Record<string, string> = { folderId: 'folder-id' }) {
     const api = {
-      listFolderContent: vi.fn().mockReturnValue(
-        of({
-          folders: [],
-          documents: [],
-          page: 1,
-          pageSize: 20,
-          totalFolderCount: 0,
-          totalDocumentCount: 0,
-          hasMoreFolders: false,
-          hasMoreDocuments: false,
-          hasMore: false,
-        }),
-      ),
+      listFolderContent: vi.fn().mockReturnValue(of(emptyFolderPage)),
       getFolder: vi.fn().mockReturnValue(
         of({
           id: 'folder-id',
@@ -59,7 +56,8 @@ describe('WorkspacePage document navigation', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: { data: { scope: 'Project' } },
-            queryParamMap: queryParamMap.asObservable(),
+            paramMap: of(convertToParamMap(params)),
+            queryParamMap: of(convertToParamMap({})),
           },
         },
       ],
@@ -67,8 +65,12 @@ describe('WorkspacePage document navigation', () => {
 
     const fixture = TestBed.createComponent(WorkspacePage);
     fixture.detectChanges();
-    const router = TestBed.inject(Router);
-    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    return { fixture, api };
+  }
+
+  it('opens a project document without location query parameters', async () => {
+    const { fixture } = await createProjectWorkspace();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const document: KnowledgeItemSummary = {
       id: 'document-id',
       scope: 'Project',
@@ -88,7 +90,68 @@ describe('WorkspacePage document navigation', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/project-documents/detail', document.id], {
       replaceUrl: true,
-      queryParams: { projectId: 'project-id', browseFolderId: 'folder-id' },
+    });
+  });
+
+  it('opens a folder without location query parameters', async () => {
+    const { fixture } = await createProjectWorkspace({ projectId: 'project-id' });
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    fixture.componentInstance.openFolder('voice-folder-id');
+
+    expect(navigate).toHaveBeenCalledWith(['/project-documents/folder', 'voice-folder-id'], {
+      replaceUrl: true,
+    });
+  });
+
+  it('rewrites leftover location query strings onto folder and project paths', async () => {
+    const api = {
+      listFolderContent: vi.fn().mockReturnValue(of(emptyFolderPage)),
+      getFolder: vi.fn().mockReturnValue(of({
+        id: 'folder-id',
+        name: 'Voice',
+        parentFolderId: null,
+        projectId: 'project-id',
+        scope: 'Project',
+        sortOrder: 0,
+        childFolderCount: 0,
+        documentCount: 1,
+        creatorDisplayName: 'Owner',
+        isArchived: false,
+      })),
+      listDocumentOwners: vi.fn().mockReturnValue(of([])),
+      listCategories: vi.fn().mockReturnValue(of([])),
+      listTags: vi.fn().mockReturnValue(of([])),
+      listProjects: vi
+        .fn()
+        .mockReturnValue(of({ items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 })),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [WorkspacePage],
+      providers: [
+        provideRouter([]),
+        { provide: ApiClient, useValue: api },
+        { provide: AuthService, useValue: { currentUser: () => null } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { data: { scope: 'Project' } },
+            paramMap: of(convertToParamMap({})),
+            queryParamMap: of(convertToParamMap({
+              projectId: 'project-id',
+              browseFolderId: 'folder-id',
+            })),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    TestBed.createComponent(WorkspacePage).detectChanges();
+
+    expect(navigate).toHaveBeenCalledWith(['/project-documents/folder', 'folder-id'], {
+      replaceUrl: true,
     });
   });
 });
@@ -168,6 +231,7 @@ describe('WorkspacePage document id copy (workspace mode)', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: { data: { scope: 'Personal' } },
+            paramMap: of(convertToParamMap({})),
             queryParamMap: queryParamMap.asObservable(),
           },
         },
@@ -360,6 +424,7 @@ describe('WorkspacePage file import', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: { data: { scope: 'Personal' } },
+            paramMap: of(convertToParamMap({})),
             queryParamMap: of(convertToParamMap({})),
           },
         },
@@ -480,6 +545,7 @@ describe('WorkspacePage file import', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: { data: { scope: 'Personal' } },
+            paramMap: of(convertToParamMap({})),
             queryParamMap: of(convertToParamMap({})),
           },
         },

@@ -345,7 +345,7 @@ test.describe('Workspace plan — UI acceptance', () => {
   test('left-clicking a Folder tile opens it in normal browse mode', async ({ page }) => {
     await page.goto('/knowledge');
     await page.locator('app-folder-tile', { hasText: seededRootName }).first().click();
-    await expect(page).toHaveURL(/browseFolderId=/);
+    await expect(page).toHaveURL(/\/knowledge\/folder\//);
     await expect(page.locator('aside.sidebar')).toBeVisible();
     await expect(page.locator('app-workspace-mode').first()).toBeHidden();
   });

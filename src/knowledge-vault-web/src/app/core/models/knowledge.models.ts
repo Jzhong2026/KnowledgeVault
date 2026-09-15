@@ -46,6 +46,11 @@ export interface KnowledgeItemSummary {
   updatedAt?: string | null;
 }
 
+export interface FolderPathSegment {
+  id: string;
+  name: string;
+}
+
 export interface KnowledgeItem extends KnowledgeItemSummary {
   content: string;
   sourceUrl?: string | null;
@@ -53,6 +58,8 @@ export interface KnowledgeItem extends KnowledgeItemSummary {
   changeNote?: string | null;
   publishedAt?: string | null;
   archivedAt?: string | null;
+  folderId?: string | null;
+  folderPath?: FolderPathSegment[];
 }
 
 export interface RevisionSummary {
