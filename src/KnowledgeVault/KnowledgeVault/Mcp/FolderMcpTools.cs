@@ -13,7 +13,7 @@ public sealed class FolderMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Create a personal or project folder under an optional parent folder. Project folders are immediately visible to project members.")]
     public Task<string> CreateFolder(
         [Description("Folder name (1-128 chars)")] string name,

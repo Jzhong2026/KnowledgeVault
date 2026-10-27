@@ -15,7 +15,7 @@ public sealed class ChatMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = true)]
     [Description("Ask the KnowledgeVault chatbot a natural-language question. Use this when a user asks about a story's plan, a review decision, project memory, or any other knowledge stored in the vault. Returns a textual answer plus a list of citations.")]
     public Task<string> AskKnowledgeVault(
         [Description("The user's question in natural language.")] string message,
@@ -46,7 +46,7 @@ public sealed class ChatMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Destructive = true, Idempotent = true)]
     [Description("Trigger a full reindex of the chatbot's knowledge base. Walks every document, revision, review, comment, and accepted memory candidate and rebuilds the vector store. Returns the reindex status.")]
     public Task<string> ReindexKnowledgeVault(CancellationToken cancellationToken = default)
     {

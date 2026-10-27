@@ -19,6 +19,7 @@ using KnowledgeVault.Providers.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi;
 using Microsoft.IdentityModel.Tokens;
+using ModelContextProtocol.Server;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
@@ -83,6 +84,8 @@ builder.Services.AddOptions<McpToolOptions>()
         $"Mcp:Tools:Profile must be '{McpToolProfile.BalancedProfile}' or '{McpToolProfile.FullProfile}'.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IPostConfigureOptions<ModelContextProtocol.Server.McpServerOptions>, McpToolCollectionPostConfigurator>();
+builder.Services.Configure<McpServerOptions>(options => options.ServerInstructions = McpServerInstructions.Text);
+builder.Services.AddSingleton<IConfigureOptions<McpServerOptions>, McpToolTelemetryConfigurator>();
 builder.Services.AddHttpClient<ILLMProvider, OpenAiCompatibleLlmProvider>()
     .ConfigureHttpClient((sp, client) =>
     {

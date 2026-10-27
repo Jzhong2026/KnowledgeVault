@@ -13,7 +13,7 @@ public sealed class DocumentReviewMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Request review of a fixed document revision from one or more project members.")]
     public Task<string> RequestDocumentReview(
         [Description("Document id (Guid)")] string documentId,
@@ -36,7 +36,7 @@ public sealed class DocumentReviewMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List document review assignments or requests visible to the API key owner.")]
     public Task<string> ListDocumentReviews(
         [Description("Optional project id (Guid)")] string? projectId = null,
@@ -65,7 +65,7 @@ public sealed class DocumentReviewMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Get a review bundle: document outline, unified diff vs the previous revision, comments, and assignments. Does not include full bodies.")]
     public Task<string> GetDocumentReviewContext(
         [Description("Document id (Guid)")] string documentId,
@@ -83,7 +83,7 @@ public sealed class DocumentReviewMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Approve a review assignment or request changes. ChangesRequested requires a decision comment.")]
     public Task<string> SubmitDocumentReview(
         [Description("Review id (Guid)")] string reviewId,
@@ -104,7 +104,7 @@ public sealed class DocumentReviewMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Cancel a pending review request. The requester or a document editor may cancel it.")]
     public Task<string> CancelDocumentReview(
         [Description("Review id (Guid)")] string reviewId,

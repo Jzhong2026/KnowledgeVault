@@ -11,7 +11,7 @@ public sealed class RevisionMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List a document's revision history, newest first. Metadata only.")]
     public Task<string> ListDocumentRevisions(
         [Description("Document id (Guid)")] string documentId,
@@ -31,7 +31,7 @@ public sealed class RevisionMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Get metadata and heading outline for a specific revision. Does not return the body; use get_document_content_range with revisionNumber.")]
     public Task<string> GetDocumentRevision(
         [Description("Document id (Guid)")] string documentId,
@@ -49,7 +49,7 @@ public sealed class RevisionMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Return a unified diff between two revisions. Large rewrites are truncated or skipped; use get_document_content_range for the rest.")]
     public Task<string> GetRevisionDiff(
         [Description("Document id (Guid)")] string documentId,

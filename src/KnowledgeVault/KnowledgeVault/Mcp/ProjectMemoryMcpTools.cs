@@ -14,7 +14,7 @@ public sealed class ProjectMemoryMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Get the shared MEMORY.md for a project by id.")]
     public Task<string> GetProjectMemory(
         [Description("Project id (Guid)")] string projectId,
@@ -30,7 +30,7 @@ public sealed class ProjectMemoryMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Submit a proposed Markdown addition to a section of project MEMORY.md for review.")]
     public Task<string> ProposeProjectMemoryUpdate(
         [Description("Project id (Guid)")] string projectId,
@@ -53,7 +53,7 @@ public sealed class ProjectMemoryMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List pending or resolved MEMORY.md change candidates for a project.")]
     public Task<string> ListProjectMemoryCandidates(
         [Description("Project id (Guid)")] string projectId,
@@ -71,7 +71,7 @@ public sealed class ProjectMemoryMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Accept a pending MEMORY.md candidate. Only a project owner or administrator can accept it.")]
     public Task<string> AcceptProjectMemoryCandidate(
         [Description("Project id (Guid)")] string projectId,
@@ -89,7 +89,7 @@ public sealed class ProjectMemoryMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Cancel a pending MEMORY.md candidate. Only a project owner or administrator can cancel it.")]
     public Task<string> CancelProjectMemoryCandidate(
         [Description("Project id (Guid)")] string projectId,

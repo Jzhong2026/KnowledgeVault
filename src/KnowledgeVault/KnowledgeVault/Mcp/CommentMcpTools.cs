@@ -12,7 +12,7 @@ public sealed class CommentMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List comments and replies attached to a specific document revision.")]
     public Task<string> ListRevisionComments(
         [Description("Document id (Guid)")] string documentId,
@@ -34,7 +34,7 @@ public sealed class CommentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Add a top-level comment to a document revision.")]
     public Task<string> AddRevisionComment(
         [Description("Document id (Guid)")] string documentId,
@@ -45,7 +45,7 @@ public sealed class CommentMcpTools(
         return AddCommentAsync(documentId, revisionNumber, content, parentCommentId: null, cancellationToken);
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Reply to an existing comment on the same document revision.")]
     public Task<string> ReplyToRevisionComment(
         [Description("Document id (Guid)")] string documentId,
@@ -62,7 +62,7 @@ public sealed class CommentMcpTools(
             cancellationToken);
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Edit a comment authored by the API key owner.")]
     public Task<string> UpdateRevisionComment(
         [Description("Comment id (Guid)")] string commentId,
@@ -80,7 +80,7 @@ public sealed class CommentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Resolve or reopen a revision comment. The author and document editors may perform this action.")]
     public Task<string> ResolveRevisionComment(
         [Description("Comment id (Guid)")] string commentId,
@@ -98,7 +98,7 @@ public sealed class CommentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Destructive = true, Idempotent = true)]
     [Description("Delete a comment authored by the API key owner.")]
     public Task<string> DeleteRevisionComment(
         [Description("Comment id (Guid)")] string commentId,

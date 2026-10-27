@@ -13,7 +13,7 @@ public sealed class DocumentMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Search accessible documents by title, summary, or body; metadata only.")]
     public Task<string> SearchKnowledgeItems(
         [Description("Search text")] string query,
@@ -46,7 +46,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List project documents with optional type, topic, status, and text filters; metadata only.")]
     public Task<string> ListProjectDocuments(
         [Description("Project Guid")] string projectId,
@@ -81,7 +81,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Get document head, hash, and outline; never returns the body.")]
     public Task<string> GetKnowledgeItem(
         [Description("Document Guid")] string id,
@@ -99,7 +99,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Get heading ranges for a document.")]
     public Task<string> GetDocumentOutline(
         [Description("Document Guid")] string documentId,
@@ -121,7 +121,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Read one bounded Markdown slice by heading, lines, or offset (max 24000 chars).")]
     public Task<string> GetDocumentContentRange(
         [Description("Document Guid")] string documentId,
@@ -146,7 +146,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Find text or regex in one document; max 20 clipped hits with context.")]
     public Task<string> SearchInDocument(
         [Description("Document Guid")] string documentId,
@@ -168,7 +168,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List descendant folders and documents; metadata only.")]
     public Task<string> ListFolderContents(
         [Description("Root folder Guid; root is excluded")] string folderId,
@@ -183,7 +183,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Create a document; returns metadata and hash, not the body.")]
     public Task<string> CreateDocument(
         [Description("Document title")] string title,
@@ -224,7 +224,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Replace body or metadata. Omit content to keep body; prefer apply_document_patch.")]
     public Task<string> UpdateDocument(
         [Description("Document Guid")] string documentId,
@@ -264,7 +264,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(OpenWorld = false)]
     [Description("Apply exact search/replace hunks atomically in one revision.")]
     public Task<string> ApplyDocumentPatch(
         [Description("Document Guid")] string documentId,
@@ -290,7 +290,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Update status, category, tags, topic, or folder without a revision or body.")]
     public Task<string> UpdateDocumentMetadata(
         [Description("Document Guid")] string documentId,
@@ -314,7 +314,7 @@ public sealed class DocumentMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(Idempotent = true, OpenWorld = false)]
     [Description("Move a document to a folder or the workspace root; metadata only.")]
     public Task<string> MoveDocument(
         [Description("Document Guid")] string documentId,

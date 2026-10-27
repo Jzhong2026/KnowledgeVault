@@ -12,7 +12,7 @@ public sealed class ProjectMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List projects visible to the API key owner.")]
     public Task<string> ListProjects(
         [Description("Optional project name or description search")] string? search = null,
@@ -31,7 +31,7 @@ public sealed class ProjectMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("Get a project and its members when the API key owner belongs to the project.")]
     public Task<string> GetProject(
         [Description("Project id (Guid)")] string projectId,
@@ -52,7 +52,7 @@ public sealed class ProjectMcpTools(
         });
     }
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List project members so a document review can be assigned to developers or agents acting for those users.")]
     public Task<string> ListProjectMembers(
         [Description("Project id (Guid)")] string projectId,

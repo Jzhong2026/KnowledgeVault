@@ -11,7 +11,7 @@ public sealed class CategoryMcpTools(
     IServiceScopeFactory scopeFactory,
     McpRequestAuthorizer authorizer) : McpOperation(scopeFactory, authorizer)
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true, Destructive = false, OpenWorld = false)]
     [Description("List document categories available to the API key owner.")]
     public Task<string> ListCategories(
         [Description("Include archived categories")] bool includeArchived = false,
